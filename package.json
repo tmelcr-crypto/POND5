@@ -1,0 +1,19 @@
+{
+  "name": "meadow-pond",
+  "version": "1.0.0",
+  "description": "First-person, procedurally generated 10 x 10 m meadow diorama in three.js: pond, spruce, apple tree, rose bush, rock outcrop and a furnished log cabin with a day/night cycle.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "npx --yes serve ."
+  },
+  "dependencies": {
+    "three": "0.128.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

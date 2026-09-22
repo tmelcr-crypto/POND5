@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meadow pond, a first-person three.js scene</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles/main.css">
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<canvas id="c" tabindex="0" aria-label="3D meadow scene"></canvas>
+<div id="cross"></div>
+
+<div id="intro">
+  <div class="card glass">
+    <h1>Meadow pond</h1>
+    <p>A ten-by-ten-metre meadow with a pond, a spruce, an apple tree and a furnished log cabin you can walk into. A crackling fireplace, lamps and lanterns light it; slide the time into the night to see them glow. You are a free-floating camera: fly anywhere.</p>
+    <dl class="keys desk-only">
+      <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>Fly in the direction you look</dd>
+      <dt><kbd>Space</kbd><kbd>Q</kbd></dt><dd>Rise and sink</dd>
+      <dt><kbd>Shift</kbd></dt><dd>Hold to go faster; scroll wheel sets speed</dd>
+      <dt><kbd>Mouse</kbd></dt><dd>Look around; <kbd>Esc</kbd> frees the cursor</dd>
+      <dt><kbd>F</kbd><kbd>L</kbd></dt><dd>Cabin door, cabin lights</dd>
+    </dl>
+    <dl class="keys touch-only">
+      <dt><kbd>Left</kbd></dt><dd>Drag on the left half to fly</dd>
+      <dt><kbd>Right</kbd></dt><dd>Drag on the right half to look</dd>
+      <dt><kbd>Up</kbd><kbd>Down</kbd></dt><dd>Hold the round buttons to rise and sink</dd>
+      <dt><kbd>Door</kbd></dt><dd>Appears near the cabin to open or close it</dd>
+    </dl>
+    <button id="start">Start exploring</button>
+  </div>
+</div>
+
+<div id="hint" class="glass hide"></div>
+
+<div class="panel glass" id="panel">
+  <p class="ttl">Meadow pond</p>
+  <button id="toggle" aria-expanded="true">Hide</button>
+  <div class="row"><label for="time">Time of day <b id="timeV">16:30</b></label><input id="time" type="range" min="4.5" max="23.5" step="0.05" value="16.5"></div>
+  <div class="row"><label for="wind">Wind <b id="windV">Breeze</b></label><input id="wind" type="range" min="0" max="1.6" step="0.01" value="0.6"></div>
+  <div class="row"><label for="speed">Flight speed <b id="speedV">2.2 m/s</b></label><input id="speed" type="range" min="0.3" max="10" step="0.1" value="2.2"></div>
+  <div class="row sw"><span>Cabin lights</span><button id="lightsBtn" aria-pressed="true">On</button></div>
+  <div class="foot"><span id="posV">x 0.0 y 0.0 z 0.0</span><span id="fpsV">– fps</span></div>
+</div>
+
+<div id="joy"><div id="knob"></div></div>
+<div id="vbtns">
+  <button class="tbtn glass" id="btnDoor" aria-label="Open or close the door" style="display:none">Door</button>
+  <button class="tbtn glass" id="btnUp" aria-label="Rise">Up</button>
+  <button class="tbtn glass" id="btnDown" aria-label="Sink">Down</button>
+</div>
+<div id="act" class="glass hide"><kbd>F</kbd> open or close the door</div>
+<div id="touchHelp">Left side flies, right side looks</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
