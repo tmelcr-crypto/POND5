@@ -4,11 +4,13 @@ import { U } from './core/uniforms.js';
 import { WATER_Y } from './world/layout.js';
 import { createEngine } from './engine/createEngine.js';
 import { finalizeScene } from './engine/finalizeScene.js';
+import { mergeStatic } from './engine/mergeStatic.js';
 import { createSharedTextures } from './world/sharedTextures.js';
 import { createSky } from './world/sky.js';
 import { createLights } from './world/lights.js';
-import { createTerrain } from './world/terrain.js';
-import { createSoilSkirt } from './world/soilSkirt.js';
+import { createTerrain, createWorldTerrain } from './world/terrain.js';
+import { createGroundTexture, createWorldGrass } from './world/grass.js';
+import { createScatter } from './world/scatter.js';
 import { createTimeOfDay } from './world/timeOfDay.js';
 import { createPond } from './assets/water/pond.js';
 import { createGrass } from './assets/vegetation/grass.js';
@@ -24,6 +26,7 @@ import { createRoseBush } from './assets/vegetation/roseBush.js';
 import { createCabin } from './assets/cabin/cabin.js';
 import { createPollen } from './assets/fauna/pollen.js';
 import { createControls } from './app/controls.js';
+import { createDebugOverlay } from './app/debugOverlay.js';
 
 if (isTouch) document.body.classList.add('touch');
 
@@ -33,9 +36,8 @@ ctx.tex = createSharedTextures(ctx.maxAniso);
 
 // World. NOTE: keep this order - every builder draws from one seeded random stream (src/core/random.js).
 const { sky, skyUniforms, rebuildEnv } = createSky(ctx);
-const { sun, hemi } = createLights(ctx);
+const { sun, hemi, follow: followSun } = createLights(ctx);
 createTerrain(ctx);
-createSoilSkirt(ctx);
 createPond(ctx);
 createGrass(ctx);
 createSpruce(ctx);
@@ -49,6 +51,11 @@ createRockOutcrop(ctx);
 createRoseBush(ctx);
 const { cabin, setLights, toggleDoor, update: updateCabin } = createCabin(ctx);
 const { pollen, update: updatePollen } = createPollen(ctx);
+const plotObjects = ctx.scene.children.length;
+// The 100 x 100 m world around the plot (seeded separately via CONFIG.world.seed, so the plot above is unchanged)
+createWorldTerrain(ctx);
+const worldGrass = createWorldGrass(ctx, createGroundTexture());
+const scatter = createScatter(ctx);
 const { setSun, scheduleEnv } = createTimeOfDay({ ...ctx, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin });
 
 // Controls + UI
@@ -62,10 +69,13 @@ document.getElementById('lightsBtn').addEventListener('click', () => setLights(!
 const posV = document.getElementById('posV'), fpsV = document.getElementById('fpsV');
 let last = performance.now(), fAcc = 0, fN = 0;
 function frame(now) {
-  const dt = Math.min((now - last) / 1000, 0.05); last = now;
+  const dt = Math.min(Math.max((now - last) / 1000, 0), 0.05); last = now;
   const t = (U.uTime.value += dt);
   move(dt);
   sky.position.copy(camera.position);
+  followSun(camera.position);
+  worldGrass.update(camera.position);
+  camera.updateMatrixWorld(); scatter.update(camera);
   updateCabin(dt, t);
   const nearDoor = camera.position.distanceTo(cabin.door.world) < 2.8;
   if (nearDoor !== st.nearDoor) { st.nearDoor = nearDoor; actEl.classList.toggle('hide', !(nearDoor && st.playing && !isTouch)); btnDoor.style.display = nearDoor && st.playing ? '' : 'none'; }
@@ -73,12 +83,16 @@ function frame(now) {
   updateButterflies(flies, t);
   updatePollen(t);
   renderer.render(scene, camera);
+  debug.frame(now);
   fAcc += dt; fN++;
   if (fAcc > 0.5) { fpsV.textContent = Math.round(fN / fAcc) + ' fps'; posV.textContent = `x ${st.pos.x.toFixed(1)}  y ${st.pos.y.toFixed(1)}  z ${st.pos.z.toFixed(1)}`; fAcc = 0; fN = 0; }
   requestAnimationFrame(frame);
 }
 
+const cabinMerge = mergeStatic(cabin.group, { ...cabin, group: null }); // ~360 cabin meshes -> a few dozen draw calls, same look
 finalizeScene(scene, cabin.group);
+const debug = createDebugOverlay(renderer, { scatter, worldGrass });
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 setSun(+timeIn.value); timeV.textContent = fmtTime(+timeIn.value); scheduleEnv(true); setSpeed(2.2);
 move(0);

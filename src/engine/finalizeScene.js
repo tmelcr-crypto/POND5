@@ -5,14 +5,15 @@ import { V } from '../core/math.js';
  * Run once after every asset is built:
  *  1. Outdoor materials skip point lights, so the cabin's lamps and fire never leak through the log walls.
  *  2. Give each material a unique program cache key (several share onBeforeCompile source text).
- *  3. Fit bounding spheres of InstancedMeshes to their instances so frustum culling works.
+ *  3. Fit bounding spheres of InstancedMeshes to their instances so frustum culling works
+ *     (skipped for userData.dynamic meshes, whose instances are culled per frame by the world scatter).
  */
 export function finalizeScene(scene, cabinGroup) {
     const NO_POINT = THREE.ShaderChunk.lights_fragment_begin.replace('#if ( NUM_POINT_LIGHTS > 0 ) && defined( RE_Direct )', '#if 0');
     const cabinMats = new Set(); cabinGroup.traverse(o => { if (o.material) [].concat(o.material).forEach(m => cabinMats.add(m)); });
     let pid = 0;
     scene.traverse(o => {
-      if (o.isInstancedMesh) {
+      if (o.isInstancedMesh && !o.userData.dynamic) {
         const box = new THREE.Box3(), pp = new V(), mm = new THREE.Matrix4();
         for (let i = 0; i < o.count; i++) { o.getMatrixAt(i, mm); box.expandByPoint(pp.setFromMatrixPosition(mm)); }
         o.geometry.computeBoundingSphere(); const gs = o.geometry.boundingSphere.radius, sph = box.getBoundingSphere(new THREE.Sphere()); sph.radius += gs * 1.6 + 0.3; o.geometry.boundingSphere = sph;

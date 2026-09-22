@@ -34,3 +34,31 @@ export function limb(a, b, r0, r1, radial = 8, hs = 1) {
   g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(UPV, d.normalize()))); g.translate(a.x, a.y, a.z); return g;
 }
 export function joint(p, r) { const g = new THREE.SphereGeometry(r, 8, 6); g.translate(p.x, p.y, p.z); return g; }
+/**
+ * Card batch: collects alpha-tested quads (position, normal, uv, color) into one BufferGeometry.
+ * add(p, xAxis, yAxis, w, h, color, n) puts a w x h card with its bottom-centre at p (yAxis = up the card),
+ * normal n (defaults to the card's face normal). Used by the scatter prototypes.
+ */
+export function cardBatch() {
+  const pos = [], nor = [], uv = [], col = [], idx = [];
+  const face = new THREE.Vector3();
+  return {
+    add(p, X, Y, w, h, c, n) {
+      const b = pos.length / 3; if (!n) n = face.crossVectors(X, Y).normalize();
+      const corners = [[-0.5, 0], [0.5, 0], [-0.5, 1], [0.5, 1]];
+      for (const [u, v] of corners) { pos.push(p.x + X.x * u * w + Y.x * v * h, p.y + X.y * u * w + Y.y * v * h, p.z + X.z * u * w + Y.z * v * h); nor.push(n.x, n.y, n.z); uv.push(u + 0.5, v); col.push(c.r, c.g, c.b); }
+      idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+    },
+    geometry() {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
+      return g;
+    },
+  };
+}
+/** Merge indexed or non-indexed geometries into one non-indexed geometry, painting a constant vertex colour on each. */
+export function mergeColored(list, color) {
+  list.forEach(g => { if (!g.attributes.color) { const n = g.attributes.position.count, c = new Float32Array(n * 3); for (let i = 0; i < n; i++) { c[i * 3] = color.r; c[i * 3 + 1] = color.g; c[i * 3 + 2] = color.b; } g.setAttribute('color', new THREE.BufferAttribute(c, 3)); } });
+  return mergeGeos(list, ['position', 'normal', 'uv', 'color']);
+}

@@ -1,10 +1,13 @@
-import { smooth } from '../core/math.js';
+import { clamp, smooth } from '../core/math.js';
 import { fbm2 } from '../core/noise.js';
+import { CONFIG } from '../config.js';
 
 /**
- * Site plan of the 10 x 10 m plot (world units = metres, y up, plot spans -5..5 on x and z).
- * Positions of every asset live here, plus H(x, z): the terrain height function that
- * everything else samples (lake basin, gentle hills, flattened pad under the cabin).
+ * Site plan (world units = metres, y up). The authored 10 x 10 m plot spans -5..5 on x and z and sits in the
+ * middle of the 100 x 100 m world. Positions of every diorama asset live here, plus H(x, z): the terrain height
+ * function that everything samples. Inside the plot H is the original diorama terrain (lake basin, gentle
+ * hills, flattened pad under the cabin); outside it blends into seeded rolling hills that rise at the border.
+ * The world biome (forest density) and the scatter exclusion zones live here too.
  */
 export const HALF = 5, WATER_Y = 0.0, BOTTOM = -1.5;
 export const LAKE = { x: 1.45, z: 0.85 };
@@ -21,7 +24,7 @@ export const CON = { x: -3.0, z: -2.55 };
 export const APP = { x: -2.35, z: 2.45 };
 export function lakeR(a) { return 1.85 + 0.3 * Math.sin(3 * a + 1.0) + 0.17 * Math.sin(5 * a + 2.3) + 0.09 * Math.sin(7 * a + 0.4); }
 export function lakeD(x, z) { const dx = x - LAKE.x, dz = z - LAKE.z; return Math.hypot(dx, dz) / lakeR(Math.atan2(dz, dx)); }
-export function H(x, z) {
+export function dioramaH(x, z) {
   const d = lakeD(x, z);
   let h = 0.035 + 0.08 * fbm2(x * 0.28 + 3.1, z * 0.28 - 1.7) * smooth(0.9, 1.6, d) + 0.02 * fbm2(x * 1.6 + 9, z * 1.6 - 4, 3) + 0.28 * smooth(0.95, 2.2, d) + 0.08 * smooth(2.2, 4.5, d) * (0.5 + fbm2(x * 0.5, z * 0.5));
   h += 0.08 * Math.exp(-((x - CON.x) ** 2 + (z - CON.z) ** 2) / 3.0) + 0.05 * Math.exp(-((x - APP.x) ** 2 + (z - APP.z) ** 2) / 2.5);
@@ -30,3 +33,52 @@ export function H(x, z) {
   const kf = 1 - smooth(0.05, 0.9, houseRectDist(x, z));
   return hh * (1 - kf) + PAD_H * kf;
 }
+
+/* ---- the 100 x 100 m world around the plot ---- */
+const WC = CONFIG.world, TC = CONFIG.terrain, SC = CONFIG.scatter;
+export const WORLD_HALF = WC.size / 2;
+// seed -> noise-space offsets (the value noise itself is unseeded, so the seed moves the sample window)
+const SX = (WC.seed * 12.9898) % 911 + 37.1, SZ = (WC.seed * 78.233) % 877 - 51.7;
+/** Distance outside the square that keeps the exact diorama terrain (0 inside it). */
+export function coreDist(x, z) { return Math.hypot(Math.max(Math.abs(x) - WC.coreHalf, 0), Math.max(Math.abs(z) - WC.coreHalf, 0)); }
+/** Distance to the world border (box metric; negative outside). */
+export function edgeDist(x, z) { return WORLD_HALF - Math.max(Math.abs(x), Math.abs(z)); }
+/** Rolling hills: flat near the plot, fuller further out, rising towards (and past) the border. */
+export function hillsH(x, z) {
+  const f = 1 / TC.hillScale, grow = smooth(0, 24, coreDist(x, z));
+  let h = 0.36 + grow * (TC.hillHeight * (0.5 + fbm2(x * f + SX, z * f + SZ, 3)) + TC.detailHeight * fbm2(x * 0.21 - SZ, z * 0.21 + SX, 3));
+  const e = Math.max(Math.abs(x), Math.abs(z)), rise = smooth(TC.edgeRiseStart, WORLD_HALF + 12, e);
+  h += TC.edgeRise * rise * rise * (0.8 + 0.5 * fbm2(x * 0.06 + SZ, z * 0.06 - SX, 2)) + Math.max(0, e - WORLD_HALF) * 0.35;
+  return h;
+}
+/** Terrain height everywhere. Exactly dioramaH() inside the plot, so every authored asset sits where it did. */
+export function H(x, z) {
+  const q = coreDist(x, z);
+  if (q <= 0) return dioramaH(x, z);
+  const w = smooth(0, WC.coreBlend, q);
+  return dioramaH(x, z) * (1 - w) + hillsH(x, z) * w;
+}
+/** Spruce forest density 0..1: a dense tree line along the border plus noise-driven groves, open meadow in the middle. */
+export function forest(x, z) {
+  const line = 1 - smooth(0, SC.treeLineWidth, edgeDist(x, z));
+  const groves = smooth(0.1, 0.32, fbm2(x * 0.045 + SZ, z * 0.045 + SX, 3)) * 0.85;
+  const r = Math.hypot(x, z), clear = smooth(SC.clearingRadius, SC.clearingRadius + 12, r);
+  return clamp(Math.max(line, groves * smooth(SC.clearingRadius + 4, SC.clearingRadius + 20, r)) * clear);
+}
+/** Walkable path from the cabin steps to the pond shore (a capsule; scatter and world grass keep it clear). */
+export const PATH = (() => {
+  const a = { x: HOUSE.x + 0.95, z: HOUSE.z + CB.ZW + 0.85 }, ang = Math.atan2(a.z - LAKE.z, a.x - LAKE.x), r = lakeR(ang) * 1.05;
+  return { a, b: { x: LAKE.x + Math.cos(ang) * r, z: LAKE.z + Math.sin(ang) * r } };
+})();
+function segDist(x, z, a, b) { const vx = b.x - a.x, vz = b.z - a.z, t = clamp(((x - a.x) * vx + (z - a.z) * vz) / (vx * vx + vz * vz)); return Math.hypot(x - a.x - vx * t, z - a.z - vz * t); }
+/**
+ * Exclusion zones for scattered trees and rocks. Each entry returns a signed distance (< 0 inside).
+ * Register more with EXCLUSIONS.push(fn) before the scatter runs (for example for a new building).
+ */
+export const EXCLUSIONS = [
+  (x, z) => Math.max(Math.abs(x), Math.abs(z)) - (WC.coreHalf + 0.5),                        // the authored plot itself
+  (x, z) => houseRectDist(x, z) - 3,                                                          // cabin + yard
+  (x, z) => (lakeD(x, z) - 1) * lakeR(Math.atan2(z - LAKE.z, x - LAKE.x)) - 2.5,              // pond + shore
+  (x, z) => segDist(x, z, PATH.a, PATH.b) - SC.pathWidth / 2,                                 // cabin -> pond path
+];
+export function excluded(x, z, margin = 0) { for (const f of EXCLUSIONS) if (f(x, z) < margin) return true; return false; }

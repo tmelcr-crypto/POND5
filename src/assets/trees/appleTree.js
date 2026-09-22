@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { isTouch } from '../../core/env.js';
 import { rng, rr } from '../../core/random.js';
 import { V, clamp, lin } from '../../core/math.js';
-import { mergeGeos, limb, joint } from '../../core/geometry.js';
-import { addFlutter } from '../../core/shaderPatches.js';
+import { mergeGeos, limb, joint, cardBatch, mergeColored } from '../../core/geometry.js';
+import { canvasTex } from '../../core/canvasTexture.js';
+import { addFlutter, addWorldSway, dampSpecular } from '../../core/shaderPatches.js';
 import { APP, H } from '../../world/layout.js';
 
 /**
@@ -128,4 +129,61 @@ export function createAppleTree(ctx) {
     scene.add(am, stems);
   }
   return { blobs };
+}
+
+/**
+ * Scatter prototype of the apple tree for the wider world: the same recursive branching, but the crown is made of
+ * leaf-cluster cards (a canvas of ~40 leaves and a few apples) instead of 23k single leaves.
+ * Returns 2 mesh LODs in local space (base at the origin). Draws from the shared random stream: call setSeed() first.
+ */
+export function createApplePrototype(ctx) {
+  const { barkTex } = ctx.tex;
+  const clusterTex = canvasTex(256, 256, (g) => {
+    const leaf = (x, y, a, s, c) => { g.save(); g.translate(x, y); g.rotate(a); g.scale(s, s); g.beginPath(); g.moveTo(0, -20); g.bezierCurveTo(14, -12, 13, 10, 0, 20); g.bezierCurveTo(-13, 10, -14, -12, 0, -20); g.fillStyle = c; g.fill(); g.strokeStyle = 'rgba(214,236,160,.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, -18); g.lineTo(0, 18); g.stroke(); g.restore(); };
+    for (let i = 0; i < 70; i++) {
+      const a = rng() * 6.28, r = Math.sqrt(rng()) * 100, x = 128 + Math.cos(a) * r, y = 128 + Math.sin(a) * r * 0.9;
+      const k = 0.7 + rng() * 0.45, gr = (95 + rng() * 60) * k;
+      leaf(x, y, rng() * 6.28, 0.9 + rng() * 0.6, `rgb(${gr * 0.55 | 0},${gr | 0},${gr * 0.33 | 0})`);
+    }
+    for (let i = 0; i < 4; i++) { const a = rng() * 6.28, r = Math.sqrt(rng()) * 70; g.fillStyle = ['#b3201a', '#c9331f', '#9e1b1b'][i % 3]; g.beginPath(); g.arc(128 + Math.cos(a) * r, 128 + Math.sin(a) * r, 7, 0, 6.28); g.fill(); }
+  });
+  function build(lod) {
+    const full = lod === 0, bark = [], blobs = [];
+    function grow(a, dir, len, r, depth) {
+      const b = a.clone().addScaledVector(dir, len);
+      bark.push(limb(a, b, r, r * 0.7, full ? 7 : 4));
+      if (depth <= 1) blobs.push({ c: b.clone().add(new V(0, 0.1, 0)), r: rr(0.45, 0.6) * (depth === 0 ? 1 : 1.2) });
+      if (depth === (full ? 0 : 1)) return;
+      const n = depth === 3 ? 3 : (rng() < 0.55 ? 2 : 3), base = rng() * Math.PI * 2;
+      for (let i = 0; i < n; i++) {
+        const az = base + i * 2 * Math.PI / n + rr(-0.3, 0.3), spread = (depth === 3 ? 0.68 : 0.52) + rng() * 0.22;
+        const perp = new V(Math.cos(az), 0, Math.sin(az)); perp.sub(dir.clone().multiplyScalar(perp.dot(dir))).normalize();
+        const nd = dir.clone().multiplyScalar(Math.cos(spread)).addScaledVector(perp, Math.sin(spread)).normalize(); nd.y = Math.max(nd.y, 0.22); nd.normalize();
+        grow(b, nd, len * rr(0.68, 0.8), r * 0.63, depth - 1);
+      }
+    }
+    bark.push(limb(new V(0, -0.1, 0), new V(0, 0.3, 0), 0.25, 0.16, full ? 10 : 5));
+    grow(new V(0, 0.2, 0), new V(0.1, 1, 0.06).normalize(), 1.1, 0.15, 3);
+    const cc = new V(); blobs.forEach(b => cc.add(b.c)); cc.multiplyScalar(1 / blobs.length);
+    const cards = cardBatch(), X = new V(), Y = new V(), N = new V();
+    const per = full ? 18 : 7;
+    blobs.forEach(b => {
+      for (let k = 0; k < per; k++) {
+        const d = new V(rr(-1, 1), rr(-0.6, 1), rr(-1, 1)).normalize(), p = b.c.clone().addScaledVector(d, b.r * rr(0.3, 1.0));
+        N.copy(p).sub(cc).normalize().add(new V(0, 0.6, 0)).normalize();
+        Y.set(rr(-1, 1), rr(-0.3, 1), rr(-1, 1)).normalize(); X.crossVectors(Y, new V(rr(-1, 1), rr(-1, 1), rr(-1, 1))).normalize();
+        const sz = (full ? 0.62 : 1.05) * rr(0.85, 1.15), shade = 0.5 + 0.35 * clamp(p.distanceTo(cc) / 1.6);
+        cards.add(p.clone().addScaledVector(Y, -sz * 0.5), X, Y, sz, sz, new THREE.Color(rr(0.85, 1.05) * shade, rr(0.9, 1.08) * shade, rr(0.7, 0.9) * shade), N);
+      }
+    });
+    return { bark: mergeColored(bark, new THREE.Color(1, 1, 1)), foliage: cards.geometry(), top: blobs.reduce((m, b) => Math.max(m, b.c.y + b.r), 0) };
+  }
+  const barkMat = new THREE.MeshStandardMaterial({ map: barkTex, color: lin(0x9a9082), roughness: 0.9 });
+  const leafMat = new THREE.MeshStandardMaterial({ map: clusterTex, vertexColors: true, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.85, envMapIntensity: 0.35 });
+  addWorldSway(leafMat, 0.004);
+  dampSpecular(leafMat, 0.15);
+  const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: clusterTex, alphaTest: 0.5 });
+  let top = 3;
+  const lods = [0, 1].map(l => { const b = build(l); if (l === 0) top = b.top; return { parts: [{ geometry: b.bark, material: barkMat, castShadow: true }, { geometry: b.foliage, material: leafMat, castShadow: true, depthMaterial: depth }] }; });
+  return { name: 'apple', height: top + 0.2, width: 3.4, trunkRadius: 0.28, lods };
 }
