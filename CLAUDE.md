@@ -10,13 +10,16 @@ Meadow Pond: a first-person three.js scene. A hand-tuned 10 x 10 m meadow dioram
 built entirely from procedural geometry and canvas-drawn textures. There are no model
 or image files in the repo.
 
-The current goal is to grow it into a streaming 500 x 500 m world while keeping the
-existing close-up quality near the camera. See `ROADMAP.md`.
+The diorama now sits in the middle of a seeded 100 x 100 m world (hills, forest, scatter,
+GPU grass; see README "The world around the plot"). All world tunables are in `src/config.js`.
+The longer-term goal is a streaming 500 x 500 m world while keeping the existing close-up
+quality near the camera. See `ROADMAP.md`.
 
 ## Read these before changing anything
 
 - `README.md` — structure, the asset factory pattern, build order and the seeded RNG
 - `src/world/layout.js` — site plan and `H(x, z)`, the terrain height function everything samples
+- `src/config.js` — world size, seed, grass, tree counts, LOD distances, shadows, fog, player
 - `src/main.js` — build order and the render loop
 - `src/assets/trees/spruce.js`, `src/assets/vegetation/grass.js` — the two heaviest assets
 
@@ -34,7 +37,8 @@ existing close-up quality near the camera. See `ROADMAP.md`.
 - **Quality bar:** anything within ~15 m of the camera must keep the current diorama quality.
 - **Build order matters.** Every asset draws from one seeded random stream
   (`src/core/random.js`), so the order of the calls in `src/main.js` defines the exact look.
-  Add new assets at the end, or call `setSeed()` to isolate one.
+  Add new assets at the end, or call `setSeed()` to isolate one. The world (`createWorldTerrain`,
+  `createWorldGrass`, `createScatter`) is built after the plot and reseeds with `CONFIG.world.seed`.
 - `standalone/meadow-pond.html` is a frozen reference copy of the original single-file
   build. Do not edit or "keep it in sync".
 
@@ -81,7 +85,12 @@ the scene gets tested on the iPad.
 
 ## Performance notes (current scene)
 
-- Grass: ~64k instanced blades, GPU wind, never casts shadows.
+- Use the Stats overlay (top-right button). `renderer.info` in r128 excludes the shadow pass; the
+  overlay shows the total and the main pass separately.
+- The plot alone costs ~330 draw calls / 1.65M triangles on touch at the start view (incl. shadows);
+  the world adds ~45 calls / ~0.5M. Cabin meshes are merged by `engine/mergeStatic.js`.
+- Plot grass: ~64k instanced blades (30k touch), GPU wind, never casts shadows. World grass: rings in
+  `world/grass.js`, also no shadows.
 - Apple tree: ~23k individual leaf cards. Spruce: ~10k needle sprays. Both merged at build time.
 - Pixel ratio capped at 1.5 on touch devices; shadow map 2048 there, 4096 on desktop.
 - The fireplace point light casts shadows on desktop only.
