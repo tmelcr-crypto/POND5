@@ -144,10 +144,13 @@ export function createRoseBush(ctx) {
   mesh is one 200 x 200 heightmap (plus a coarse horizon ring, same draw call) cut out under the plot, whose finer
   ground mesh stays as it was. One shader blends grass (vertex colour x detail texture), dirt / forest floor and
   rock by slope and a soil mask.
-- **Grass** (`world/grass.js`): only outside the plot (the plot keeps its 64k blades). Three rings of instanced
-  clumps follow the camera on grids snapped to their cell size; the vertex shader reads height and density from a
-  baked half-float texture, thins blades out to zero at `CONFIG.grass.radius` and widens the survivors so the
-  coverage stays even. Rings are split into 12 sectors so the ones behind the camera are culled.
+- **Grass** (`world/grass.js`): only outside the plot (the plot keeps its 64k blades). Density matches the plot
+  (`CONFIG.grass.density`: 300 blades/m2 on touch, 640 on desktop) out to 8 m, then falls off continuously as
+  `d(r) = full * ((18 - r) / 10)^2`, clumped with low-frequency noise. The vertex shader drops a blade when its
+  threshold exceeds `d(r)`, reading height and density from a baked half-float texture; nothing is rebuilt on the
+  CPU. Camera-following rings only set the geometry cost (cell size from the density at each ring's inner edge,
+  cheaper blades further out); each cell shifts its blade layout by its own hash so no grid shows. Rings are split
+  into 8 sectors so the ones behind the camera are culled.
 - **Trees and rocks** (`world/scatter.js`): seeded Poisson-style placement driven by `forest(x, z)`, kept out of
   `EXCLUSIONS` (plot, cabin yard, pond, cabin -> pond path; push more to add zones). Each prototype has a full and a
   simplified mesh LOD and a camera-facing billboard rendered from the full mesh at load. Instances are re-bucketed

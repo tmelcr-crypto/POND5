@@ -88,9 +88,11 @@ the scene gets tested on the iPad.
 - Use the Stats overlay (top-right button). `renderer.info` in r128 excludes the shadow pass; the
   overlay shows the total and the main pass separately.
 - The plot alone costs ~330 draw calls / 1.65M triangles on touch at the start view (incl. shadows);
-  the world adds ~45 calls / ~0.5M. Cabin meshes are merged by `engine/mergeStatic.js`.
+  the world adds ~45 calls / ~1.35M, most of it world grass matched to the plot's density out to 18 m
+  (~126k live blades on touch). Cabin meshes are merged by `engine/mergeStatic.js`.
 - Plot grass: ~64k instanced blades (30k touch), GPU wind, never casts shadows. World grass: rings in
-  `world/grass.js`, also no shadows.
+  `world/grass.js` (density / radius in `config.js`), also no shadows; only ~1/3 of submitted blade slots
+  end up visible, the rest are discarded in the vertex shader.
 - Apple tree: ~23k individual leaf cards. Spruce: ~10k needle sprays. Both merged at build time.
 - Pixel ratio capped at 1.5 on touch devices; shadow map 2048 there, 4096 on desktop.
 - The fireplace point light casts shadows on desktop only.

@@ -26,15 +26,18 @@ export function createGroundTexture() {
   return { tex, N, ext, st, data, scale: 1 / (2 * ext + st), offset: ext + st / 2 };
 }
 
-/** Clump of `blades` blades with `segs` quads each (0 = a single triangle), baked into one geometry. */
+/**
+ * One grid cell's worth of blades: `blades` blades with `segs` quads each (0 = a single triangle).
+ * aBlade = (x, z in the unit cell [0, 1), facing angle, keep threshold); the shader shifts the layout per cell.
+ */
 function clumpGeometry(blades, segs, seed) {
   const levels = segs === 2 ? [[0, 1], [0.45, 0.72], [0.8, 0.36]] : segs === 1 ? [[0, 1], [0.55, 0.55]] : [[0, 1]];
   const pos = [], uv = [], bl = [], idx = [];
   let r = seed;
   const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
   for (let b = 0; b < blades; b++) {
-    const base = pos.length / 3, a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()), ang = rnd() * Math.PI * 2, rv = rnd();
-    const blade = [Math.cos(a) * d, Math.sin(a) * d, ang, rv];
+    const base = pos.length / 3, ang = rnd() * Math.PI * 2;
+    const blade = [rnd(), rnd(), ang, (b + rnd()) / blades]; // stratified thresholds: any kept fraction is spread evenly
     levels.forEach(([y, w]) => { const z = y * y * 0.32; pos.push(-w * 0.5, y, z, w * 0.5, y, z); uv.push(0, y, 1, y); bl.push(...blade, ...blade); });
     pos.push(0, 1, 0.34); uv.push(0.5, 1); bl.push(...blade);
     for (let l = 0; l < levels.length - 1; l++) { const p = base + 2 * l; idx.push(p, p + 1, p + 2, p + 1, p + 3, p + 2); }
@@ -50,35 +53,43 @@ function clumpGeometry(blades, segs, seed) {
 }
 
 /**
- * GPU grass for the world outside the plot (the plot keeps its own 64k-blade grass).
- * Camera-following rings of clumps: each ring is instanced over a fixed grid of cells snapped to the
- * ring's cell size, so blades never swim. Density falls off with distance, d(r) = ((R - r) / (R - r0))^2, and
- * sparser outer rings use wider blades so the coverage stays even; ring seams are dithered.
- * Each ring is split into angular sectors (separate draws sharing one geometry) so frustum culling drops the
- * ones behind the camera. Nothing is rebuilt on the CPU per frame: update() only moves uniforms and bounding spheres.
+ * GPU grass for the world outside the plot (the plot keeps its own grass).
+ * Density is one continuous curve: CONFIG.grass.density blades/m2 (the plot's own density) out to fullRadius,
+ * then d(r) = full * ((R - r) / (R - fullRadius))^2 to zero at R, modulated by low-frequency clumping noise.
+ * The vertex shader drops a blade when its threshold exceeds d(r) / capacity, so nothing is rebuilt on the CPU.
+ * Camera-following rings only change the geometry cost: each ring's cell size is derived from d(r) at its inner
+ * edge, so a ring always has enough blades for the density it covers (no gaps, no widened blades), and outer rings
+ * use cheaper blades. Grids are snapped to the cell size (blades never swim) and every cell shifts the blade layout
+ * by its own hash, so the grid never shows. Rings are split into sectors so the ones behind the camera are culled.
  */
-const SECTORS = 12, bs0 = new THREE.Vector3();
+const SECTORS = 8, bs0 = new THREE.Vector3();
+
+/** d(r) / full: 1 to fullRadius, quadratic falloff to 0 at radius. */
+export function grassFalloff(r, G = CONFIG.grass) { return r < G.fullRadius ? 1 : Math.pow(clamp((G.radius - r) / (G.radius - G.fullRadius)), 2); }
 
 export function createWorldGrass(ctx, ground) {
   const { scene } = ctx;
   const G = CONFIG.grass;
   const rings = [];
-  const cap0 = G.rings[0][3] / (G.rings[0][2] * G.rings[0][2]); // blades per m2 of the densest ring
   const tA = lin(0x3c6a1e), tB = lin(0x7ea03a), tDry = lin(0xa59f52);
-  G.rings.forEach(([rin, rout, cell, blades, segs], ri) => {
+  const peak = 1 + G.clumping; // densest spot the clumping noise can ask for
+  G.rings.forEach(([rin, rout, blades, segs], ri) => {
+    const cap = G.density * grassFalloff(Math.max(0, rin - G.blend / 2)) * peak; // blades/m2 this ring must supply
+    const cell = Math.sqrt(blades / cap);
     const base = clumpGeometry(blades, segs, 1234 + ri * 77);
     const lo = Math.max(0, rin - G.blend - cell * 1.5), hi = rout + G.blend + cell * 1.5, n = Math.ceil(hi / cell) + 1;
     // cells of the annulus, split into angular sectors: one draw each, so the sectors behind the camera are culled
     const sectors = Array.from({ length: SECTORS }, () => []);
     for (let j = -n; j <= n; j++) for (let i = -n; i <= n; i++) {
-      const x = i * cell, z = j * cell, d = Math.hypot(x, z); if (d < lo || d > hi) continue;
+      const x = i * cell, z = j * cell, d = Math.hypot(x + cell / 2, z + cell / 2); if (d < lo || d > hi) continue;
       const a = (Math.atan2(z, x) + Math.PI) / (2 * Math.PI); sectors[Math.min(SECTORS - 1, Math.floor(a * SECTORS))].push(x, z);
     }
     const uni = {
       uOrigin: { value: new THREE.Vector2() }, uCam: { value: new THREE.Vector3() }, uGround: { value: ground.tex },
       uGroundST: { value: new THREE.Vector2(ground.scale, ground.offset) },
       uRing: { value: new THREE.Vector4(ri === 0 ? -1e3 : rin, ri === G.rings.length - 1 ? 1e3 : rout, cell, G.blend) },
-      uFall: { value: new THREE.Vector4(G.fullRadius, G.radius, (blades / (cell * cell)) / cap0, HALF) },
+      uFall: { value: new THREE.Vector4(G.fullRadius, G.radius, G.density / cap, HALF) },
+      uClump: { value: G.clumping },
       uH: { value: new THREE.Vector2(G.height[0], G.height[1]) },
       uTA: { value: tA }, uTB: { value: tB }, uTDry: { value: tDry },
     };
@@ -89,24 +100,24 @@ export function createWorldGrass(ctx, ground) {
       s.vertexShader = `attribute vec4 aBlade; attribute vec2 aCell;
         uniform float uTime; uniform float uWind; uniform vec2 uWindDir;
         uniform vec2 uOrigin; uniform vec3 uCam; uniform sampler2D uGround; uniform vec2 uGroundST;
-        uniform vec4 uRing; uniform vec4 uFall; uniform vec2 uH; uniform vec3 uTA; uniform vec3 uTB; uniform vec3 uTDry;
+        uniform vec4 uRing; uniform vec4 uFall; uniform float uClump; uniform vec2 uH; uniform vec3 uTA; uniform vec3 uTB; uniform vec3 uTDry;
         float gh(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
         ` + s.vertexShader
         .replace('#include <color_vertex>', `
-          // clump placement (world space, stable per cell)
+          // blade position: the cell's layout shifted by the cell's own hash (world space, stable, no visible grid)
           vec2 cw = uOrigin + aCell;
-          vec2 cc = cw + (vec2(gh(cw), gh(cw + 17.31)) - 0.5) * uRing.z * 0.9;
-          vec2 bp = cc + aBlade.xy * uRing.z * 0.62;
-          float rnd = gh(bp * 1.37 + aBlade.w);
+          vec2 bp = cw + fract(aBlade.xy + vec2(gh(cw), gh(cw + 17.31))) * uRing.z;
+          float rnd = gh(bp * 1.37 + aBlade.z);
           float r = distance(bp, uCam.xz);
-          float rj = r + (gh(cw + 5.7) - 0.5) * uRing.w;
+          float rj = r + (gh(bp * 3.1 + 0.7) - 0.5) * uRing.w;   // per-blade dither across ring seams
           vec4 gd = texture2D(uGround, (bp + uGroundST.y) * uGroundST.x);
+          float gPatch = gd.b;                                    // low-frequency noise, 0..1
           float fall = r < uFall.x ? 1.0 : pow(clamp((uFall.y - r) / (uFall.y - uFall.x), 0.0, 1.0), 2.0);
-          float want = gd.g * fall / uFall.z;            // wanted density / this ring's capacity
-          float keep = step(uRing.x, rj) * step(rj, uRing.y) * step(aBlade.w, want)
+          float d = gd.g * fall * (1.0 + (gPatch - 0.5) * 2.0 * uClump);   // d(r) / full, clumped
+          float thr = fract(aBlade.w + gh(cw + 3.7));             // per-cell reshuffle of the stratified thresholds
+          float keep = step(uRing.x, rj) * step(rj, uRing.y) * step(thr, d * uFall.z)
                      * step(uFall.w, max(abs(bp.x), abs(bp.y)));  // the authored plot has its own grass
-          float widen = clamp(want, 1.0, 2.6);               // sparser ring: wider blades keep the coverage
-          float gPatch = gd.b;
+          float widen = 1.0 + 0.3 * (1.0 - clamp(d, 0.0, 1.0));  // slightly wider blades as density drops
           vec3 gTint = mix(uTA, uTB, clamp(rnd * 0.8 + (gPatch - 0.5) * 0.6 + 0.2, 0.0, 1.0));
           if (gh(bp + 3.3) < 0.07) gTint = mix(gTint, uTDry, 0.7);
           gTint *= 0.85 + gh(bp + 9.1) * 0.3;
@@ -115,7 +126,7 @@ export function createWorldGrass(ctx, ground) {
           float cr = cos(aBlade.z), sr = sin(aBlade.z);
           vec3 objectNormal = normalize(vec3(sr, 0.0, cr) * 0.35 + vec3(0.0, 1.0, 0.0));`)
         .replace('#include <begin_vertex>', `
-          float tall = mix(uH.x, uH.y, rnd) * (0.75 + 0.55 * gPatch) * smoothstep(uFall.y, uFall.y - 5.0, r) * keep;
+          float tall = mix(uH.x, uH.y, rnd) * (0.75 + 0.55 * gPatch) * smoothstep(uFall.y, uFall.y - 3.0, r) * keep;
           vec3 p = position; float hf = uv.y;
           p.x *= mix(0.03, 0.058, gh(bp + 1.9)) * widen; p.y *= tall; p.z *= tall * mix(0.3, 1.3, gh(bp + 2.7));
           p = vec3(cr*p.x + sr*p.z, p.y, -sr*p.x + cr*p.z);
@@ -154,5 +165,5 @@ export function createWorldGrass(ctx, ground) {
       }
     }
   }
-  return { rings, update };
+  return { rings, update, stats: () => rings.map(r => ({ cell: +r.cell.toFixed(3), instances: r.meshes.reduce((n, m) => n + m.geometry.instanceCount, 0), tris: r.meshes.reduce((n, m) => n + m.geometry.instanceCount * m.geometry.index.count / 3, 0) })) };
 }
