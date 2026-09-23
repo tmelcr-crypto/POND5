@@ -8,6 +8,7 @@ import { U } from './uniforms.js';
  *  dampSpecular - less specular on foliage cards
  *  addThinning  - distance-based thinning of tree parts by their detail rank (island trees)
  *  addDistanceFade - dithered distance cross-fade between a near and a far mesh (island rocks)
+ *  addRegionFade   - the same dither, by the camera's distance to a fixed box / point (the plot's assets)
  */
 export function addFlutter(mat, amp) {
   mat.onBeforeCompile = s => {
@@ -100,5 +101,29 @@ export function addDistanceFade(mat, fadeIn) {
       #include <clipping_planes_vertex>`);
     s.fragmentShader = 'uniform vec2 uFade; varying float vTreeD;\n' + s.fragmentShader.replace('void main() {', `void main() {
       if ((fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) < smoothstep(uFade.x, uFade.y, vTreeD)) != ${fadeIn ? 'true' : 'false'}) discard;`);
+  };
+}
+
+/**
+ * A fade region for addRegionFade: the camera's distance to the box [min, max] (a point when min = max; 0 inside it)
+ * picks the dither, smoothstep(range.x, range.y, d), the same pattern as the trees' cross-fade. One region is shared by
+ * every material of an asset, so the whole asset fades as one object.
+ */
+export function fadeRegion(min, max, range) {
+  return { uRMin: { value: min.clone() }, uRMax: { value: (max || min).clone() }, uRRange: { value: new THREE.Vector2(range[0], range[1]) } };
+}
+/**
+ * Dithered fade by the camera's distance to a region (fadeRegion). fadeIn = false: drawn in full inside range.x,
+ * dissolved by range.y; fadeIn = true takes exactly the complementary pixels (a billboard or proxy fading in). A point
+ * region at a billboard's base gives the same pattern as its billboards() fade, so the two cross-fade without gaps.
+ */
+export function addRegionFade(mat, region, fadeIn = false) {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (s, r) => {
+    prev.call(mat, s, r);
+    Object.assign(s.uniforms, { uViewPos: THIN.uViewPos }, region);
+    s.fragmentShader = 'uniform vec3 uViewPos; uniform vec3 uRMin; uniform vec3 uRMax; uniform vec2 uRRange;\n' + s.fragmentShader.replace('void main() {', `void main() {
+      float regionD = distance(clamp(uViewPos, uRMin, uRMax), uViewPos);
+      if ((fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) < smoothstep(uRRange.x, uRRange.y, regionD)) != ${fadeIn ? 'true' : 'false'}) discard;`);
   };
 }

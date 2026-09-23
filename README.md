@@ -70,6 +70,7 @@ src/
     createEngine.js         Renderer (ACES, sRGB, soft shadows), scene with fog, camera, resize
     finalizeScene.js        Post-build pass: point-light masking, program cache keys, instanced culling bounds
     mergeStatic.js          Merges static meshes sharing a material (the cabin: ~350 meshes -> ~95 draws)
+    detailManager.js        Distance bands (checked 4x a second, 15% hysteresis) that switch visibility / per-frame work
   core/                     Reusable, scene-independent helpers
     random.js               Seeded PRNG (rng, rr, setSeed)
     math.js                 V (Vector3), UPV, clamp, smooth, lin (sRGB → linear colour)
@@ -88,6 +89,7 @@ src/
     terrain.js              Plot ground mesh + caustics; island heightmap mesh, grass/dirt/rock/sand shader
     grass.js                World GPU grass: camera-following rings of clumps, distance falloff, wind
     scatter.js              Seeded tree + rock scatter, per-tree distance thinning, 8-angle billboard atlases
+    plotDetail.js           The original plot's assets on the detail manager, with the island's distance rules
     undergrowth.js          Bushes, wild roses, fallen logs + stumps, ferns, mushrooms, sticks, cones, meadow flowers,
                             pollen / fireflies around the camera
     bounds.js               Soft boundary (wading depth at the shore, world edge when flying), trunk and boulder grids
@@ -193,6 +195,15 @@ export function createRoseBush(ctx) {
     shrink in over the last metre; one instanced draw per wing style, none when no butterfly is near;
   - pollen by day / fireflies at night in a box around the camera, sharing the plot's pollen material so the
     time of day drives both (the plot keeps its own).
+- **Plot detail** (`engine/detailManager.js`, `world/plotDetail.js`, `CONFIG.detail`): the original plot follows the
+  island's rules. Nothing changes within `trees.fade[0]` (15 m). Beyond it, the reference spruce, apple tree and rose
+  bush dissolve (dither) into an 8-angle billboard baked from themselves by `trees.fade[1]` (19 m); reeds, meadow
+  flowers, the outcrop's ferns, lily pads and the plot grass dissolve per instance / blade on the GPU; the cabin
+  interior dissolves over `detail.interior` from the cabin, keeping its lamp and fire glows so the windows still glow,
+  and pauses the fire flicker, sparks and clock; the plot's pollen stops beyond `detail.pollen`, its butterflies follow
+  the island's 4 m rule. Terrain, pond, cabin exterior, chimney smoke, the outcrop rock and stones always draw. The
+  manager only switches things once they are fully faded, a few times a second with hysteresis; lights are never
+  toggled (intensity only), and every shader is compiled once at load (`renderer.compile`).
 - **Build order:** the world is built after every diorama asset and reseeds the random stream with
   `CONFIG.world.seed`, so the plot looks exactly as before and the world can be re-rolled on its own.
 - **Tuning:** every number lives in `src/config.js`.

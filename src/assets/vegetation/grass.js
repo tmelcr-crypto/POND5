@@ -4,6 +4,7 @@ import { rng, rr } from '../../core/random.js';
 import { clamp, smooth, lin } from '../../core/math.js';
 import { fbm2 } from '../../core/noise.js';
 import { U } from '../../core/uniforms.js';
+import { THIN } from '../../core/shaderPatches.js';
 import { WATER_Y, houseRectDist, inRocks, inRose, inSteps, CON, APP, H } from '../../world/layout.js';
 
 /**
@@ -52,9 +53,9 @@ export function createGrass(ctx) {
     bg.instanceCount = n;
     const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.7 });
     m.onBeforeCompile = s => {
-      s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uWindDir = U.uWindDir;
+      s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uWindDir = U.uWindDir; s.uniforms.uViewPos = THIN.uViewPos; s.uniforms.uFade = THIN.uFade;
       s.vertexShader = `attribute vec4 aOff; attribute vec3 aScl; attribute vec3 aTint;
-        uniform float uTime; uniform float uWind; uniform vec2 uWindDir;
+        uniform float uTime; uniform float uWind; uniform vec2 uWindDir; uniform vec3 uViewPos; uniform vec2 uFade; varying float vTreeD;
         float gh(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
         ` + s.vertexShader
         .replace('#include <color_vertex>', 'vColor = aTint * mix(0.26, 1.0, uv.y);')
@@ -71,8 +72,11 @@ export function createGrass(ctx) {
           vec2 sway = uWindDir * bend * aScl.y * 0.6 + vec2(sin(t*2.7 + rnd*20.0), cos(t*2.3 + rnd*31.0)) * 0.012 * (0.3 + uWind) * hf;
           p.xz += sway;
           p.y -= dot(sway, sway) / max(aScl.y, 0.05) * 0.55;
-          vec3 transformed = p + aOff.xyz;`);
-      s.fragmentShader = s.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n normal = normalize(vNormal);').replace('#include <aomap_fragment>', '#include <aomap_fragment>\n reflectedLight.directSpecular *= 0.12; reflectedLight.indirectSpecular *= 0.12;');
+          vec3 transformed = p + aOff.xyz;
+          vTreeD = distance(aOff.xyz, uViewPos);                       // distance fade, as the island's small things
+          if (vTreeD > uFade.y) transformed = aOff.xyz;`);
+      s.fragmentShader = 'uniform vec2 uFade; varying float vTreeD;\n' + s.fragmentShader.replace('void main() {', `void main() {
+        if (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) < smoothstep(uFade.x, uFade.y, vTreeD)) discard;`).replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n normal = normalize(vNormal);').replace('#include <aomap_fragment>', '#include <aomap_fragment>\n reflectedLight.directSpecular *= 0.12; reflectedLight.indirectSpecular *= 0.12;');
     };
     const mesh = new THREE.Mesh(bg, m); mesh.frustumCulled = false; mesh.receiveShadow = true; scene.add(mesh);
   }

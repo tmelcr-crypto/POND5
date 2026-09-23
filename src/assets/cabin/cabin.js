@@ -345,6 +345,7 @@ export function createCabin(ctx) {
     boxB(FX, -1.14, FL + 1.3, 4.2, -0.46, 0.46, M.stone, 0.8);
     boxB(FX - 0.04, -1.1, 4.2, 4.27, -0.5, 0.5, M.stone, 0.8);
     boxB(-1.5, -1.22, 4.27, 4.272, -0.2, 0.2, M.black);
+    const interiorFrom = new THREE.Object3D().id;   // everything built from here to the outside section is interior
     // andirons, logs, coals
     [-0.13, 0.13].forEach(z => { boxB(-1.4, -1.06, FL + 0.1, FL + 0.13, z - 0.015, z + 0.015, M.iron); boxB(-1.1, -1.06, FL + 0.1, FL + 0.24, z - 0.015, z + 0.015, M.iron); mk(new THREE.SphereGeometry(0.022, 10, 8), M.brass, -1.08, FL + 0.25, z); });
     const coal = mk(new THREE.SphereGeometry(0.2, 18, 8), M.ember, -1.24, FL + 0.1, 0); coal.scale.set(0.8, 0.18, 1.2);
@@ -601,6 +602,7 @@ export function createCabin(ctx) {
     }
     curtains(walls[0], OPS.front); curtains(walls[1], OPS.back); curtains(walls[2], OPS.side);
 
+    const interiorTo = new THREE.Object3D().id;
     /* ---- outside: steps, porch lantern, bench, woodpile, stump & axe ---- */
     {
       const op = OPS.door;
@@ -641,6 +643,9 @@ export function createCabin(ctx) {
     house.add(new THREE.Mesh(mergeGeos(caps, ['position', 'normal', 'uv']), M.end));
 
     house.traverse(o => { if (o.isMesh) { const ns = o.userData.noShadow || (o.material && o.material.transparent); o.castShadow = !ns; o.receiveShadow = true; } });
+    // interior tag for the detail manager (world/plotDetail.js): furniture, props, fire logs, clock, curtains - not the
+    // lights, glows or flames (the lit windows stay at any distance)
+    house.traverse(o => { if ((o.isMesh || o.isPoints) && o.id > interiorFrom && o.id < interiorTo) o.userData.interior = true; });
 
     /* ---- chimney smoke ---- */
     const chimTop = new V(HOUSE.x - 1.36, PAD_H + 4.3, HOUSE.z);
@@ -666,6 +671,15 @@ export function createCabin(ctx) {
   function toggleDoor() { const d = cabin.door; if (camera.position.distanceTo(d.world) < 2.8) d.target = d.target > 0.5 ? 0 : 1.75; }
   const _sp = new V();
   function cabinUpdate(dt, t) {
+    const dr = cabin.door; dr.angle += (dr.target - dr.angle) * (1 - Math.exp(-dt * 4)); dr.pivot.rotation.y = dr.angle;
+    const wd = U.uWindDir.value, ws = 0.5 + U.uWind.value;
+    cabin.smoke.forEach(s => {
+      s.u += dt * 0.085; if (s.u > 1) s.u -= 1; const u = s.u;
+      s.sp.position.set(s.top.x + wd.x * u * 1.8 * ws + Math.sin(u * 6 + s.ph) * 0.1, s.top.y + u * 2.6, s.top.z + wd.y * u * 1.8 * ws + Math.cos(u * 5 + s.ph) * 0.1);
+      const sc = 0.3 + 1.3 * u; s.sp.scale.set(sc, sc, 1);
+      s.sp.material.opacity = 0.3 * Math.sin(Math.PI * Math.min(1, u * 1.25)) * cabin.smokeF; s.sp.material.rotation = s.ph + u * 1.5;
+    });
+    if (cabin.detailNear === false) return;   // far from the cabin (detail manager): fire flicker, sparks, clock paused
     const f = 0.82 + 0.1 * Math.sin(t * 9.1) + 0.06 * Math.sin(t * 15.3 + 1.3) + 0.05 * Math.sin(t * 23.7 + 0.4) + 0.04 * (Math.random() - 0.5);
     cabin.fireLight.intensity = 2.8 * f;
     cabin.emberMat.emissiveIntensity = 1.0 + (f - 0.8) * 2.5;
@@ -679,17 +693,9 @@ export function createCabin(ctx) {
       pa.setXYZ(i, pa.getX(i) + sp.vel[i].x * dt, y, pa.getZ(i) + sp.vel[i].z * dt);
     }
     pa.needsUpdate = true;
-    const wd = U.uWindDir.value, ws = 0.5 + U.uWind.value;
-    cabin.smoke.forEach(s => {
-      s.u += dt * 0.085; if (s.u > 1) s.u -= 1; const u = s.u;
-      s.sp.position.set(s.top.x + wd.x * u * 1.8 * ws + Math.sin(u * 6 + s.ph) * 0.1, s.top.y + u * 2.6, s.top.z + wd.y * u * 1.8 * ws + Math.cos(u * 5 + s.ph) * 0.1);
-      const sc = 0.3 + 1.3 * u; s.sp.scale.set(sc, sc, 1);
-      s.sp.material.opacity = 0.3 * Math.sin(Math.PI * Math.min(1, u * 1.25)) * cabin.smokeF; s.sp.material.rotation = s.ph + u * 1.5;
-    });
     const d = new Date(), hr = d.getHours() % 12 + d.getMinutes() / 60, mn = d.getMinutes() + d.getSeconds() / 60, sc2 = d.getSeconds() + d.getMilliseconds() / 1000;
     cabin.hands.h.rotation.z = -hr / 12 * Math.PI * 2; cabin.hands.m.rotation.z = -mn / 60 * Math.PI * 2; cabin.hands.s.rotation.z = -Math.floor(sc2) / 60 * Math.PI * 2;
     cabin.pendulum.rotation.z = Math.sin(sc2 * Math.PI) * 0.2;
-    const dr = cabin.door; dr.angle += (dr.target - dr.angle) * (1 - Math.exp(-dt * 4)); dr.pivot.rotation.y = dr.angle;
   }
   return { cabin, setLights, toggleDoor, update: cabinUpdate };
 }
