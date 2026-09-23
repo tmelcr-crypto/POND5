@@ -96,6 +96,17 @@ export const CONFIG = {
     fade: [8, 11],                   // ... and full detail only within fade[0] m, billboards by fade[1] (small, so closer than trees)
   },
 
+  // Distance-based detail of the original plot's assets (engine/detailManager.js, world/plotDetail.js). The plot
+  // follows the island's rules: full detail within trees.fade[0] (15 m), dithered away or cross-faded to a billboard
+  // by trees.fade[1] (19 m); small instanced things fade per instance on the GPU like the island's.
+  detail: {
+    interval: 0.25,          // seconds between distance evaluations (switching only; fades run on the GPU every frame)
+    hysteresis: 0.15,        // a band switches on at d and off at d * 1.15 (far bands the other way), so nothing flickers
+    interior: [15, 18],      // cabin interior: full within 15 m of the cabin (or inside), dissolved by 18 m; glows stay
+    pollen: 19,              // the plot's pollen / fireflies stop drawing and updating beyond this distance from the plot
+    butterflies: 4,          // the plot's butterflies are drawn within this distance, like the island's
+  },
+
   // Sun, shadows and atmosphere
   light: {
     shadowMapSize: isTouch ? 2048 : 4096,

@@ -94,7 +94,8 @@ export function updateGroups(entries, c, range = CONFIG.trees) {
 
 /**
  * Render every variant of a species from 8 angles into one atlas (rows: variants, columns: angles). Albedo only, at
- * half brightness (instance colours go above 1); the billboard material lights it and doubles it back.
+ * half brightness (instance colours go above 1); the billboard material lights it and doubles it back. A proto may
+ * carry an `origin` (its base, for assets built in world space); protos are otherwise in local space around (0, 0, 0).
  */
 export function bakeAtlas(renderer, protos, tile) {
   const W = Math.max(...protos.map(p => p.width)), Hh = Math.max(...protos.map(p => p.height));
@@ -108,6 +109,7 @@ export function bakeAtlas(renderer, protos, tile) {
   const mats = [];
   protos.forEach((p, row) => {
     const sc = new THREE.Scene();
+    if (p.origin) sc.position.set(-p.origin.x, -p.origin.y, -p.origin.z);   // an asset built in world space (the plot's)
     for (const part of p.parts) {
       const m = part.material, mb = new THREE.MeshBasicMaterial({ map: m.map, color: m.color, vertexColors: m.vertexColors, alphaTest: m.alphaTest || 0, side: THREE.DoubleSide, toneMapped: false, fog: false });
       mb.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb *= 0.5;'); };

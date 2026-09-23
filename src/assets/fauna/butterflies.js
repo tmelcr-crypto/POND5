@@ -32,15 +32,21 @@ export function createButterflies(ctx) {
   return flies;
 }
 
-/** Per-frame butterfly flight: wandering loops above the meadow with flapping wings. */
-export function updateButterflies(flies, t) {
+/**
+ * Per-frame butterfly flight: wandering loops above the meadow with flapping wings. With a camera position and range
+ * (CONFIG.detail.butterflies), the same rule as the island's swarm: drawn only within `range`, shrinking in over the
+ * last metre, and not updated at all while the camera is well away from their loop.
+ */
+export function updateButterflies(flies, t, cam, range = Infinity) {
   for (const f of flies) {
+      if (cam && Math.hypot(f.c.x - cam.x, f.c.z - cam.z) > range + 2.5) { f.grp.visible = false; continue; }
       const tt = t * f.sp + f.ph;
       const x = f.c.x + Math.sin(tt * 1.3) * 1.1 + Math.sin(tt * 3.7) * 0.18, z = f.c.z + Math.cos(tt * 0.9) * 1.0 + Math.cos(tt * 4.1) * 0.15;
       const y = Math.max(H(x, z), WATER_Y) + 0.42 + Math.sin(tt * 2.3) * 0.18 + Math.sin(tt * 9.0) * 0.03;
       const prev = f.grp.position.clone(); f.grp.position.set(x, y, z);
       const dx = x - prev.x, dz = z - prev.z; if (dx * dx + dz * dz > 1e-8) f.grp.rotation.y = Math.atan2(dx, dz);
       const flap = Math.sin(t * 26 + f.ph * 3) * 1.1 + 0.25; f.L.rotation.z = flap; f.R.rotation.z = -flap;
+      if (cam) { const k = 1 - smooth(range - 1, range, f.grp.position.distanceTo(cam)); f.grp.visible = k > 0; f.grp.scale.setScalar(Math.max(k, 1e-3)); }
     }
 }
 
