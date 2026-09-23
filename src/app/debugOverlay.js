@@ -28,7 +28,7 @@ export function createDebugOverlay(renderer, { scatter }) {
       if (!on || acc < 1000) { if (acc >= 1000) { n = 0; acc = 0; worst = 0; } return; }
       const r = renderer.info.render, t = scatter.stats;
       box.textContent = `${Math.round(n * 1000 / acc)} fps  ${(acc / n).toFixed(1)} ms (max ${worst.toFixed(0)})\n` +
-        `draw calls ${total.last[0]} (main ${r.calls})\ntriangles ${fmt(total.last[1])} (main ${fmt(r.triangles)})\ntrees ${t.near} full / ${t.far} billboard (in view)\ntree cards drawn ${fmt(t.cards)}\n` +
+        `draw calls ${total.last[0]} (main ${r.calls})\ntriangles ${fmt(total.last[1])} (main ${fmt(r.triangles)})\ntrees ${t.near} full / ${t.far} billboard (in view)\ntree cards drawn ${fmt(t.cards)}\nrocks full detail ${t.nearRocks}\n` +
         `px ratio ${renderer.getPixelRatio().toFixed(2)}`;
       n = 0; acc = 0; worst = 0;
     },

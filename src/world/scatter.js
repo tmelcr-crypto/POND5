@@ -4,10 +4,10 @@ import { smooth } from '../core/math.js';
 import { THIN } from '../core/shaderPatches.js';
 import { CONFIG } from '../config.js';
 import { H, WORLD_HALF, forest, excluded, coastDist } from './layout.js';
-import { obstacles } from './bounds.js';
+import { obstacles, rockBodies } from './bounds.js';
 import { createSpruceVariants } from '../assets/trees/spruce.js';
 import { createAppleVariants } from '../assets/trees/appleTree.js';
-import { createRockPrototypes } from '../assets/rocks/scatteredRocks.js';
+import { createRockVariants } from '../assets/rocks/scatteredRocks.js';
 
 /**
  * Seeded scatter of trees and rocks over the island.
@@ -18,8 +18,9 @@ import { createRockPrototypes } from '../assets/rocks/scatteredRocks.js';
  * rotation and scale in its modelMatrix (a GLB model can be dropped in by building the same object from its meshes).
  * Detail falls off continuously on the GPU (addThinning): parts are dropped by rank as keep(d) goes from 1 at
  * CONFIG.trees.keep[0] to keep[2] at keep[1], surviving cards grow a little, and past fade[0] the tree dissolves
- * (dithered) into a billboard baked at load from 8 angles. The only per-frame CPU work is a distance check per tree
- * that hides trees past the fade, and one uniform (the camera position used by the thinning in the shadow pass too).
+ * (dithered) into a billboard baked at load from 8 angles. Rocks follow the same logic: the reference outcrop's
+ * boulder generator at full detail near the camera, cross-faded into a cheap mesh of the same shape (instanced).
+ * Per-frame CPU work: a distance check per tree / rock and one binary search per tree part.
  */
 
 // Poisson-ish rejection sampling on a hash grid
@@ -142,8 +143,8 @@ export function createScatter(ctx) {
   const apple = scatterTrees(SC.appleCount, (x, z) => { const r = Math.hypot(x, z); return (1 - forest(x, z)) * smooth(SC.clearingRadius - 4, SC.clearingRadius + 2, r) * (1 - smooth(30, 42, r)); }, TC.appleScale, 5);
 
   /* ---- rocks ---- */
-  const rockProtos = createRockPrototypes(3);
-  const rocks = rockProtos.map(() => []);
+  const RC = CONFIG.rocks, rockSet = createRockVariants(RC.variants, RC.nearDetail, RC.farDetail);
+  const rocks = rockSet.variants.map(() => []);
   { const rp = placer(1.2); let n = 0, tries = 0;
     while (n < SC.rockCount && tries < SC.rockCount * 60) {
       tries++;
@@ -153,7 +154,7 @@ export function createScatter(ctx) {
       if (rng() > 0.25 + 0.75 * Math.max(forest(x, z), 1 - smooth(0, 6, coastDist(x, z) - CONFIG.island.beachWidth))) continue; // woods and shore
       if (treePts.pts.some(p => Math.hypot(p.x - x, p.z - z) < 0.6 + s * 0.5)) continue;
       if (!rp.tryAdd(x, z, s * 1.2)) continue;
-      const k = Math.floor(rng() * rockProtos.length);
+      const k = Math.floor(rng() * rockSet.variants.length);
       rocks[k].push({ x, y: H(x, z) - s * 0.12, z, s, rot: rng() * 6.28, tilt: rr(-0.15, 0.15) });
       n++;
     }
@@ -166,7 +167,11 @@ export function createScatter(ctx) {
   /* ---- colliders ---- */
   spruce.forEach(t => obstacles.add(t.x, t.z, spruceV[t.variant].trunkRadius * t.s + 0.2, t.y + spruceV[t.variant].height * t.s));
   apple.forEach(t => obstacles.add(t.x, t.z, appleV[t.variant].trunkRadius * t.s + 0.2, t.y + 1.6 * t.s));
-  rocks.forEach(list => list.forEach(r => { if (r.s > 0.45) obstacles.add(r.x, r.z, r.s * 0.75 + 0.15, r.y + r.s * 0.8); }));
+  // boulders: rotated ellipsoids fitted to each variant's mesh, in the outcrop's collider format (radii padded by 0.2),
+  // so the controls can stand on low ones and push the player (0.25 m body) around tall ones
+  rocks.forEach((list, k) => list.forEach(r => { const e = rockSet.variants[k].ellipsoid;
+    rockBodies.add({ x: r.x + (Math.cos(r.rot) * e.cx + Math.sin(r.rot) * e.cz) * r.s, y: r.y + e.cy * r.s, z: r.z + (-Math.sin(r.rot) * e.cx + Math.cos(r.rot) * e.cz) * r.s,
+      rx: e.rx * r.s + 0.2, ry: e.ry * r.s + 0.2, rz: e.rz * r.s + 0.2, rot: r.rot, body: 0.25 }); }));
 
   /* ---- tree meshes: one small group per tree, everything shared with its variant ---- */
   const trees = [];
@@ -196,24 +201,31 @@ export function createScatter(ctx) {
   if (apple.length) { const a = bakeAtlas(renderer, appleV, TC.billboardTile); bbs.push(billboards(a, apple)); }
   bbs.forEach(b => scene.add(b));
 
-  /* ---- rocks: static instanced boulders ---- */
+  /* ---- rocks: full-detail mesh per rock near the camera, one instanced far mesh per variant, cross-faded like the trees ---- */
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), Sv = new THREE.Vector3(), E = new THREE.Euler();
-  rockProtos.forEach((p, k) => {
+  const nearRocks = [];
+  rockSet.variants.forEach((v, k) => {
     if (!rocks[k].length) return;
-    const part = p.lods[0].parts[0], im = new THREE.InstancedMesh(part.geometry, part.material, rocks[k].length);
-    rocks[k].forEach((t, i) => im.setMatrixAt(i, M.compose(P.set(t.x, t.y, t.z), Q.setFromEuler(E.set(t.tilt, t.rot, 0)), Sv.setScalar(t.s))));
-    im.castShadow = im.receiveShadow = true; scene.add(im);
+    const far = new THREE.InstancedMesh(v.far, rockSet.farMat, rocks[k].length);
+    rocks[k].forEach((t, i) => {
+      far.setMatrixAt(i, M.compose(P.set(t.x, t.y, t.z), Q.setFromEuler(E.set(t.tilt, t.rot, 0)), Sv.setScalar(t.s)));
+      const m = new THREE.Mesh(v.near, rockSet.nearMat); m.matrix.copy(M); m.matrixAutoUpdate = false; m.matrixWorldNeedsUpdate = true;
+      m.castShadow = m.receiveShadow = true; m.customDepthMaterial = rockSet.nearDepth; m.visible = false; m.userData.dynamic = true;
+      scene.add(m); nearRocks.push({ m, p: new THREE.Vector3(t.x, t.y, t.z) });
+    });
+    far.castShadow = far.receiveShadow = true; far.customDepthMaterial = rockSet.farDepth; scene.add(far);
   });
 
   /* ---- per frame: the thinning's camera position; per tree, how many of its (rank-sorted) parts to draw, and hide
      trees that have fully become billboards. One distance and a few binary searches per tree. ---- */
   const frustum = new THREE.Frustum(), pm = new THREE.Matrix4();
   const hideBeyond = TC.fade[1] + 1;
-  const stats = { trees: trees.length, rocks: rocks.reduce((s, l) => s + l.length, 0), near: 0, far: 0, cards: 0 };
+  const stats = { trees: trees.length, rocks: rocks.reduce((s, l) => s + l.length, 0), near: 0, far: 0, cards: 0, nearRocks: 0 };
   const survivors = (ranks, keep) => { let lo = 0, hi = ranks.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (ranks[mid] < keep) lo = mid + 1; else hi = mid; } return lo; };
   const keepAt = d => { const t = 1 - Math.min(1, Math.max(0, (d - TC.keep[0]) / (TC.keep[1] - TC.keep[0]))); return 1 + (TC.keep[2] - 1) * (1 - t * t); }; // = the shader's keep(d)
   function update(camera, withStats) {
     const c = camera.position; THIN.uViewPos.value.copy(c);
+    for (const r of nearRocks) r.m.visible = r.p.distanceTo(c) < hideBeyond;   // the far mesh covers the rest
     for (const tr of trees) {
       const d = tr.g.position.distanceTo(c);
       tr.g.visible = d < hideBeyond;
@@ -229,7 +241,7 @@ export function createScatter(ctx) {
     if (!withStats) return;
     // what the GPU draws this frame: foliage cards of trees in view, after thinning (exact, from the sorted ranks)
     pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); frustum.setFromProjectionMatrix(pm);
-    stats.near = stats.far = stats.cards = 0;
+    stats.near = stats.far = stats.cards = 0; stats.nearRocks = nearRocks.filter(r => r.m.visible).length;
     for (const tr of trees) {
       if (!frustum.intersectsSphere(tr.sphere)) continue;
       const d = tr.g.position.distanceTo(c);

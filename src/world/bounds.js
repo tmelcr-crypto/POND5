@@ -3,8 +3,10 @@ import { WORLD_HALF, H, SEA_Y } from './layout.js';
 
 /**
  * World edge and static obstacles for the player.
- *  - obstacles: a uniform spatial grid of vertical circles (tree trunks, boulders) registered by the scatter,
- *    so collision cost does not grow with the number of trees.
+ *  - obstacles: a uniform spatial grid of vertical circles (tree trunks) registered by the scatter, so collision
+ *    cost does not grow with the number of trees.
+ *  - rockBodies: the same kind of grid for the island's boulders, as rotated ellipsoids
+ *    { x, y, z, rx, ry, rz, rot, body } in the outcrop's collider format (radii padded by 0.2); see controls.js.
  *  - applyBounds: soft boundary. Walking into the sea deeper than CONFIG.island.wadeDepth eases you back towards
  *    the island like a spring; when flying, the last `boundaryMargin` metres of the 100 x 100 m area do the same,
  *    and a hard clamp just before the edge guarantees nobody leaves it.
@@ -30,6 +32,21 @@ export const obstacles = {
     }
   },
 };
+
+const rockCells = new Map();
+export const rockBodies = {
+  count: 0,
+  add(c) {
+    this.count++; const r = Math.max(c.rx, c.rz);
+    for (let i = Math.floor((c.x - r) / CELL); i <= Math.floor((c.x + r) / CELL); i++)
+      for (let j = Math.floor((c.z - r) / CELL); j <= Math.floor((c.z + r) / CELL); j++) {
+        const k = key(i, j); let l = rockCells.get(k); if (!l) rockCells.set(k, l = []); l.push(c);
+      }
+  },
+  /** Ellipsoids that may touch the vertical line through (x, z). */
+  near(x, z) { return rockCells.get(key(Math.floor(x / CELL), Math.floor(z / CELL))) || NONE; },
+};
+const NONE = [];
 
 export function applyBounds(p, vel, dt, walking) {
   if (walking) {
