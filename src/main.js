@@ -29,6 +29,7 @@ import { createRockOutcrop } from './assets/rocks/rockOutcrop.js';
 import { createRoseBush } from './assets/vegetation/roseBush.js';
 import { createCabin } from './assets/cabin/cabin.js';
 import { createPollen } from './assets/fauna/pollen.js';
+import { createBirds } from './assets/fauna/birds.js';
 import { createControls } from './app/controls.js';
 import { createDebugOverlay } from './app/debugOverlay.js';
 
@@ -65,6 +66,7 @@ const ocean = createOcean(ctx, ground, SEA_Y);
 const worldGrass = createWorldGrass(ctx, ground);
 const scatter = createScatter(ctx);
 const undergrowth = createUndergrowth(ctx, { scatter, pollen });
+const birds = createBirds({ ...ctx, skyUniforms });
 const { setSun, scheduleEnv } = createTimeOfDay({ ...ctx, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin });
 
 // Controls + UI
@@ -91,6 +93,7 @@ function frame(now) {
   if (nearDoor !== st.nearDoor) { st.nearDoor = nearDoor; actEl.classList.toggle('hide', !(nearDoor && st.playing && !isTouch)); btnDoor.style.display = nearDoor && st.playing ? '' : 'none'; }
   if (plotBands.pads.on) for (let i = 0; i < pads.length; i++) { const p = pads[i]; p.position.y = WATER_Y + 0.006 + Math.sin(t * 1.3 + p.userData.ph) * 0.0035; p.rotation.y += Math.sin(t * 0.4 + p.userData.ph) * 0.0006; }
   updateButterflies(flies, t, camera.position, CONFIG.detail.butterflies);
+  birds.update(dt);
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
   debug.frame(now);
@@ -106,7 +109,7 @@ const detail = createDetailManager(camera);
 const plotBands = registerPlotDetail(ctx, detail, { spruce: plotSpruce, apple: plotApple, rose: plotRose, reeds: plotReeds, flowers: plotFlowers, outcrop: plotOutcrop, pads, grass: plotGrass, pollen, cabin });
 finalizeScene(scene, cabin.group);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 setSun(+timeIn.value); timeV.textContent = fmtTime(+timeIn.value); scheduleEnv(true); setSpeed(2.2);
 move(0);
