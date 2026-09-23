@@ -28,3 +28,21 @@ export function createScatteredRocks(ctx) {
     mesh.castShadow = mesh.receiveShadow = true; scene.add(mesh);
   }
 }
+
+/**
+ * Scatter prototypes: a few unit-sized mossy boulders (vertex painted, ~320 triangles each) for the wider world.
+ * Local space, resting on y = 0 with ~30% below ground. Replaceable by GLB meshes.
+ */
+export function createRockPrototypes(count = 3) {
+  const grey = lin(0x7a766d), greyB = lin(0x57544f), moss = lin(0x4b5c26), lichen = lin(0x9c9a78);
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.55 });
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const g = blobGeo(2, 0.4 + i * 0.06, 1.2 + i * 0.25, 30 + i * 7.7);
+    g.scale(1, 0.55 + i * 0.12, 0.85); g.translate(0, 0.25, 0);
+    g.computeVertexNormals();
+    paint(g, (c, px, py, pz, nx, ny) => { const n = fbm3(px * 5 + i, py * 5, pz * 5); c.copy(grey).lerp(greyB, clamp(n + 0.5)); c.lerp(moss, clamp((ny - 0.5) * 2.2 + n) * 0.8); if (fbm3(px * 11, py * 11, pz * 11) > 0.3) c.lerp(lichen, 0.35); });
+    out.push({ name: 'rock' + i, height: 1, width: 1.6, lods: [{ parts: [{ geometry: g, material: mat, castShadow: true }] }] });
+  }
+  return out;
+}

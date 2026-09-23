@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { isTouch } from '../core/env.js';
+import { CONFIG } from '../config.js';
 
-/** WebGL renderer (ACES tone mapping, sRGB output, soft shadows), scene and first-person camera. */
+/** WebGL renderer (ACES tone mapping, sRGB output, soft shadows), scene with exponential fog and first-person camera. */
 export function createEngine(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, CONFIG.render.maxPixelRatio));
   renderer.setSize(innerWidth, innerHeight, false);
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -14,7 +14,8 @@ export function createEngine(canvas) {
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.03, 600);
+  scene.fog = new THREE.FogExp2(0xa8c0d8, CONFIG.fog.density); // colour follows the sky horizon (world/timeOfDay.js)
+  const camera = new THREE.PerspectiveCamera(CONFIG.camera.fov, innerWidth / innerHeight, 0.03, CONFIG.camera.far);
   camera.rotation.order = 'YXZ';
   window.addEventListener('resize', () => {
     renderer.setSize(innerWidth, innerHeight, false);

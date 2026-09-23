@@ -3,8 +3,9 @@ import { isTouch } from '../../core/env.js';
 import { rng, rr } from '../../core/random.js';
 import { V, UPV, clamp, lin } from '../../core/math.js';
 import { hash2 } from '../../core/noise.js';
-import { paint, mergeGeos, limb } from '../../core/geometry.js';
-import { addFlutter } from '../../core/shaderPatches.js';
+import { paint, mergeGeos, limb, cardBatch, mergeColored } from '../../core/geometry.js';
+import { canvasTex } from '../../core/canvasTexture.js';
+import { addFlutter, addWorldSway, dampSpecular } from '../../core/shaderPatches.js';
 import { CON, H } from '../../world/layout.js';
 
 /**
@@ -139,4 +140,73 @@ export function createSpruce(ctx) {
     cones.forEach((m, i) => cm.setMatrixAt(i, m));
     cm.castShadow = cm.receiveShadow = true; scene.add(cm);
   }
+}
+
+/**
+ * Scatter prototype of the spruce for the wider world: the same whorl-of-branches build as the hero tree, but each
+ * branch is a few "bough" cards (a whole needle-covered branch painted on a canvas) instead of hundreds of sprays.
+ * Returns 2 mesh LODs (full: ~1.5k triangles, simplified: ~200) in local space, base at the origin, ~height m tall.
+ * Draws from the shared random stream: call setSeed() first. Replaceable by GLB meshes with the same shape.
+ */
+export function createSprucePrototype(ctx, height = 10) {
+  const { barkTex } = ctx.tex;
+  const boughTex = canvasTex(256, 128, (g) => {
+    g.lineCap = 'round';
+    // a tapered needle mass (gives the card body) with the twigs and needle strokes painted over it
+    const edge = (t) => 44 * Math.pow(Math.sin(Math.PI * Math.min(1, 0.12 + t * 0.95)), 0.7) * (1 - 0.45 * t);
+    g.fillStyle = '#20391f'; g.beginPath(); g.moveTo(4, 64);
+    for (let i = 0; i <= 40; i++) { const t = i / 40; g.lineTo(4 + t * 248, 64 - edge(t) * (0.8 + 0.2 * rng())); }
+    for (let i = 40; i >= 0; i--) { const t = i / 40; g.lineTo(4 + t * 248, 64 + edge(t) * (0.8 + 0.2 * rng())); }
+    g.fill();
+    const twig = (x0, y0, x1, y1, n, len0) => {
+      g.strokeStyle = '#4a3a26'; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+      for (let i = 0; i < n; i++) {
+        const t = i / n, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t, side = i % 2 ? 1 : -1, len = len0 * (1 - t * 0.5) * (0.8 + rng() * 0.4);
+        const a = Math.atan2(y1 - y0, x1 - x0) + side * (0.9 + rng() * 0.5), c = 70 + Math.floor(rng() * 60 + t * 35);
+        g.strokeStyle = `rgb(${c * 0.42 | 0},${c | 0},${c * 0.46 | 0})`; g.lineWidth = 3;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); g.stroke();
+      }
+    };
+    for (let k = 0; k < 12; k++) { const t = 0.06 + k * 0.075, x = 4 + t * 248, sd = k % 2 ? 1 : -1, L = 62 * (1 - t * 0.55); twig(x, 64, x + L * 0.7, 64 + sd * L * 0.6, 40, 14); }
+    twig(4, 64, 252, 62, 160, 20);
+  });
+  const dark = lin(0x1d3a20), mid = lin(0x3a6a3a), light = lin(0x6f9e4e);
+  const S = height / 6.3;
+  function build(lod) {
+    const full = lod === 0, cards = cardBatch(), bark = [];
+    const top = 5.8 * S, NW = full ? 16 : 10;
+    bark.push(limb(new V(0, -0.15, 0), new V(0, top - 0.4 * S, 0), 0.16 * S, 0.02, full ? 8 : 5, 1));
+    const X = new V(), Y = new V(), N = new V();
+    const tone = (t, k) => dark.clone().lerp(mid, clamp(0.4 + 0.5 * k + 0.3 * t)).lerp(light, clamp(k * 0.5 + t * 0.4 - 0.2)).multiplyScalar(1.5 + rr(-0.12, 0.12));
+    for (let i = 0; i < NW; i++) {
+      const t = i / (NW - 1), y = (0.9 + Math.pow(t, 0.95) * 4.7) * S, L = (1.55 * Math.pow(1 - t, 1.05) + 0.2) * S;
+      const nb = full ? (t > 0.8 ? 5 : 6 + Math.floor(rng() * 2)) : (t > 0.7 ? 4 : 5), ph = rng() * 6.28;
+      for (let j = 0; j < nb; j++) {
+        const a = ph + j * 6.28 / nb + rr(-0.25, 0.25), droop = -0.12 - 0.25 * (1 - t);
+        const dir = new V(Math.cos(a), droop, Math.sin(a)).normalize(), start = new V(0, y, 0), end = start.clone().addScaledVector(dir, L);
+        if (full) bark.push(limb(start, end, 0.03 * S * (1 - t) + 0.01, 0.006, 4));
+        // bough cards: one flat (seen from above/below), one tilted (seen from the side), plus layered shorter ones
+        const side = new V(-dir.z, 0, dir.x);
+        N.copy(dir).multiplyScalar(0.4).add(new V(0, 1, 0)).normalize();
+        const layers = full ? [[0.3, 1.0, 0.0], [-0.35, 0.95, 0.1], [1.25, 0.9, -0.05], [-1.2, 0.8, 0.14]] : [[0.25, 1.15, 0], [-1.2, 1.1, 0.05], [1.2, 1.0, -0.05]];
+        layers.forEach(([roll, lk, lift]) => {
+          Y.copy(dir); X.copy(side).applyAxisAngle(dir, roll);
+          const p = start.clone().addScaledVector(dir, 0.02).add(new V(0, lift * L * 0.3, 0));
+          const k = rng();
+          cards.add(p, X, Y, L * 0.75 * lk, L * 1.08 * lk, tone(t, k), N);
+        });
+      }
+    }
+    // leader shoot
+    for (let k = 0; k < (full ? 6 : 2); k++) { const a = k * 2.1; Y.set(Math.cos(a) * 0.15, 1, Math.sin(a) * 0.15).normalize(); X.set(Math.cos(a + 1.57), 0, Math.sin(a + 1.57)); cards.add(new V(0, top - 0.75 * S, 0), X, Y, 0.35 * S, 0.9 * S, light.clone().multiplyScalar(1.3), Y); }
+    const barkGeo = mergeColored(bark, lin(0xffffff));
+    return { bark: barkGeo, foliage: cards.geometry() };
+  }
+  const barkMat = new THREE.MeshStandardMaterial({ map: barkTex, color: lin(0x6a5444), roughness: 0.95 });
+  const needleMat = new THREE.MeshStandardMaterial({ map: boughTex, vertexColors: true, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.85, envMapIntensity: 0.6 });
+  addWorldSway(needleMat, 0.0009);
+  dampSpecular(needleMat, 0.15);
+  const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: boughTex, alphaTest: 0.42 });
+  const lods = [0, 1].map(l => { const b = build(l); return { parts: [{ geometry: b.bark, material: barkMat, castShadow: true }, { geometry: b.foliage, material: needleMat, castShadow: true, depthMaterial: depth }] }; });
+  return { name: 'spruce', height: 5.9 * S, width: 3.6 * S, trunkRadius: 0.3 * S, lods };
 }

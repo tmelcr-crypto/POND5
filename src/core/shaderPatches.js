@@ -4,6 +4,7 @@ import { U } from './uniforms.js';
  * onBeforeCompile patches for MeshStandardMaterial:
  *  addFlutter   - per-instance leaf/needle flutter (InstancedMesh)
  *  addWorldSway - world-space height-weighted sway (reeds, flower stems)
+ *  dampSpecular - less specular on foliage cards
  */
 export function addFlutter(mat, amp) {
   mat.onBeforeCompile = s => {
@@ -35,4 +36,10 @@ export function addWorldSway(mat, k) {
       mvPosition = modelViewMatrix * mvPosition;
       gl_Position = projectionMatrix * mvPosition;`);
   };
+}
+/** Scale down specular reflection (sun glints and sky reflections) on foliage cards; chains any existing patch. */
+export function dampSpecular(mat, k) {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (s, r) => { prev.call(mat, s, r); s.fragmentShader = s.fragmentShader.replace('#include <aomap_fragment>', `#include <aomap_fragment>
+    reflectedLight.directSpecular *= ${k.toFixed(3)}; reflectedLight.indirectSpecular *= ${k.toFixed(3)};`); };
 }

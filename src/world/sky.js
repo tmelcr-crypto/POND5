@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { V, clamp } from '../core/math.js';
 import { U } from '../core/uniforms.js';
+import { CONFIG } from '../config.js';
 
 /**
  * Procedural sky dome: gradient, sun disc, drifting fBm clouds, stars and moon at night.
@@ -48,7 +49,7 @@ export function createSky(ctx) {
     #include <encodings_fragment>
   }`;
   const skyMat = new THREE.ShaderMaterial({ uniforms: skyUniforms, vertexShader: skyVS, fragmentShader: skyFS, side: THREE.BackSide, depthWrite: false });
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(400, 48, 24), skyMat); sky.frustumCulled = false; sky.renderOrder = -1; scene.add(sky);
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(CONFIG.camera.far * 0.9, 48, 24), skyMat); sky.frustumCulled = false; sky.renderOrder = -1; scene.add(sky);
   const envSkyMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, skyUniforms, { uDisc: { value: 0.25 } }), vertexShader: skyVS, fragmentShader: skyFS, side: THREE.BackSide, depthWrite: false });
   const envScene = new THREE.Scene(); envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), envSkyMat));
   const pmrem = new THREE.PMREMGenerator(renderer);
