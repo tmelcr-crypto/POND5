@@ -61,11 +61,10 @@ export const CONFIG = {
     variants: 4,            // differently seeded full-detail variants per species (build time grows with this)
     spruceScale: [1.1, 1.7],// the reference spruce is 5.8 m tall
     appleScale: [0.85, 1.2],
-    keep: [15, 45, 0.12],   // all detail up to keep[0] m, then ease out to the fraction keep[2] at keep[1] m
-                            // (0.12 keeps the densest view under ~150k cards on touch; measured 137k)
+    keep: [15, 19, 0.5],    // all detail up to keep[0] m, then ease out to the fraction keep[2] at keep[1] m
     grow: 0.35,             // surviving cards grow by up to this much as detail drops, so crowns stay full
-    fade: [42, 48],         // dithered cross-fade from the tree to its billboard (8 baked angles)
-    billboardTile: 256,     // billboard atlas tile width in pixels
+    fade: [15, 19],         // full-detail trees only within fade[0] m; dithered cross-fade to the 8-angle billboard by fade[1]
+    billboardTile: 384,     // billboard atlas tile width in pixels (seen from 15 m, so sharper than before)
   },
 
   // Sun, shadows and atmosphere
