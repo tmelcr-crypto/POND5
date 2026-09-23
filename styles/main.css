@@ -28,6 +28,7 @@ body.touch .touch-only{display:grid}
 body.touch .desk-only{display:none}
 #start{font:inherit;font-weight:600;font-size:1rem;color:#1d2415;background:var(--honey);border:0;border-radius:999px;padding:13px 26px;cursor:pointer;box-shadow:0 6px 24px rgba(240,196,105,.28)}
 #start:hover{filter:brightness(1.05)}
+#start:disabled{cursor:progress;filter:saturate(.6);opacity:.85}
 #start:focus-visible,.panel input:focus-visible,.tbtn:focus-visible{outline:2px solid var(--honey);outline-offset:3px}
 
 /* panel */
