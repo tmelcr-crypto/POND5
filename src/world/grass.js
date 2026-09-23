@@ -1,13 +1,13 @@
 import * as THREE from 'three';
-import { clamp, lin } from '../core/math.js';
+import { clamp, smooth, lin } from '../core/math.js';
 import { fbm2 } from '../core/noise.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { H, HALF, WORLD_HALF, forest, excluded } from './layout.js';
+import { H, HALF, WORLD_HALF, forest, excluded, coastDist } from './layout.js';
 
 /**
  * Bake the world into a small RGBA half-float texture the grass vertex shader samples:
- * R = terrain height, G = grass density (0 on the plot, under forest, on exclusions, outside the world),
+ * R = terrain height, G = grass density (0 on the plot, the beach and the sea, thinner under forest and on exclusions),
  * B = low-frequency patch noise (blade height / tint variation). 0.25 m per texel.
  */
 export function createGroundTexture() {
@@ -16,7 +16,7 @@ export function createGroundTexture() {
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
     const x = -ext + i * st, z = -ext + j * st, k = (j * N + i) * 4;
     const inWorld = Math.max(Math.abs(x), Math.abs(z)) < WORLD_HALF - 0.5;
-    let d = inWorld ? 1 - 0.85 * forest(x, z) : 0;
+    let d = inWorld ? (1 - 0.85 * forest(x, z)) * smooth(CONFIG.island.beachWidth * 0.8, CONFIG.island.beachWidth + 3, coastDist(x, z)) : 0; // none on the beach
     if (excluded(x, z, 0) && Math.max(Math.abs(x), Math.abs(z)) > HALF + 1) d *= 0.35; // path, yard: sparser
     data[k] = half(H(x, z)); data[k + 1] = half(clamp(d)); data[k + 2] = half(clamp(fbm2(x * 0.9 + 4, z * 0.9 - 2) + 0.5)); data[k + 3] = half(1);
   }

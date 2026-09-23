@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { setSeed, rng, rr } from '../core/random.js';
 import { smooth } from '../core/math.js';
 import { CONFIG } from '../config.js';
-import { H, WORLD_HALF, forest, excluded, edgeDist } from './layout.js';
+import { H, WORLD_HALF, forest, excluded, coastDist } from './layout.js';
 import { obstacles } from './bounds.js';
 import { createSprucePrototype } from '../assets/trees/spruce.js';
 import { createApplePrototype } from '../assets/trees/appleTree.js';
@@ -81,7 +81,7 @@ export function createScatter(ctx) {
   setSeed(CONFIG.world.seed); // isolate the world from the diorama's random stream
 
   const species = [];
-  const inWorld = (x, z, m) => edgeDist(x, z) > m;
+  const onLand = (x, z, m) => coastDist(x, z) > m; // m metres inland from the waterline
 
   /* ---- placement ---- */
   const treePts = placer(SC.minSpacing);
@@ -90,7 +90,7 @@ export function createScatter(ctx) {
     while (inst.length < count && tries < count * 60) {
       tries++;
       const x = rr(-WORLD_HALF, WORLD_HALF), z = rr(-WORLD_HALF, WORLD_HALF);
-      if (!inWorld(x, z, 0.8) || excluded(x, z, 1.5)) continue;
+      if (!onLand(x, z, CONFIG.island.beachWidth + 2) || excluded(x, z, 1.5)) continue;
       if (rng() > density(x, z)) continue;
       if (!treePts.tryAdd(x, z, spacing)) continue;
       const s = rr(sMin, sMax);
@@ -100,21 +100,10 @@ export function createScatter(ctx) {
   }
   const spruceP = createSprucePrototype(ctx, 10);
   const appleP = createApplePrototype(ctx);
-  // spruces: dense tree line along the border, groves elsewhere, a few loners in the meadow
+  // spruces: groves between the meadow and the beach, a few loners in the meadow
   const spruce = scatterTrees(spruceP, SC.spruceCount, (x, z) => 0.03 + 0.97 * forest(x, z), 0.7, 1.35, SC.minSpacing);
   // apple trees: open meadow ring around the clearing, away from the forest
   const apple = scatterTrees(appleP, SC.appleCount, (x, z) => { const r = Math.hypot(x, z); return (1 - forest(x, z)) * smooth(SC.clearingRadius - 4, SC.clearingRadius + 2, r) * (1 - smooth(30, 42, r)); }, 0.8, 1.2, 5);
-  // edge trees are taller: the tree line reads as a wall of forest
-  spruce.forEach(t => { t.s *= 1 + 0.35 * (1 - smooth(0, 8, edgeDist(t.x, t.z))); });
-  // forest on the hills beyond the border: billboards only (never closer than ~the border, so never near the camera)
-  const horizon = [];
-  { const hp = placer(3.2), R = SC.horizonForest; let tries = 0;
-    while (tries++ < 40000) {
-      const x = rr(-R, R), z = rr(-R, R), e = -edgeDist(x, z);
-      if (e < 0.5 || !hp.tryAdd(x, z, rr(2.6, 4))) continue;
-      horizon.push({ x, y: H(x, z) - 0.3, z, s: rr(0.9, 1.5), rot: 0 });
-    }
-  }
 
   /* ---- rocks ---- */
   const rockProtos = createRockPrototypes(3);
@@ -123,9 +112,9 @@ export function createScatter(ctx) {
     while (n < SC.rockCount && tries < SC.rockCount * 60) {
       tries++;
       const x = rr(-WORLD_HALF, WORLD_HALF), z = rr(-WORLD_HALF, WORLD_HALF);
-      if (!inWorld(x, z, 1) || excluded(x, z, 0.8)) continue;
+      if (!onLand(x, z, 1.5) || excluded(x, z, 0.8)) continue;       // boulders reach down onto the beach
       const big = rng() < 0.2, s = big ? rr(0.9, 1.9) : rr(0.25, 0.8);
-      if (rng() > 0.25 + 0.75 * forest(x, z)) continue;         // rocks mostly in the woods
+      if (rng() > 0.25 + 0.75 * Math.max(forest(x, z), 1 - smooth(0, 6, coastDist(x, z) - CONFIG.island.beachWidth))) continue; // woods and shore
       if (treePts.pts.some(p => Math.hypot(p.x - x, p.z - z) < 0.6 + s * 0.5)) continue;
       if (!rp.tryAdd(x, z, s * 1.2)) continue;
       const k = Math.floor(rng() * rockProtos.length);
@@ -155,9 +144,9 @@ export function createScatter(ctx) {
       scene.add(im); return im;
     });
   }
-  function addSpecies(proto, list, withBillboard, billboardOnly = false) {
+  function addSpecies(proto, list, withBillboard) {
     if (!list.length) return;
-    const lods = billboardOnly ? [[], []] : proto.lods.map(l => lodMeshes(l, list.length));
+    const lods = proto.lods.map(l => lodMeshes(l, list.length));
     if (withBillboard) {
       const tex = proto.impostor || (proto.impostor = bakeImpostor(renderer, proto));
       const q = new THREE.PlaneGeometry(1, 1); q.translate(0, 0.5, 0);
@@ -166,7 +155,7 @@ export function createScatter(ctx) {
       scene.add(bb); lods.push([bb]);
     }
     species.push({
-      proto, list, lods, mats: billboardOnly ? null : matrices(list), billboard: withBillboard, billboardOnly,
+      proto, list, lods, mats: matrices(list), billboard: withBillboard,
       bbMats: withBillboard ? (() => { const a = new Float32Array(list.length * 16); list.forEach((t, i) => { M.compose(P.set(t.x, t.y - 0.1 * t.s, t.z), Q.identity(), Sv.set(proto.width * t.s, proto.height * t.s, 1)); M.toArray(a, i * 16); }); return a; })() : null,
       cur: new Int8Array(list.length).fill(-1),
       radius: list.map(t => Math.max(proto.width, proto.height) * 0.6 * t.s),
@@ -174,7 +163,6 @@ export function createScatter(ctx) {
   }
   addSpecies(spruceP, spruce, true);
   addSpecies(appleP, apple, true);
-  addSpecies(spruceP, horizon, true, true);
   rockProtos.forEach((p, i) => addSpecies(p, rocks[i], false));
 
   /* ---- per-frame LOD + culling ---- */
@@ -192,8 +180,7 @@ export function createScatter(ctx) {
       for (let i = 0; i < list.length; i++) {
         const t = list[i], d = Math.hypot(t.x - cx, t.y + sp.proto.height * t.s * 0.4 - cy, t.z - cz);
         let l = 0;
-        if (sp.billboardOnly) l = 2;
-        else if (!rocksOnly) {
+        if (!rocksOnly) {
           const c = sp.cur[i];
           const e0 = d0 + (c > 0 ? -hy : hy), e1 = d1 + (c > 1 ? -hy : hy);
           l = d < e0 ? 0 : d < e1 ? 1 : 2; sp.cur[i] = l;

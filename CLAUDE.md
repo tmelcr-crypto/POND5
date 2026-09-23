@@ -10,8 +10,8 @@ Meadow Pond: a first-person three.js scene. A hand-tuned 10 x 10 m meadow dioram
 built entirely from procedural geometry and canvas-drawn textures. There are no model
 or image files in the repo.
 
-The diorama now sits in the middle of a seeded 100 x 100 m world (hills, forest, scatter,
-GPU grass; see README "The world around the plot"). All world tunables are in `src/config.js`.
+The diorama now sits in the middle of a seeded island in a 100 x 100 m world (hills, groves,
+beaches, sea, scatter, GPU grass; see README "The world around the plot"). All world tunables are in `src/config.js`.
 The longer-term goal is a streaming 500 x 500 m world while keeping the existing close-up
 quality near the camera. See `ROADMAP.md`.
 
@@ -88,8 +88,8 @@ the scene gets tested on the iPad.
 - Use the Stats overlay (top-right button). `renderer.info` in r128 excludes the shadow pass; the
   overlay shows the total and the main pass separately.
 - The plot alone costs ~330 draw calls / 1.65M triangles on touch at the start view (incl. shadows);
-  the world adds ~45 calls / ~1.35M, most of it world grass matched to the plot's density out to 18 m
-  (~126k live blades on touch). Cabin meshes are merged by `engine/mergeStatic.js`.
+  the world adds ~45 calls / ~1.3M, most of it world grass matched to the plot's density out to 18 m
+  (~126k live blades on touch). The densest tree group is ~19 trees within 15 m (`scatter.minSpacing`). Cabin meshes are merged by `engine/mergeStatic.js`.
 - Plot grass: ~64k instanced blades (30k touch), GPU wind, never casts shadows. World grass: rings in
   `world/grass.js` (density / radius in `config.js`), also no shadows; only ~1/3 of submitted blade slots
   end up visible, the rest are discarded in the vertex shader.

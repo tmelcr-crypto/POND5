@@ -1,7 +1,7 @@
 # Meadow Pond
 
 A first-person, fully procedural meadow built with [three.js](https://threejs.org/): a hand-tuned 10 × 10 m
-diorama in the middle of a 100 × 100 m valley of rolling hills, spruce forest, apple trees and boulders.
+diorama in the middle of a 100 × 100 m island of rolling hills, spruce groves, apple trees, boulders and beaches.
 Every mesh and texture is generated in code — there are no model or image files.
 
 ![Meadow Pond preview](docs/preview.png)
@@ -10,8 +10,8 @@ Every mesh and texture is generated in code — there are no model or image file
 an apple tree whose crown is made only of individual leaves · a rose bush with spiral-petal roses ·
 a stepped sandstone outcrop with moss, lichen and ferns · a furnished, enterable log cabin with a
 crackling fireplace, lamps and a working door · wind-blown grass and flowers · butterflies, pollen and
-fireflies · a full day/night cycle with stars and moonlight · around it, a seeded 100 × 100 m world:
-rolling hills, a dense forest edge, spruce groves and apple trees with three levels of detail, boulders,
+fireflies · a full day/night cycle with stars and moonlight · around it, a seeded island: rolling hills,
+spruce groves and apple trees with three levels of detail, boulders, sandy beaches, the sea,
 camera-following GPU grass and distance fog.
 
 ## Quick start
@@ -80,19 +80,19 @@ src/
     shaderPatches.js        addFlutter / addWorldSway material patches
     env.js                  isTouch (quality scaling)
   world/                    The site itself
-    layout.js               Site plan: asset positions, H(x, z) (diorama inside the plot, hills outside),
-                            forest density, scatter exclusion zones, cabin -> pond path
+    layout.js               Site plan: asset positions, H(x, z) (diorama inside the plot, hills, beach and
+                            sea floor outside), coastline, forest density, exclusion zones, cabin -> pond path
     sharedTextures.js       Textures used by several assets (bark, leaf, needles, ground detail, sprite)
     sky.js                  Sky dome, clouds, stars, moon, PMREM environment map
     lights.js               Sun/moon light, shadow box that follows the player, hemisphere fill
-    terrain.js              Plot ground mesh + caustics; world heightmap mesh + horizon ring, grass/dirt/rock shader
+    terrain.js              Plot ground mesh + caustics; island heightmap mesh, grass/dirt/rock/sand shader
     grass.js                World GPU grass: camera-following rings of clumps, distance falloff, wind
     scatter.js              Seeded tree + rock scatter, InstancedMesh LODs, baked billboard impostors
-    bounds.js               Soft world boundary and the trunk/boulder collision grid
+    bounds.js               Soft boundary (wading depth at the shore, world edge when flying), trunk/boulder grid
     soilSkirt.js            Soil cross-section of the old diorama edge (no longer built)
     timeOfDay.js            Day/night cycle, fog colour
   assets/                   One factory per scene element
-    water/     pond.js, lilyPads.js, reeds.js
+    water/     pond.js (pond + the sea), lilyPads.js, reeds.js
     trees/     spruce.js, appleTree.js        (hero trees + createSprucePrototype / createApplePrototype for the scatter)
     vegetation/grass.js, meadowFlowers.js, roseBush.js
     rocks/     rockOutcrop.js, scatteredRocks.js  (+ createRockPrototypes)
@@ -140,10 +140,14 @@ export function createRoseBush(ctx) {
 ## The world around the plot
 
 - **Terrain** (`world/terrain.js`, `world/layout.js`): `H(x, z)` is the original diorama height inside
-  `|x|, |z| < CONFIG.world.coreHalf` and blends into seeded fBm hills outside, rising towards the border. The world
-  mesh is one 200 x 200 heightmap (plus a coarse horizon ring, same draw call) cut out under the plot, whose finer
-  ground mesh stays as it was. One shader blends grass (vertex colour x detail texture), dirt / forest floor and
-  rock by slope and a soil mask.
+  `|x|, |z| < CONFIG.world.coreHalf` and blends into seeded fBm hills outside. The hills run down to a beach at a
+  noisy coastline (`coastDist`, `CONFIG.island`) and on to the sea floor. The world mesh is one 200 x 200
+  heightmap cut out under the plot, whose finer ground mesh stays as it was. One shader blends grass (vertex
+  colour x detail texture), dirt / forest floor, rock by slope and sand near sea level.
+- **Sea** (`createOcean` in `assets/water/pond.js`): one opaque plane at `CONFIG.island.seaLevel` (below the plot's
+  pond basin) that follows the camera; colour from the water depth (read from the grass ground texture), a foam
+  line at the shore, world-space waves, fog into the sky's horizon colour. Walking deeper than `wadeDepth`
+  eases you back to shore.
 - **Grass** (`world/grass.js`): only outside the plot (the plot keeps its 64k blades). Density matches the plot
   (`CONFIG.grass.density`: 300 blades/m2 on touch, 640 on desktop) out to 8 m, then falls off continuously as
   `d(r) = full * ((18 - r) / 10)^2`, clumped with low-frequency noise. The vertex shader drops a blade when its
@@ -151,8 +155,9 @@ export function createRoseBush(ctx) {
   CPU. Camera-following rings only set the geometry cost (cell size from the density at each ring's inner edge,
   cheaper blades further out); each cell shifts its blade layout by its own hash so no grid shows. Rings are split
   into 8 sectors so the ones behind the camera are culled.
-- **Trees and rocks** (`world/scatter.js`): seeded Poisson-style placement driven by `forest(x, z)`, kept out of
-  `EXCLUSIONS` (plot, cabin yard, pond, cabin -> pond path; push more to add zones). Each prototype has a full and a
+- **Trees and rocks** (`world/scatter.js`): seeded Poisson-style placement driven by `forest(x, z)` (groves between
+  the meadow and the beach, spaced at least `minSpacing` apart), kept off the beach and out of `EXCLUSIONS`
+  (plot, cabin yard, pond, cabin -> pond path; push more to add zones). Each prototype has a full and a
   simplified mesh LOD and a camera-facing billboard rendered from the full mesh at load. Instances are re-bucketed
   on the CPU every frame (distance with hysteresis + frustum test) into InstancedMeshes. A prototype is a plain
   `{ height, width, lods: [{ parts: [{ geometry, material }] }] }` object, so GLB models can replace the procedural
@@ -172,7 +177,7 @@ export function createRoseBush(ctx) {
 - Quality scales automatically on touch devices (`isTouch`): fewer grass blades and leaves,
   smaller shadow maps, no fireplace shadows. World values are in `src/config.js`; plot values in the asset files.
 - `renderer.info` in r128 does not count the shadow pass; the Stats overlay counts it separately.
-- The world units are metres; the plot spans −5…5 on x and z, the world −50…50, with y up.
+- The world units are metres; the plot spans −5…5 on x and z, the world −50…50 (the island ~37 m radius), with y up.
 
 ## License
 

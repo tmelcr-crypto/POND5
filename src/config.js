@@ -20,10 +20,17 @@ export const CONFIG = {
     hillHeight: 3.2,        // peak-to-trough scale of the rolling hills
     hillScale: 38,          // horizontal wavelength of the hills
     detailHeight: 0.35,     // small bumps on top of the hills
-    edgeRise: 7,            // how much the terrain rises towards the world border
-    edgeRiseStart: 34,      // distance from the centre (box metric) where the rise begins
-    skirtOuter: 160,        // the low-poly horizon ring extends to this half-size (hides the world edge)
     rockSlope: 0.8,         // terrain normal.y below which rock shows through (steep slopes)
+  },
+
+  // The island: coastline, beach and sea around it
+  island: {
+    radius: 37,             // mean distance from the centre to the shoreline
+    coastNoise: 6,          // +- metres the shoreline wanders (seeded)
+    beachWidth: 7,          // sand from the waterline up to here, then the hills take over
+    seaLevel: -0.8,         // below the plot's pond basin (-0.52), so the plot is untouched
+    seaDepth: 6,            // the sea floor drops to this depth offshore
+    wadeDepth: 0.6,         // walking further out than this depth pushes you back to shore
   },
 
   // GPU grass around the camera (outside the diorama; the diorama keeps its own grass)
@@ -41,16 +48,14 @@ export const CONFIG = {
 
   // Tree and rock scatter
   scatter: {
-    spruceCount: isTouch ? 420 : 520,
+    spruceCount: isTouch ? 150 : 180,
     appleCount: 34,
     rockCount: isTouch ? 110 : 150,
     clearingRadius: 13,     // no trees closer than this to the diorama centre (open meadow around the pond)
-    treeLineWidth: 11,      // dense tree line along the border, this many metres deep
-    minSpacing: 2.4,        // minimum trunk spacing for spruces
+    minSpacing: 4.5,        // minimum trunk spacing for spruces (sets the densest a grove can get)
     pathWidth: 1.6,         // walkable path from the cabin door to the pond shore stays clear
     lod: [18, 50],          // full mesh < lod[0] < simplified mesh < lod[1] < camera-facing billboard
     lodHysteresis: 2,       // metres of hysteresis on every LOD switch (avoids flicker at the boundary)
-    horizonForest: 90,      // billboard-only spruces on the hills outside the border, out to this half-size
   },
 
   // Sun, shadows and atmosphere
@@ -74,6 +79,6 @@ export const CONFIG = {
     gravity: 18,
     jump: 4.2,
     flyCeiling: 30,         // maximum height above the terrain in fly mode
-    boundaryMargin: 3,      // soft push-back starts this far inside the world edge
+    boundaryMargin: 3,      // soft push-back starts this far inside the world edge (fly mode over the sea)
   },
 };

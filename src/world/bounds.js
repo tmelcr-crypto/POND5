@@ -1,12 +1,13 @@
 import { CONFIG } from '../config.js';
-import { WORLD_HALF } from './layout.js';
+import { WORLD_HALF, H, SEA_Y } from './layout.js';
 
 /**
  * World edge and static obstacles for the player.
  *  - obstacles: a uniform spatial grid of vertical circles (tree trunks, boulders) registered by the scatter,
  *    so collision cost does not grow with the number of trees.
- *  - applyBounds: soft boundary. Inside the last `boundaryMargin` metres the player is eased back like a spring;
- *    a hard clamp just before the edge guarantees nobody leaves the 100 x 100 m area.
+ *  - applyBounds: soft boundary. Walking into the sea deeper than CONFIG.island.wadeDepth eases you back towards
+ *    the island like a spring; when flying, the last `boundaryMargin` metres of the 100 x 100 m area do the same,
+ *    and a hard clamp just before the edge guarantees nobody leaves it.
  */
 const CELL = 4, cells = new Map();
 const key = (i, j) => i * 73856093 ^ j * 19349663;
@@ -30,7 +31,15 @@ export const obstacles = {
   },
 };
 
-export function applyBounds(p, vel, dt) {
+export function applyBounds(p, vel, dt, walking) {
+  if (walking) {
+    const over = (SEA_Y - H(p.x, p.z)) - CONFIG.island.wadeDepth;   // metres deeper than wading depth
+    if (over > 0) {
+      const r = Math.hypot(p.x, p.z) || 1, nx = p.x / r, nz = p.z / r, out = vel.x * nx + vel.z * nz;
+      if (out > 0) { const k = 1 - Math.exp(-dt * 30 * over); vel.x -= nx * out * k; vel.z -= nz * out * k; } // damp seaward motion
+      const push = Math.min(over * 6, 5) * dt; p.x -= nx * push; p.z -= nz * push;                          // ease back to shore
+    }
+  }
   const hard = WORLD_HALF - 1.2, soft = hard - CONFIG.player.boundaryMargin;
   for (const a of ['x', 'z']) {
     const over = Math.abs(p[a]) - soft;
