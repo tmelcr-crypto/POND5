@@ -1,10 +1,10 @@
 /**
  * Performance overlay: FPS (1 s average), frame time, draw calls and triangles of the last frame
  * (total incl. shadow pass, and the main pass alone from renderer.info), plus the trees in view and the foliage
- * cards they draw after distance thinning.
+ * cards they draw after distance thinning, and the undergrowth (bushes, roses, logs at full detail; small things drawn).
  * Toggled with the "Stats" button (works on touch) or the backquote key; the choice is remembered per browser.
  */
-export function createDebugOverlay(renderer, { scatter }) {
+export function createDebugOverlay(renderer, { scatter, undergrowth }) {
   let on = false;
   // renderer.info (r128) leaves out the shadow pass, so count every draw on the GL context while the overlay is shown
   const gl = renderer.getContext(), total = { calls: 0, tris: 0, last: [0, 0] };
@@ -29,6 +29,7 @@ export function createDebugOverlay(renderer, { scatter }) {
       const r = renderer.info.render, t = scatter.stats;
       box.textContent = `${Math.round(n * 1000 / acc)} fps  ${(acc / n).toFixed(1)} ms (max ${worst.toFixed(0)})\n` +
         `draw calls ${total.last[0]} (main ${r.calls})\ntriangles ${fmt(total.last[1])} (main ${fmt(r.triangles)})\ntrees ${t.near} full / ${t.far} billboard (in view)\ntree cards drawn ${fmt(t.cards)}\nrocks full detail ${t.nearRocks}\n` +
+        (undergrowth ? `undergrowth full detail ${undergrowth.stats.near}, small things ${fmt(undergrowth.stats.small)}\n` : '') +
         `px ratio ${renderer.getPixelRatio().toFixed(2)}`;
       n = 0; acc = 0; worst = 0;
     },

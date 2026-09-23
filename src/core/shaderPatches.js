@@ -53,6 +53,8 @@ export function dampSpecular(mat, k) {
  * keep fraction, card growth at the lowest keep), uFade = billboard cross-fade start / end.
  */
 export const THIN = { uViewPos: { value: new THREE.Vector3() }, uKeep: { value: new THREE.Vector4(15, 45, 0.25, 0.35) }, uFade: { value: new THREE.Vector2(42, 48) } };
+/** The same for small objects (bushes, wild roses): same camera position, their own (shorter) distances. */
+export const THIN_SMALL = { uViewPos: THIN.uViewPos, uKeep: { value: new THREE.Vector4(6, 13, 0.45, 0.3) }, uFade: { value: new THREE.Vector2(10, 13) } };
 /**
  * Continuous detail falloff for a tree part with an 'aRank' attribute (per vertex or per instance): with d the distance
  * from the tree's origin (modelMatrix[3]) to the player, keep(d) = 1 up to uKeep.x, then eases out (1 - (1 - t)^2) to uKeep.z at uKeep.y;
@@ -60,11 +62,11 @@ export const THIN = { uViewPos: { value: new THREE.Vector3() }, uKeep: { value: 
  * so the crown stays full. Past uFade.x the tree dissolves (screen-space dither) into its billboard. Chains any
  * existing onBeforeCompile (so flutter still works); use it on the matching customDepthMaterial too.
  */
-export function addThinning(mat, cards) {
+export function addThinning(mat, cards, uniforms = THIN) {
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = (s, r) => {
     prev.call(mat, s, r);
-    Object.assign(s.uniforms, THIN);
+    Object.assign(s.uniforms, uniforms);
     s.vertexShader = 'attribute float aRank; uniform vec3 uViewPos; uniform vec4 uKeep; varying float vTreeD;\n' + s.vertexShader.replace('#include <project_vertex>', `
       float treeD = distance(modelMatrix[3].xyz, uViewPos); vTreeD = treeD;
       float keepT = 1.0 - clamp((treeD - uKeep.x) / (uKeep.y - uKeep.x), 0.0, 1.0);
@@ -87,13 +89,15 @@ export function addDistanceFade(mat, fadeIn) {
   mat.onBeforeCompile = (s, r) => {
     prev.call(mat, s, r);
     Object.assign(s.uniforms, THIN);
-    s.vertexShader = 'uniform vec3 uViewPos; varying float vTreeD;\n' + s.vertexShader.replace('#include <project_vertex>', `
+    // after the projection (hooked on clipping_planes_vertex, which every material has), so it chains after patches that
+    // replace project_vertex (addWorldSway)
+    s.vertexShader = 'uniform vec3 uViewPos; varying float vTreeD;\n' + s.vertexShader.replace('#include <clipping_planes_vertex>', `
       #ifdef USE_INSTANCING
         vTreeD = distance((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz, uViewPos);
       #else
         vTreeD = distance(modelMatrix[3].xyz, uViewPos);
       #endif
-      #include <project_vertex>`);
+      #include <clipping_planes_vertex>`);
     s.fragmentShader = 'uniform vec2 uFade; varying float vTreeD;\n' + s.fragmentShader.replace('void main() {', `void main() {
       if ((fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) < smoothstep(uFade.x, uFade.y, vTreeD)) != ${fadeIn ? 'true' : 'false'}) discard;`);
   };

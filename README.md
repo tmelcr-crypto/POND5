@@ -77,7 +77,7 @@ src/
     geometry.js             weld, blobGeo, paint, mergeGeos, limb, joint
     canvasTexture.js        canvasTex: draw a texture with the 2D canvas API
     uniforms.js             Shared shader uniforms (time, wind, sun)
-    shaderPatches.js        addFlutter / addWorldSway material patches
+    shaderPatches.js        addFlutter / addWorldSway / addThinning / addDistanceFade material patches
     env.js                  isTouch (quality scaling)
   world/                    The site itself
     layout.js               Site plan: asset positions, H(x, z) (diorama inside the plot, hills, beach and
@@ -88,13 +88,16 @@ src/
     terrain.js              Plot ground mesh + caustics; island heightmap mesh, grass/dirt/rock/sand shader
     grass.js                World GPU grass: camera-following rings of clumps, distance falloff, wind
     scatter.js              Seeded tree + rock scatter, per-tree distance thinning, 8-angle billboard atlases
+    undergrowth.js          Bushes, wild roses, fallen logs + stumps, ferns, mushrooms, sticks, cones, meadow flowers,
+                            pollen / fireflies around the camera
     bounds.js               Soft boundary (wading depth at the shore, world edge when flying), trunk and boulder grids
     soilSkirt.js            Soil cross-section of the old diorama edge (no longer built)
     timeOfDay.js            Day/night cycle, fog colour
   assets/                   One factory per scene element
     water/     pond.js (pond + the sea), lilyPads.js, reeds.js
     trees/     spruce.js, appleTree.js        (full-detail generator, the reference tree, island variants)
-    vegetation/grass.js, meadowFlowers.js, roseBush.js
+               fallenLog.js                   (fallen trunk + the stump it broke from, near / far meshes)
+    vegetation/grass.js, meadowFlowers.js, roseBush.js (+ wild rose variants), bush.js, forestFloor.js
     rocks/     rockOutcrop.js (+ boulder, finishRock), scatteredRocks.js (+ createRockVariants)
     fauna/     butterflies.js, pollen.js
     cabin/     cabin.js     (structure, fireplace, furniture, props, lights, door)
@@ -162,9 +165,9 @@ export function createRoseBush(ctx) {
   `CONFIG.trees.variants` differently seeded variants, built once in tree-local space. A tree is a small group of
   meshes sharing its variant's geometry, card buffers and materials; its position, rotation and scale are in its
   modelMatrix. Every part has a detail rank (outer / silhouette cards low, twigs and fruit high) and parts are
-  stored sorted by rank, so detail thins continuously with distance: keep(d) = 1 up to 15 m, easing out to
-  `keep[2]` at 45 m; each tree draws only its first N cards / vertices (one binary search per tree per frame) and
-  the shader collapses the rest (`addThinning`, also in the shadow pass); surviving cards grow slightly. Past 42 m
+  stored sorted by rank, so detail thins continuously with distance: keep(d) = 1 up to `CONFIG.trees.keep[0]`, easing
+  out to `keep[2]` at `keep[1]`; each tree draws only its first N cards / vertices (one binary search per tree per frame) and
+  the shader collapses the rest (`addThinning`, also in the shadow pass); surviving cards grow slightly. Past `CONFIG.trees.fade[0]`
   the tree dissolves (screen-space dither) into a camera-facing billboard baked at load from 8 angles per variant.
   Pinecones switch to a 32-scale version of the same cone past 6 m.
   Boulders use the same draw logic: the reference outcrop's `boulder` + `finishRock` (sandstone, moss, lichen) at
@@ -174,6 +177,19 @@ export function createRoseBush(ctx) {
   feet and are pushed around taller ones. A variant is a plain
   `{ height, width, bounds, parts: [{ geometry, material, depth, instances? }] }` object, so GLB models can replace
   the procedural ones.
+- **Undergrowth** (`world/undergrowth.js`, `CONFIG.undergrowth`), placed after the trees and rocks and avoiding them,
+  with the same draw logic:
+  - leafy bushes (`bush.js`) in and along the woods and wild roses (the reference `buildRose`, 14 canes, merged into
+    four meshes) on the meadow side of forest edges: full-detail variants planted like the trees, thinned by rank and
+    dissolved into 8-angle billboards over a shorter range (`undergrowth.keep` / `fade`: 8 m, billboards by 11 m);
+  - fallen trunks, each lying beside the stump it broke from (matching splinters, end grain, root flares, branch
+    stubs, moss, bracket fungi, boletes and fly agarics): a near mesh cross-faded into an instanced far mesh like the
+    boulders; the stump collides like a trunk and the log as a chain of ellipsoids (low ones can be stepped on);
+  - ferns (the outcrop's fronds), boletes, fly agarics, sticks, spruce cones under the spruces and the plot's meadow
+    flowers (same geometry, tints and patch noise): one InstancedMesh per kind whose buffer holds only the 8 m tiles
+    near the camera (refilled every 1.5 m of movement), dithered out with `trees.fade`;
+  - pollen by day / fireflies at night in a box around the camera, sharing the plot's pollen material so the
+    time of day drives both (the plot keeps its own).
 - **Build order:** the world is built after every diorama asset and reseeds the random stream with
   `CONFIG.world.seed`, so the plot looks exactly as before and the world can be re-rolled on its own.
 - **Tuning:** every number lives in `src/config.js`.

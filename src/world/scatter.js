@@ -24,7 +24,7 @@ import { createRockVariants } from '../assets/rocks/scatteredRocks.js';
  */
 
 // Poisson-ish rejection sampling on a hash grid
-function placer(minDist) {
+export function placer(minDist) {
   const cell = minDist, grid = new Map(), pts = [];
   const k = (i, j) => i * 92821 + j;
   return {
@@ -39,11 +39,64 @@ function placer(minDist) {
   };
 }
 
+/* ---- shared by every "detailed object" (trees here, bushes and wild roses in undergrowth.js) ---- */
+const survivors = (ranks, keep) => { let lo = 0, hi = ranks.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (ranks[mid] < keep) lo = mid + 1; else hi = mid; } return lo; };
+/** keep(d) of the thinning, identical to the shader's (K = CONFIG.trees.keep, or the range's own keep). */
+export function keepAt(d, K = CONFIG.trees.keep) { const t = 1 - Math.min(1, Math.max(0, (d - K[0]) / (K[1] - K[0]))); return 1 + (K[2] - 1) * (1 - t * t); }
+
+/**
+ * One small group per object, sharing everything with its variant ({ parts: [{ geometry, material, depth,
+ * instances?, castShadow? }], bounds }): the object's position, rotation and scale go in the group's matrix.
+ * list items: { x, y, z, s, rot, variant, pitch? }. Returns entries for updateGroups().
+ */
+export function plantGroups(scene, list, variants, tag) {
+  const out = [];
+  for (const t of list) {
+    const v = variants[t.variant], g = new THREE.Group();
+    g.position.set(t.x, t.y, t.z); g.rotation.set(0, t.rot, t.pitch || 0, 'YZX'); g.scale.setScalar(t.s);
+    for (const part of v.parts) {
+      let mesh;
+      if (part.instances) { mesh = new THREE.InstancedMesh(part.geometry, part.material, 0); mesh.instanceMatrix = part.instances.matrix; mesh.instanceColor = part.instances.color; mesh.count = part.instances.count; }
+      else {
+        // own lightweight geometry (shared buffers) so each object can have its own draw range
+        const geo = new THREE.BufferGeometry(); for (const k in part.geometry.attributes) geo.setAttribute(k, part.geometry.attributes[k]);
+        geo.boundingSphere = part.geometry.boundingSphere; mesh = new THREE.Mesh(geo, part.material);
+      }
+      mesh.castShadow = part.castShadow !== false; mesh.receiveShadow = true; mesh.customDepthMaterial = part.depth; mesh.userData.dynamic = true; mesh.userData.part = part;
+      g.add(mesh);
+    }
+    g.updateMatrixWorld(true); g.matrixAutoUpdate = false; g.children.forEach(c => { c.matrixAutoUpdate = false; });
+    scene.add(g);
+    out.push({ g, v, t, species: tag, sphere: v.bounds.clone().applyMatrix4(g.matrixWorld) });
+  }
+  return out;
+}
+
+/**
+ * Per frame: hide objects that have fully become billboards / far meshes, and for the rest draw only the first N of
+ * each rank-sorted part (instances or vertices) for keep(d). One distance and a few binary searches per object.
+ */
+export function updateGroups(entries, c, range = CONFIG.trees) {
+  const hideBeyond = range.fade[1] + 1;
+  for (const tr of entries) {
+    const d = tr.g.position.distanceTo(c);
+    tr.g.visible = d < hideBeyond;
+    if (!tr.g.visible) continue;
+    const keep = keepAt(d, range.keep);
+    for (const mesh of tr.g.children) {
+      const part = mesh.userData.part;
+      if ((part.maxDist && d > part.maxDist) || (part.minDist && d <= part.minDist)) mesh.count = 0; // near / far mesh of a small part
+      else if (part.instances) mesh.count = part.instances.ranks ? survivors(part.instances.ranks, keep) : part.instances.count;
+      else if (part.vertexRanks) mesh.geometry.setDrawRange(0, survivors(part.vertexRanks, keep));
+    }
+  }
+}
+
 /**
  * Render every variant of a species from 8 angles into one atlas (rows: variants, columns: angles). Albedo only, at
  * half brightness (instance colours go above 1); the billboard material lights it and doubles it back.
  */
-function bakeAtlas(renderer, protos, tile) {
+export function bakeAtlas(renderer, protos, tile) {
   const W = Math.max(...protos.map(p => p.width)), Hh = Math.max(...protos.map(p => p.height));
   const tw = tile, th = Math.max(32, Math.round(tile * Hh / W / 16) * 16);
   const rt = new THREE.WebGLRenderTarget(tw * 8, th * protos.length, { format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
@@ -82,13 +135,13 @@ function bakeAtlas(renderer, protos, tile) {
  * its vertical axis and showing the atlas tile of its variant from the nearest of the 8 baked angles. Hidden (collapsed)
  * nearer than the fade; inside the fade it takes the pixels the dissolving tree gives up (same dither, complementary).
  */
-function billboards(atlas, list) {
+export function billboards(atlas, list, uniforms = THIN) {
   const q = new THREE.PlaneGeometry(1, 1); q.translate(0, 0.5, 0);
   const bbData = new Float32Array(list.length * 2); list.forEach((t, i) => { bbData[i * 2] = t.rot; bbData[i * 2 + 1] = t.variant; });
   q.setAttribute('aBB', new THREE.InstancedBufferAttribute(bbData, 2));
   const m = new THREE.MeshStandardMaterial({ map: atlas.texture, color: new THREE.Color(2, 2, 2), alphaTest: 0.5, roughness: 0.9, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.5 });
   m.onBeforeCompile = s => {
-    Object.assign(s.uniforms, THIN, { uRows: { value: atlas.rows } });
+    Object.assign(s.uniforms, uniforms, { uRows: { value: atlas.rows } });
     s.vertexShader = 'attribute vec2 aBB; uniform vec3 uViewPos; uniform vec2 uFade; uniform float uRows; varying float vTreeD;\n' + s.vertexShader
       .replace('#include <uv_vertex>', `
         vec3 bbC = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
@@ -174,28 +227,7 @@ export function createScatter(ctx) {
       rx: e.rx * r.s + 0.2, ry: e.ry * r.s + 0.2, rz: e.rz * r.s + 0.2, rot: r.rot, body: 0.25 }); }));
 
   /* ---- tree meshes: one small group per tree, everything shared with its variant ---- */
-  const trees = [];
-  function plant(list, variants, species) {
-    for (const t of list) {
-      const v = variants[t.variant], g = new THREE.Group();
-      g.position.set(t.x, t.y, t.z); g.rotation.y = t.rot; g.scale.setScalar(t.s);
-      for (const part of v.parts) {
-        let mesh;
-        if (part.instances) { mesh = new THREE.InstancedMesh(part.geometry, part.material, 0); mesh.instanceMatrix = part.instances.matrix; mesh.instanceColor = part.instances.color; mesh.count = part.instances.count; }
-        else {
-          // own lightweight geometry (shared buffers) so each tree can have its own draw range
-          const geo = new THREE.BufferGeometry(); for (const k in part.geometry.attributes) geo.setAttribute(k, part.geometry.attributes[k]);
-          geo.boundingSphere = part.geometry.boundingSphere; mesh = new THREE.Mesh(geo, part.material);
-        }
-        mesh.castShadow = mesh.receiveShadow = true; mesh.customDepthMaterial = part.depth; mesh.userData.dynamic = true; mesh.userData.part = part;
-        g.add(mesh);
-      }
-      g.updateMatrixWorld(true); g.matrixAutoUpdate = false; g.children.forEach(c => { c.matrixAutoUpdate = false; });
-      scene.add(g);
-      trees.push({ g, v, t, species, sphere: v.bounds.clone().applyMatrix4(g.matrixWorld) });
-    }
-  }
-  plant(spruce, spruceV, 'spruce'); plant(apple, appleV, 'apple');
+  const trees = plantGroups(scene, spruce, spruceV, 'spruce').concat(plantGroups(scene, apple, appleV, 'apple'));
   const bbs = [];
   if (spruce.length) { const a = bakeAtlas(renderer, spruceV, TC.billboardTile); bbs.push(billboards(a, spruce)); }
   if (apple.length) { const a = bakeAtlas(renderer, appleV, TC.billboardTile); bbs.push(billboards(a, apple)); }
@@ -221,23 +253,10 @@ export function createScatter(ctx) {
   const frustum = new THREE.Frustum(), pm = new THREE.Matrix4();
   const hideBeyond = TC.fade[1] + 1;
   const stats = { trees: trees.length, rocks: rocks.reduce((s, l) => s + l.length, 0), near: 0, far: 0, cards: 0, nearRocks: 0 };
-  const survivors = (ranks, keep) => { let lo = 0, hi = ranks.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (ranks[mid] < keep) lo = mid + 1; else hi = mid; } return lo; };
-  const keepAt = d => { const t = 1 - Math.min(1, Math.max(0, (d - TC.keep[0]) / (TC.keep[1] - TC.keep[0]))); return 1 + (TC.keep[2] - 1) * (1 - t * t); }; // = the shader's keep(d)
   function update(camera, withStats) {
     const c = camera.position; THIN.uViewPos.value.copy(c);
     for (const r of nearRocks) r.m.visible = r.p.distanceTo(c) < hideBeyond;   // the far mesh covers the rest
-    for (const tr of trees) {
-      const d = tr.g.position.distanceTo(c);
-      tr.g.visible = d < hideBeyond;
-      if (!tr.g.visible) continue;
-      const keep = keepAt(d);
-      for (const mesh of tr.g.children) {
-        const part = mesh.userData.part;
-        if ((part.maxDist && d > part.maxDist) || (part.minDist && d <= part.minDist)) mesh.count = 0; // near / far mesh of a small part
-        else if (part.instances) mesh.count = survivors(part.instances.ranks, keep);
-        else if (part.vertexRanks) mesh.geometry.setDrawRange(0, survivors(part.vertexRanks, keep));
-      }
-    }
+    updateGroups(trees, c);
     if (!withStats) return;
     // what the GPU draws this frame: foliage cards of trees in view, after thinning (exact, from the sorted ranks)
     pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); frustum.setFromProjectionMatrix(pm);
