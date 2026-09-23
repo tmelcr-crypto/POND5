@@ -35,7 +35,15 @@ import { createDebugOverlay } from './app/debugOverlay.js';
 
 if (isTouch) document.body.classList.add('touch');
 
+// The world is built in steps with a pause between them, so the page stays responsive and the Start button can show
+// progress (on a slow machine, or a browser running scripts without its JIT, building takes many seconds).
+const startBtn = document.getElementById('start'), startLabel = startBtn.textContent;
+startBtn.disabled = true;
+const step = (pct, what = 'Building the island') => { startBtn.textContent = `${what}\u2026 ${Math.round(pct)}%`; return new Promise(r => setTimeout(r, 0)); };
+
+(async () => { try {
 // Engine + shared resources
+await step(0);
 const ctx = createEngine(document.getElementById('c'));
 ctx.tex = createSharedTextures(ctx.maxAniso);
 
@@ -46,27 +54,36 @@ const { sun, hemi, follow: followSun } = createLights(ctx);
 const added = fn => { const n = ctx.scene.children.length, r = fn(); return { objs: ctx.scene.children.slice(n), r }; };
 createTerrain(ctx);
 createPond(ctx);
+await step(5);
 const plotGrass = added(() => createGrass(ctx)).objs;
 const plotSpruce = added(() => createSpruce(ctx)).objs;
 const plotApple = added(() => createAppleTree(ctx)).objs;
+await step(10);
 createScatteredRocks(ctx);
 const plotReeds = added(() => createReeds(ctx)).objs;
 const pads = createLilyPads(ctx);
 const plotFlowers = added(() => createMeadowFlowers(ctx)).objs;
 const flies = createButterflies(ctx);
+await step(14);
 const plotOutcrop = added(() => createRockOutcrop(ctx)).objs;
 const plotRose = added(() => createRoseBush(ctx)).objs;
+await step(20);
 const { cabin, setLights, toggleDoor, update: updateCabin } = createCabin(ctx);
 const { pollen, update: updatePollen } = createPollen(ctx);
 const plotObjects = ctx.scene.children.length;
+await step(25);
 // The island around the plot (seeded separately via CONFIG.world.seed, so the plot above is unchanged)
 createWorldTerrain(ctx);
+await step(40);
 const ground = createGroundTexture();
+await step(55);
 const ocean = createOcean(ctx, ground, SEA_Y);
 const worldGrass = createWorldGrass(ctx, ground);
 const scatter = createScatter(ctx);
+await step(75);
 const undergrowth = createUndergrowth(ctx, { scatter, pollen });
 const birds = createBirds({ ...ctx, skyUniforms });
+await step(88);
 const { setSun, scheduleEnv } = createTimeOfDay({ ...ctx, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin });
 
 // Controls + UI
@@ -113,5 +130,11 @@ window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, 
 setLights(true);
 setSun(+timeIn.value); timeV.textContent = fmtTime(+timeIn.value); scheduleEnv(true); setSpeed(2.2);
 move(0);
+await step(95, 'Preparing graphics');
 renderer.compile(scene, camera);   // every program now (everything is still visible), so nothing hitches when it first appears
 requestAnimationFrame(frame);
+startBtn.textContent = startLabel; startBtn.disabled = false;
+} catch (e) {
+  // show why it did not start instead of looking frozen
+  startBtn.textContent = 'Could not start: ' + (e && e.message ? e.message : e); window.console.error(e);
+} })();
