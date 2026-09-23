@@ -29,7 +29,7 @@ export function createDebugOverlay(renderer, { scatter, undergrowth }) {
       const r = renderer.info.render, t = scatter.stats;
       box.textContent = `${Math.round(n * 1000 / acc)} fps  ${(acc / n).toFixed(1)} ms (max ${worst.toFixed(0)})\n` +
         `draw calls ${total.last[0]} (main ${r.calls})\ntriangles ${fmt(total.last[1])} (main ${fmt(r.triangles)})\ntrees ${t.near} full / ${t.far} billboard (in view)\ntree cards drawn ${fmt(t.cards)}\nrocks full detail ${t.nearRocks}\n` +
-        (undergrowth ? `undergrowth full detail ${undergrowth.stats.near}, small things ${fmt(undergrowth.stats.small)}\n` : '') +
+        (undergrowth ? `undergrowth full detail ${undergrowth.stats.near}, small things ${fmt(undergrowth.stats.small)}, butterflies ${undergrowth.stats.butterfliesDrawn}\n` : '') +
         `px ratio ${renderer.getPixelRatio().toFixed(2)}`;
       n = 0; acc = 0; worst = 0;
     },
