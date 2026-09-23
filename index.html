@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles/main.css">
 <script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js" } }
+{ "imports": { "three": "./vendor/three.module.js" } }
 </script>
 </head>
 <body>
@@ -63,6 +63,20 @@
 <div id="act" class="glass hide"><kbd>F</kbd> open or close the door</div>
 <div id="touchHelp">Left side moves, right side looks</div>
 
+<script>
+// Runs before the modules: says "Loading" at once, and if a script cannot be loaded or fails before the scene is up
+// (a blocked file, an error), shows why on the Start button instead of leaving the page looking frozen.
+(function () {
+  var b = document.getElementById('start'); if (!b) return;
+  b.dataset.label = b.textContent; b.disabled = true; b.textContent = 'Loading\u2026';
+  function fail(msg) { if (window.__meadow) return; b.disabled = true; b.textContent = 'Could not start: ' + msg; }
+  window.addEventListener('error', function (e) {
+    if (e.target && e.target.tagName === 'SCRIPT') fail('a script could not be loaded (' + (e.target.src || '') + ' or one of its imports)');
+    else if (e.message) fail(e.message);
+  }, true);
+  window.addEventListener('unhandledrejection', function (e) { fail(String((e.reason && e.reason.message) || e.reason)); });
+})();
+</script>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>

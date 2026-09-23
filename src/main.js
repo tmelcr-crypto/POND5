@@ -37,7 +37,7 @@ if (isTouch) document.body.classList.add('touch');
 
 // The world is built in steps with a pause between them, so the page stays responsive and the Start button can show
 // progress (on a slow machine, or a browser running scripts without its JIT, building takes many seconds).
-const startBtn = document.getElementById('start'), startLabel = startBtn.textContent;
+const startBtn = document.getElementById('start'), startLabel = startBtn.dataset.label || startBtn.textContent;   // index.html may already say "Loading"
 startBtn.disabled = true;
 const step = (pct, what = 'Building the island') => { startBtn.textContent = `${what}\u2026 ${Math.round(pct)}%`; return new Promise(r => setTimeout(r, 0)); };
 
