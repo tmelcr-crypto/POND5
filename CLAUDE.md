@@ -30,8 +30,8 @@ quality near the camera. See `ROADMAP.md`.
   APIs: `renderer.outputEncoding`, `THREE.sRGBEncoding`, `Color.convertSRGBToLinear()`,
   and shader chunk names such as `lights_fragment_begin` and `encodings_fragment`.
   Upgrading silently breaks the water, grass, caustics and colour handling.
-- **No build step is required.** `index.html` loads three.js through an import map, so the
-  project runs from any static server. Vite exists as an optional convenience only —
+- **No build step is required.** `index.html` loads three.js (r128, vendored in `vendor/` so no CDN is needed)
+  through an import map, so the project runs from any static server. Vite exists as an optional convenience only —
   don't make it mandatory.
 - **Target device: iPad Pro M2 in Safari, 60 fps sustained** (after ~5 minutes, thermally
   throttled), not peak. Desktop should be comfortable.
