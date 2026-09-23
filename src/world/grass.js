@@ -82,7 +82,7 @@ export function createWorldGrass(ctx, ground) {
     const sectors = Array.from({ length: SECTORS }, () => []);
     for (let j = -n; j <= n; j++) for (let i = -n; i <= n; i++) {
       const x = i * cell, z = j * cell, d = Math.hypot(x + cell / 2, z + cell / 2); if (d < lo || d > hi) continue;
-      const a = (Math.atan2(z, x) + Math.PI) / (2 * Math.PI); sectors[Math.min(SECTORS - 1, Math.floor(a * SECTORS))].push(x, z);
+      const a = (Math.atan2(z, x) + Math.PI) / (2 * Math.PI); sectors[Math.min(SECTORS - 1, Math.floor(a * SECTORS))].push(i, j); // integer cell offsets
     }
     const uni = {
       uOrigin: { value: new THREE.Vector2() }, uCam: { value: new THREE.Vector3() }, uGround: { value: ground.tex },
@@ -105,7 +105,7 @@ export function createWorldGrass(ctx, ground) {
         ` + s.vertexShader
         .replace('#include <color_vertex>', `
           // blade position: the cell's layout shifted by the cell's own hash (world space, stable, no visible grid)
-          vec2 cw = uOrigin + aCell;
+          vec2 cw = (uOrigin + aCell) * uRing.z;   // integer cell index (exact in float) -> bit-identical world position
           vec2 bp = cw + fract(aBlade.xy + vec2(gh(cw), gh(cw + 17.31))) * uRing.z;
           float rnd = gh(bp * 1.37 + aBlade.z);
           float r = distance(bp, uCam.xz);
@@ -146,8 +146,8 @@ export function createWorldGrass(ctx, ground) {
       geo.setAttribute('aCell', new THREE.InstancedBufferAttribute(new Float32Array(cells), 2));
       geo.instanceCount = cells.length / 2;
       // local bounding sphere of the sector; moved with the camera in update()
-      let cx = 0, cz = 0; for (let i = 0; i < cells.length; i += 2) { cx += cells[i]; cz += cells[i + 1]; } cx /= cells.length / 2; cz /= cells.length / 2;
-      let r = 0; for (let i = 0; i < cells.length; i += 2) r = Math.max(r, Math.hypot(cells[i] - cx, cells[i + 1] - cz));
+      let cx = 0, cz = 0; for (let i = 0; i < cells.length; i += 2) { cx += cells[i] * cell; cz += cells[i + 1] * cell; } cx /= cells.length / 2; cz /= cells.length / 2;
+      let r = 0; for (let i = 0; i < cells.length; i += 2) r = Math.max(r, Math.hypot(cells[i] * cell - cx, cells[i + 1] * cell - cz));
       geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Math.hypot(r + cell * 2, 6));
       const mesh = new THREE.Mesh(geo, m); mesh.receiveShadow = true; mesh.castShadow = false; mesh.userData.dynamic = true;
       mesh.userData.local = new THREE.Vector2(cx, cz);
@@ -157,10 +157,10 @@ export function createWorldGrass(ctx, ground) {
   });
   function update(cam) {
     for (const r of rings) {
-      const o = r.uni.uOrigin.value.set(Math.floor(cam.x / r.cell) * r.cell, Math.floor(cam.z / r.cell) * r.cell);
+      const o = r.uni.uOrigin.value.set(Math.floor(cam.x / r.cell), Math.floor(cam.z / r.cell)); // in cells, not metres
       r.uni.uCam.value.copy(cam);
       for (const m of r.meshes) {
-        const bs = m.geometry.boundingSphere.set(bs0.set(o.x + m.userData.local.x, H(cam.x, cam.z), o.y + m.userData.local.y), m.geometry.boundingSphere.radius);
+        const bs = m.geometry.boundingSphere.set(bs0.set(o.x * r.cell + m.userData.local.x, H(cam.x, cam.z), o.y * r.cell + m.userData.local.y), m.geometry.boundingSphere.radius);
         m.visible = Math.abs(bs.center.x) + bs.radius > HALF || Math.abs(bs.center.z) + bs.radius > HALF; // skip sectors lying inside the plot
       }
     }
