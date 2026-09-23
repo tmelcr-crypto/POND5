@@ -10,9 +10,9 @@ import { SEA_Y } from '../../world/layout.js';
 const BIRDS = {
   groups: 4,                  // groups alive at all times
   perGroup: [6, 8],           // birds per group (min, max)
-  wingspan: 2.0,              // metres (a big gull; the whole silhouette scales with it)
+  wingspan: 3.5,              // metres (larger than life so they read at a distance; the whole silhouette scales)
   color: 0x1c2026,            // unlit silhouette colour; the scene fog blends it into the haze ...
-  fog: 0.35,                  // ... at this fraction of the scene fog's strength (full fog washes them out by 80 m)
+  fog: 0.2,                   // ... at this fraction of the scene fog's strength (full fog washes them out by 80 m)
   dihedral: 0.32,             // radians the wings are held up (the V) when gliding / at mid-beat
   flapAmp: 0.62,              // radians of wing beat
   altitude: [18, 40],         // metres above the water (clear of the tallest spruces)
