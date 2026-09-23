@@ -183,7 +183,7 @@ export function createControls(app) {
       if (d < t.r && d > 1e-4) { np.x = t.x + dx / d * t.r; np.z = t.z + dz / d * t.r; }
     }
     obstacles.resolve(np, 0.15);
-    applyBounds(np, st.vel, dt);
+    applyBounds(np, st.vel, dt, st.walk);
     if (st.walk) {
       // eye height above the walkable surface; step up smoothly, stick to the ground going down hill
       const feet = st.pos.y - PC.eyeHeight, gy = groundAt(np, feet) + PC.eyeHeight;

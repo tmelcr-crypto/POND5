@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { isTouch } from './core/env.js';
 import { U } from './core/uniforms.js';
-import { WATER_Y } from './world/layout.js';
+import { WATER_Y, SEA_Y } from './world/layout.js';
 import { createEngine } from './engine/createEngine.js';
 import { finalizeScene } from './engine/finalizeScene.js';
 import { mergeStatic } from './engine/mergeStatic.js';
@@ -12,7 +12,7 @@ import { createTerrain, createWorldTerrain } from './world/terrain.js';
 import { createGroundTexture, createWorldGrass } from './world/grass.js';
 import { createScatter } from './world/scatter.js';
 import { createTimeOfDay } from './world/timeOfDay.js';
-import { createPond } from './assets/water/pond.js';
+import { createPond, createOcean } from './assets/water/pond.js';
 import { createGrass } from './assets/vegetation/grass.js';
 import { createSpruce } from './assets/trees/spruce.js';
 import { createAppleTree } from './assets/trees/appleTree.js';
@@ -52,9 +52,11 @@ createRoseBush(ctx);
 const { cabin, setLights, toggleDoor, update: updateCabin } = createCabin(ctx);
 const { pollen, update: updatePollen } = createPollen(ctx);
 const plotObjects = ctx.scene.children.length;
-// The 100 x 100 m world around the plot (seeded separately via CONFIG.world.seed, so the plot above is unchanged)
+// The island around the plot (seeded separately via CONFIG.world.seed, so the plot above is unchanged)
 createWorldTerrain(ctx);
-const worldGrass = createWorldGrass(ctx, createGroundTexture());
+const ground = createGroundTexture();
+const ocean = createOcean(ctx, ground, SEA_Y);
+const worldGrass = createWorldGrass(ctx, ground);
 const scatter = createScatter(ctx);
 const { setSun, scheduleEnv } = createTimeOfDay({ ...ctx, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin });
 
@@ -75,6 +77,7 @@ function frame(now) {
   sky.position.copy(camera.position);
   followSun(camera.position);
   worldGrass.update(camera.position);
+  ocean.update(camera.position);
   camera.updateMatrixWorld(); scatter.update(camera);
   updateCabin(dt, t);
   const nearDoor = camera.position.distanceTo(cabin.door.world) < 2.8;

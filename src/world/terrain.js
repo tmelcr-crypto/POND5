@@ -5,7 +5,7 @@ import { fbm2, hash2 } from '../core/noise.js';
 import { U } from '../core/uniforms.js';
 import { canvasTex } from '../core/canvasTexture.js';
 import { CONFIG } from '../config.js';
-import { WATER_Y, HALF, houseRectDist, ROCK, ROSE, CON, H, coreDist, forest, edgeDist, WORLD_HALF } from './layout.js';
+import { WATER_Y, HALF, houseRectDist, ROCK, ROSE, CON, H, coreDist, forest, coastDist, SEA_Y } from './layout.js';
 
 const gA = lin(0x33501b), gB = lin(0x4f6d27), needles = lin(0x4d3c28), shore = lin(0x6b5d43), mud = lin(0x57492f), deep = lin(0x2a2a1c), dry = lin(0x6d7a34);
 const cabinDirt = lin(0x4a3d2a), rockMoss = lin(0x3a4a20), rockSoil = lin(0x51483a), roseSoil = lin(0x3b2a1c);
@@ -71,18 +71,18 @@ function noiseTex(size, fn) {
 function tnoise(x, y, per) { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf); const hh = (a, b) => hash2(((a % per) + per) % per, ((b % per) + per) % per); const a = hh(xi, yi), b = hh(xi + 1, yi), c = hh(xi, yi + 1), d = hh(xi + 1, yi + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; }
 
 /**
- * The 100 x 100 m world terrain: one heightmap mesh (CONFIG.terrain.segments per side) plus a coarse horizon ring
- * out to CONFIG.terrain.skirtOuter, merged into a single draw call. Under the authored plot the mesh is cut out /
+ * The 100 x 100 m island terrain: one heightmap mesh (CONFIG.terrain.segments per side); beyond the coast it
+ * drops to the sea floor under the opaque ocean. Under the authored plot the mesh is cut out /
  * tucked just below the diorama's own finer ground mesh; along the seam it samples exactly the same H and colour.
  * One shader blends grass (painted vertex colour x the diorama detail texture), dirt/forest floor and rock by
- * slope and a soil mask (forest floor, bare patches).
+ * slope and a soil mask (forest floor, bare patches), plus sand on the beaches.
  */
 export function createWorldTerrain(ctx) {
   const { scene, maxAniso } = ctx;
   const { detailTex } = ctx.tex;
   const TC = CONFIG.terrain, WC = CONFIG.world;
   const pos = [], nor = [], uv = [], col = [], soil = [], idx = [];
-  const c = new THREE.Color(), cw = new THREE.Color(), dryW = lin(0x6d7a34), canopy = lin(0x1e3419);
+  const c = new THREE.Color(), cw = new THREE.Color(), dryW = lin(0x6d7a34);
   const e = 0.25; // finite-difference step for normals
   function vertex(x, z, sink) {
     const h = H(x, z);
@@ -94,12 +94,9 @@ export function createWorldTerrain(ctx) {
     const w = smooth(0, WC.coreBlend, coreDist(x, z));
     groundColor(c, x, z, h);
     if (w > 0) { cw.copy(gA).lerp(gB, clamp(fbm2(x * 0.6 + 11, z * 0.6 - 3) * 0.9 + 0.5)).lerp(dryW, clamp(fbm2(x * 0.11 - 7, z * 0.11 + 2) * 1.6 + 0.2) * 0.45); c.lerp(cw, w); }
-    // beyond the border the hills are forest (billboard trees stand on them): dark canopy green, no dirt
-    const beyond = smooth(-3, 4, -edgeDist(x, z));
-    if (beyond > 0) c.lerp(canopy, beyond * 0.85);
     col.push(c.r, c.g, c.b);
     // soil mask: forest floor under the spruces, the path, bare patches; 0 on the plot
-    soil.push(w * (1 - beyond) * clamp(forest(x, z) * 0.95 + smooth(0.2, 0.45, fbm2(x * 0.09 + 40, z * 0.09 - 13, 3)) * 0.5));
+    soil.push(w * smooth(CONFIG.island.beachWidth, CONFIG.island.beachWidth + 4, coastDist(x, z)) * clamp(forest(x, z) * 0.95 + smooth(0.2, 0.45, fbm2(x * 0.09 + 40, z * 0.09 - 13, 3)) * 0.5));
   }
   function grid(size, seg, keepCell, sinkAt) {
     const base = pos.length / 3, st = size / seg, h0 = -size / 2;
@@ -113,9 +110,6 @@ export function createWorldTerrain(ctx) {
   const ins = (x, z, m) => Math.abs(x) < m && Math.abs(z) < m;
   // main mesh: cells completely under the diorama ground are dropped, the ring next to its edge is tucked below it
   grid(WC.size, TC.segments, (x, z, st) => !(ins(x, z, HALF - 0.5) && ins(x + st, z + st, HALF - 0.5)), (x, z) => (ins(x, z, HALF - 1e-6) ? 0.12 : 0));
-  // horizon ring: 5 m cells from just inside the border outwards, sunk below the main mesh where they overlap
-  const inner = WORLD_HALF - 5;
-  grid(TC.skirtOuter * 2, Math.round(TC.skirtOuter * 2 / 5), (x, z, st) => !(ins(x, z, inner) && ins(x + st, z + st, inner)), (x, z) => (ins(x, z, WORLD_HALF + 1e-6) ? 0.45 : 0));
 
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
@@ -130,12 +124,13 @@ export function createWorldTerrain(ctx) {
     uDirtTex: { value: dirtTex }, uRockTex: { value: rockTex },
     uDirtCol: { value: lin(0x4d3c28) }, uRockCol: { value: lin(0x77736a) },
     uRockSlope: { value: 1 - TC.rockSlope },
+    uSea: { value: SEA_Y }, uSand: { value: lin(0xb9a57c) }, uWetSand: { value: lin(0x6f6147) },
   };
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, map: detailTex, roughness: 0.95, metalness: 0, envMapIntensity: 0.6 });
   m.onBeforeCompile = s => {
     Object.assign(s.uniforms, uni);
     s.vertexShader = 'attribute float aSoil; varying float vSoil; varying vec3 vWP; varying vec3 vNW;\n' + s.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vNW = normal; vSoil = aSoil;');
-    s.fragmentShader = 'uniform sampler2D uDirtTex; uniform sampler2D uRockTex; uniform vec3 uDirtCol; uniform vec3 uRockCol; uniform float uRockSlope; varying float vSoil; varying vec3 vWP; varying vec3 vNW;\n' +
+    s.fragmentShader = 'uniform sampler2D uDirtTex; uniform sampler2D uRockTex; uniform vec3 uDirtCol; uniform vec3 uRockCol; uniform float uRockSlope; uniform float uSea; uniform vec3 uSand; uniform vec3 uWetSand; varying float vSoil; varying vec3 vWP; varying vec3 vNW;\n' +
       s.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
         vec3 nW = normalize(vNW);
         float big = texture2D(uDirtTex, vWP.xz * 0.021).r;
@@ -147,7 +142,11 @@ export function createWorldTerrain(ctx) {
         float rt = mix(texture2D(uRockTex, vWP.xz * 0.19).r, texture2D(uRockTex, side * 0.19).r, smoothstep(0.08, 0.35, slope));
         vec3 rock = uRockCol * (0.45 + 0.75 * rt);
         float rockW = smoothstep(uRockSlope - 0.05, uRockSlope + 0.05, slope + (big - 0.5) * 0.12);
-        diffuseColor.rgb = mix(mix(diffuseColor.rgb, dirt, soilW), rock, rockW);`)
+        diffuseColor.rgb = mix(mix(diffuseColor.rgb, dirt, soilW), rock, rockW);
+        // beach: dry sand above the waterline, darker wet sand at and below it
+        float above = vWP.y - uSea + (big - 0.5) * 0.25;
+        vec3 sand = mix(uWetSand, uSand, smoothstep(-0.05, 0.25, above)) * (0.8 + 0.35 * texture2D(uDirtTex, vWP.xz * 0.9).r);
+        diffuseColor.rgb = mix(diffuseColor.rgb, sand, 1.0 - smoothstep(0.55, 0.95, above));`)
       .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n reflectedLight.directSpecular *= 0.2; reflectedLight.indirectSpecular *= 0.2;');
   };
   const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh);

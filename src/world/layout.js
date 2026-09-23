@@ -6,7 +6,8 @@ import { CONFIG } from '../config.js';
  * Site plan (world units = metres, y up). The authored 10 x 10 m plot spans -5..5 on x and z and sits in the
  * middle of the 100 x 100 m world. Positions of every diorama asset live here, plus H(x, z): the terrain height
  * function that everything samples. Inside the plot H is the original diorama terrain (lake basin, gentle
- * hills, flattened pad under the cabin); outside it blends into seeded rolling hills that rise at the border.
+ * hills, flattened pad under the cabin); outside it blends into seeded rolling hills that run down to the
+ * beaches of an island, surrounded by sea.
  * The world biome (forest density) and the scatter exclusion zones live here too.
  */
 export const HALF = 5, WATER_Y = 0.0, BOTTOM = -1.5;
@@ -35,21 +36,25 @@ export function dioramaH(x, z) {
 }
 
 /* ---- the 100 x 100 m world around the plot ---- */
-const WC = CONFIG.world, TC = CONFIG.terrain, SC = CONFIG.scatter;
-export const WORLD_HALF = WC.size / 2;
+const WC = CONFIG.world, TC = CONFIG.terrain, SC = CONFIG.scatter, IC = CONFIG.island;
+export const WORLD_HALF = WC.size / 2, SEA_Y = IC.seaLevel;
 // seed -> noise-space offsets (the value noise itself is unseeded, so the seed moves the sample window)
 const SX = (WC.seed * 12.9898) % 911 + 37.1, SZ = (WC.seed * 78.233) % 877 - 51.7;
 /** Distance outside the square that keeps the exact diorama terrain (0 inside it). */
 export function coreDist(x, z) { return Math.hypot(Math.max(Math.abs(x) - WC.coreHalf, 0), Math.max(Math.abs(z) - WC.coreHalf, 0)); }
-/** Distance to the world border (box metric; negative outside). */
-export function edgeDist(x, z) { return WORLD_HALF - Math.max(Math.abs(x), Math.abs(z)); }
-/** Rolling hills: flat near the plot, fuller further out, rising towards (and past) the border. */
+/** Distance from (x, z) to the shoreline: > 0 on land, < 0 at sea. The coast wanders with seeded noise. */
+export function coastDist(x, z) {
+  const a = Math.atan2(z, x), R = IC.radius + IC.coastNoise * 2 * fbm2(Math.cos(a) * 1.6 + SX, Math.sin(a) * 1.6 + SZ, 3);
+  return R - Math.hypot(x, z);
+}
+/** Rolling hills, flat near the plot, running down to a beach and the sea floor at the coast. */
 export function hillsH(x, z) {
   const f = 1 / TC.hillScale, grow = smooth(0, 24, coreDist(x, z));
-  let h = 0.36 + grow * (TC.hillHeight * (0.5 + fbm2(x * f + SX, z * f + SZ, 3)) + TC.detailHeight * fbm2(x * 0.21 - SZ, z * 0.21 + SX, 3));
-  const e = Math.max(Math.abs(x), Math.abs(z)), rise = smooth(TC.edgeRiseStart, WORLD_HALF + 12, e);
-  h += TC.edgeRise * rise * rise * (0.8 + 0.5 * fbm2(x * 0.06 + SZ, z * 0.06 - SX, 2)) + Math.max(0, e - WORLD_HALF) * 0.35;
-  return h;
+  const land = 0.36 + grow * (TC.hillHeight * (0.5 + fbm2(x * f + SX, z * f + SZ, 3)) + TC.detailHeight * fbm2(x * 0.21 - SZ, z * 0.21 + SX, 3));
+  const c = coastDist(x, z);
+  // beach: a gentle slope up from the waterline; offshore: steeper down to the sea floor
+  const shore = c > 0 ? SEA_Y + 0.12 * c : Math.max(SEA_Y - IC.seaDepth, SEA_Y + 0.25 * c);
+  return land + (shore - land) * (1 - smooth(IC.beachWidth * 0.4, IC.beachWidth * 1.6, c));
 }
 /** Terrain height everywhere. Exactly dioramaH() inside the plot, so every authored asset sits where it did. */
 export function H(x, z) {
@@ -58,12 +63,11 @@ export function H(x, z) {
   const w = smooth(0, WC.coreBlend, q);
   return dioramaH(x, z) * (1 - w) + hillsH(x, z) * w;
 }
-/** Spruce forest density 0..1: a dense tree line along the border plus noise-driven groves, open meadow in the middle. */
+/** Spruce forest density 0..1: noise-driven groves between the meadow around the plot and the beach. */
 export function forest(x, z) {
-  const line = 1 - smooth(0, SC.treeLineWidth, edgeDist(x, z));
-  const groves = smooth(0.1, 0.32, fbm2(x * 0.045 + SZ, z * 0.045 + SX, 3)) * 0.85;
-  const r = Math.hypot(x, z), clear = smooth(SC.clearingRadius, SC.clearingRadius + 12, r);
-  return clamp(Math.max(line, groves * smooth(SC.clearingRadius + 4, SC.clearingRadius + 20, r)) * clear);
+  const groves = smooth(0.1, 0.32, fbm2(x * 0.045 + SZ, z * 0.045 + SX, 3));
+  const r = Math.hypot(x, z), inland = smooth(IC.beachWidth, IC.beachWidth + 5, coastDist(x, z));
+  return clamp(groves * smooth(SC.clearingRadius, SC.clearingRadius + 10, r) * inland);
 }
 /** Walkable path from the cabin steps to the pond shore (a capsule; scatter and world grass keep it clear). */
 export const PATH = (() => {

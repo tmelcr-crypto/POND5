@@ -46,3 +46,43 @@ export function createPond(ctx) {
   }
   return water;
 }
+
+/**
+ * The sea around the island: one opaque plane at CONFIG.island.seaLevel that follows the camera (waves are in
+ * world space, so it never slides). Colour comes from the water depth, read from the world ground texture
+ * (height in .r): sandy turquoise in the shallows, dark teal offshore, a foam line at the shore. Distance fog
+ * fades it into the sky's horizon colour.
+ */
+export function createOcean(ctx, ground, seaY) {
+  const { scene } = ctx;
+  const g = new THREE.PlaneGeometry(320, 320, 1, 1); g.rotateX(-Math.PI / 2);
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.06, metalness: 0, envMapIntensity: 1.1 });
+  m.onBeforeCompile = s => {
+    s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uGround = { value: ground.tex };
+    s.uniforms.uGroundST = { value: new THREE.Vector2(ground.scale, ground.offset) }; s.uniforms.uSea = { value: seaY };
+    s.vertexShader = 'varying vec3 vWP;\n' + s.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    s.fragmentShader = `varying vec3 vWP; uniform float uTime; uniform float uWind; uniform sampler2D uGround; uniform vec2 uGroundST; uniform float uSea;
+      vec2 wv(vec2 p, float t, vec2 d, float f, float sp, float a){ return d * (a*f*cos(dot(d,p)*f + t*sp)); }
+      vec2 seaGrad(vec2 p, float t){
+        vec2 g = vec2(0.0);
+        g += wv(p,t, normalize(vec2(0.8,0.6)), 0.9, 0.9, 0.05);
+        g += wv(p,t, normalize(vec2(-0.3,0.95)), 1.7, 1.3, 0.022);
+        g += wv(p,t, normalize(vec2(0.95,-0.2)), 3.1, 1.9, 0.009);
+        g += wv(p,t, normalize(vec2(-0.7,-0.7)), 6.3, 2.6, 0.004);
+        g += wv(p,t, normalize(vec2(0.2,-0.98)), 11.0, 3.4, 0.0022);
+        return g * (0.35 + uWind*0.65);
+      }
+      ` + s.fragmentShader
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float depth = uSea - texture2D(uGround, (vWP.xz + uGroundST.y) * uGroundST.x).r;
+        vec3 shallow = vec3(0.16, 0.34, 0.30), deep = vec3(0.012, 0.055, 0.07);
+        diffuseColor.rgb = mix(shallow, deep, smoothstep(0.0, 2.8, depth));
+        float foam = (1.0 - smoothstep(0.0, 0.12, depth)) * (0.55 + 0.45 * sin(vWP.x * 3.1 + vWP.z * 2.3 + uTime * 1.3));
+        diffuseColor.rgb += vec3(0.32, 0.34, 0.32) * foam * 0.6;`)
+      .replace('#include <normal_fragment_maps>', `
+        vec2 wg = seaGrad(vWP.xz, uTime);
+        normal = normalize((viewMatrix * vec4(normalize(vec3(-wg.x, 1.0, -wg.y)), 0.0)).xyz);`);
+  };
+  const sea = new THREE.Mesh(g, m); sea.position.y = seaY; sea.receiveShadow = true; sea.frustumCulled = false; scene.add(sea);
+  return { sea, update(cam) { sea.position.x = cam.x; sea.position.z = cam.z; } };
+}
