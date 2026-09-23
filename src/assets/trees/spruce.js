@@ -8,7 +8,7 @@ import { addFlutter, addThinning } from '../../core/shaderPatches.js';
 import { CON, H } from '../../world/layout.js';
 
 /** Pinecone: core, stalk and N spiral scales (sphere segments ws x hs), vertex painted. Defaults: the reference cone. */
-function pineconeGeo(N = 64, ws = 7, hs = 4) {
+export function pineconeGeo(N = 64, ws = 7, hs = 4) {
   const parts = [], len = 0.14, grow = Math.pow(64 / N, 0.35);
   const core = new THREE.CylinderGeometry(0.011, 0.005, len, 8); core.translate(0, -len / 2, 0); parts.push(core);
   const stalk = new THREE.CylinderGeometry(0.003, 0.004, 0.022, 5); stalk.translate(0, 0.008, 0); parts.push(stalk);

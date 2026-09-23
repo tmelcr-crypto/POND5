@@ -11,7 +11,7 @@ built entirely from procedural geometry and canvas-drawn textures. There are no 
 or image files in the repo.
 
 The diorama now sits in the middle of a seeded island in a 100 x 100 m world (hills, groves,
-beaches, sea, scatter, GPU grass; see README "The world around the plot"). All world tunables are in `src/config.js`.
+beaches, sea, trees, rocks, undergrowth, GPU grass; see README "The world around the plot"). All world tunables are in `src/config.js`.
 The longer-term goal is a streaming 500 x 500 m world while keeping the existing close-up
 quality near the camera. See `ROADMAP.md`.
 
@@ -39,7 +39,7 @@ quality near the camera. See `ROADMAP.md`.
 - **Build order matters.** Every asset draws from one seeded random stream
   (`src/core/random.js`), so the order of the calls in `src/main.js` defines the exact look.
   Add new assets at the end, or call `setSeed()` to isolate one. The world (`createWorldTerrain`,
-  `createWorldGrass`, `createScatter`) is built after the plot and reseeds with `CONFIG.world.seed`.
+  `createWorldGrass`, `createScatter`, `createUndergrowth`) is built after the plot and reseeds with `CONFIG.world.seed`.
 - `standalone/meadow-pond.html` is a frozen reference copy of the original single-file
   build. Do not edit or "keep it in sync".
 

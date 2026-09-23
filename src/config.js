@@ -74,6 +74,25 @@ export const CONFIG = {
     farDetail: 3,           // icosphere subdivision of the far mesh (~320 triangles)
   },
 
+  // Forest undergrowth and meadow life (world/undergrowth.js); logs and small things fade with trees.fade
+  undergrowth: {
+    bushes: isTouch ? 60 : 90,       // leafy hazel-like bushes in and along the forest (full detail + billboard, like the trees)
+    bushVariants: 4,
+    roses: isTouch ? 16 : 22,        // wild roses on the meadow side of forest edges (the reference rose generator)
+    roseVariants: 3,
+    logs: isTouch ? 12 : 16,         // fallen trunks, each beside the stump it broke from
+    logVariants: 4,
+    fernClumps: isTouch ? 200 : 300, // clumps of 7-12 fronds (the outcrop's fern), under the trees
+    mushrooms: isTouch ? 220 : 320,  // boletes and fly agarics, in small groups on the forest floor
+    sticks: isTouch ? 260 : 360,     // fallen twigs and sticks
+    cones: isTouch ? 450 : 650,      // spruce cones under the spruces
+    flowers: isTouch ? 1.0 : 1.5,    // meadow flowers per m2 inside flower patches (the plot's daisies / buttercups / lilac)
+    pollen: isTouch ? 320 : 500,     // pollen by day, fireflies at night, in a box around the camera (the plot keeps its own)
+    tile: 8,                         // small things are bucketed in tiles this wide; only tiles near the camera are drawn
+    keep: [5, 11, 0.45],             // bushes and roses: all detail up to keep[0] m, easing to keep[2] at keep[1] (as trees.keep)
+    fade: [8, 11],                   // ... and full detail only within fade[0] m, billboards by fade[1] (small, so closer than trees)
+  },
+
   // Sun, shadows and atmosphere
   light: {
     shadowMapSize: isTouch ? 2048 : 4096,

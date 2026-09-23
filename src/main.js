@@ -11,6 +11,7 @@ import { createLights } from './world/lights.js';
 import { createTerrain, createWorldTerrain } from './world/terrain.js';
 import { createGroundTexture, createWorldGrass } from './world/grass.js';
 import { createScatter } from './world/scatter.js';
+import { createUndergrowth } from './world/undergrowth.js';
 import { createTimeOfDay } from './world/timeOfDay.js';
 import { createPond, createOcean } from './assets/water/pond.js';
 import { createGrass } from './assets/vegetation/grass.js';
@@ -58,6 +59,7 @@ const ground = createGroundTexture();
 const ocean = createOcean(ctx, ground, SEA_Y);
 const worldGrass = createWorldGrass(ctx, ground);
 const scatter = createScatter(ctx);
+const undergrowth = createUndergrowth(ctx, { scatter, pollen });
 const { setSun, scheduleEnv } = createTimeOfDay({ ...ctx, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin });
 
 // Controls + UI
@@ -78,7 +80,7 @@ function frame(now) {
   followSun(camera.position);
   worldGrass.update(camera.position);
   ocean.update(camera.position);
-  camera.updateMatrixWorld(); scatter.update(camera, debug.on);
+  camera.updateMatrixWorld(); scatter.update(camera, debug.on); undergrowth.update(camera, t, debug.on);
   updateCabin(dt, t);
   const nearDoor = camera.position.distanceTo(cabin.door.world) < 2.8;
   if (nearDoor !== st.nearDoor) { st.nearDoor = nearDoor; actEl.classList.toggle('hide', !(nearDoor && st.playing && !isTouch)); btnDoor.style.display = nearDoor && st.playing ? '' : 'none'; }
@@ -94,8 +96,8 @@ function frame(now) {
 
 const cabinMerge = mergeStatic(cabin.group, { ...cabin, group: null }); // ~360 cabin meshes -> a few dozen draw calls, same look
 finalizeScene(scene, cabin.group);
-const debug = createDebugOverlay(renderer, { scatter, worldGrass });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 setSun(+timeIn.value); timeV.textContent = fmtTime(+timeIn.value); scheduleEnv(true); setSpeed(2.2);
 move(0);

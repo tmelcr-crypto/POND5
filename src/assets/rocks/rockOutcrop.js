@@ -39,6 +39,19 @@ export function boulder(seed, detail = 5) {
   return g;
 }
 
+/** Fern frond texture (drawn with the shared random stream) and its curled card geometry, shared with the island's ferns. */
+export function fernTexture() {
+  const fernTex = canvasTex(128, 256, (g, w, h) => {
+    g.lineCap = 'round'; g.strokeStyle = '#4a6b25'; g.lineWidth = 3; g.beginPath(); g.moveTo(64, 256); g.quadraticCurveTo(66, 128, 64, 4); g.stroke();
+    for (let i = 0; i < 34; i++) { const t = i / 34, y = 250 - t * 244, L = 58 * Math.sin(Math.PI * (0.12 + 0.88 * (1 - t)) * 0.9) * (1 - t * 0.55);
+      [-1, 1].forEach(sd => { const c = 70 + Math.floor(rng() * 40 + t * 30); g.fillStyle = `rgb(${c * 0.45 | 0},${c | 0},${c * 0.35 | 0})`; g.beginPath(); g.moveTo(64, y); g.quadraticCurveTo(64 + sd * L * 0.5, y - 8, 64 + sd * L, y - 12 - t * 4); g.quadraticCurveTo(64 + sd * L * 0.55, y + 2, 64, y + 5); g.fill(); }); }
+  });
+  return fernTex;
+}
+export function fernGeometry() {
+  const fg = new THREE.PlaneGeometry(1, 1, 1, 8); fg.translate(0, 0.5, 0); { const p = fg.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i); p.setZ(i, -0.45 * y * y); } fg.computeVertexNormals(); }
+  return fg;
+}
 /**
  * Stepped sandstone outcrop: rounded, noise-displaced strata slabs, boulders, pebbles, moss/lichen vertex colours and fern clumps.
  * Registers ellipsoid colliders in rockColliders.
@@ -84,12 +97,8 @@ export function createRockOutcrop(ctx) {
     const rm = new THREE.Mesh(mergeGeos(parts, ['position', 'normal', 'uv', 'color']), rockMat); rm.castShadow = rm.receiveShadow = true; scene.add(rm);
 
     // ferns tucked against the stone
-    const fernTex = canvasTex(128, 256, (g, w, h) => {
-      g.lineCap = 'round'; g.strokeStyle = '#4a6b25'; g.lineWidth = 3; g.beginPath(); g.moveTo(64, 256); g.quadraticCurveTo(66, 128, 64, 4); g.stroke();
-      for (let i = 0; i < 34; i++) { const t = i / 34, y = 250 - t * 244, L = 58 * Math.sin(Math.PI * (0.12 + 0.88 * (1 - t)) * 0.9) * (1 - t * 0.55);
-        [-1, 1].forEach(sd => { const c = 70 + Math.floor(rng() * 40 + t * 30); g.fillStyle = `rgb(${c * 0.45 | 0},${c | 0},${c * 0.35 | 0})`; g.beginPath(); g.moveTo(64, y); g.quadraticCurveTo(64 + sd * L * 0.5, y - 8, 64 + sd * L, y - 12 - t * 4); g.quadraticCurveTo(64 + sd * L * 0.55, y + 2, 64, y + 5); g.fill(); }); }
-    });
-    const fg = new THREE.PlaneGeometry(1, 1, 1, 8); fg.translate(0, 0.5, 0); { const p = fg.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i); p.setZ(i, -0.45 * y * y); } fg.computeVertexNormals(); }
+    const fernTex = fernTexture();
+    const fg = fernGeometry();
     const fMat = new THREE.MeshStandardMaterial({ map: fernTex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.75, envMapIntensity: 0.6 });
     addFlutter(fMat, 0.012);
     const fr = [];
