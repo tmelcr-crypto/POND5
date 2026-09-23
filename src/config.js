@@ -87,6 +87,9 @@ export const CONFIG = {
     sticks: isTouch ? 260 : 360,     // fallen twigs and sticks
     cones: isTouch ? 450 : 650,      // spruce cones under the spruces
     flowers: isTouch ? 1.0 : 1.5,    // meadow flowers per m2 inside flower patches (the plot's daisies / buttercups / lilac)
+    butterfliesPerRose: [3, 5],      // butterflies looping around each wild rose (min, max)
+    meadowButterflies: isTouch ? 30 : 40, // fewer, spread over the open meadow
+    butterflyRange: 4,               // drawn only this close to the camera (shrinking over the last metre)
     pollen: isTouch ? 320 : 500,     // pollen by day, fireflies at night, in a box around the camera (the plot keeps its own)
     tile: 8,                         // small things are bucketed in tiles this wide; only tiles near the camera are drawn
     keep: [5, 11, 0.45],             // bushes and roses: all detail up to keep[0] m, easing to keep[2] at keep[1] (as trees.keep)

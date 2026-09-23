@@ -188,6 +188,9 @@ export function createRoseBush(ctx) {
   - ferns (the outcrop's fronds), boletes, fly agarics, sticks, spruce cones under the spruces and the plot's meadow
     flowers (same geometry, tints and patch noise): one InstancedMesh per kind whose buffer holds only the 8 m tiles
     near the camera (refilled every 1.5 m of movement), dithered out with `trees.fade`;
+  - butterflies (the plot's wings and flight): 3-5 around every wild rose and a few spread over the meadow
+    (`butterfliesPerRose`, `meadowButterflies`), drawn only within `butterflyRange` (4 m) of the camera, where they
+    shrink in over the last metre; one instanced draw per wing style, none when no butterfly is near;
   - pollen by day / fireflies at night in a box around the camera, sharing the plot's pollen material so the
     time of day drives both (the plot keeps its own).
 - **Build order:** the world is built after every diorama asset and reseeds the random stream with

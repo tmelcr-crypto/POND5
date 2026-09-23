@@ -15,6 +15,7 @@ import { fernTexture, fernGeometry } from '../assets/rocks/rockOutcrop.js';
 import { createLogVariants } from '../assets/trees/fallenLog.js';
 import { pineconeGeo } from '../assets/trees/spruce.js';
 import { boleteGeo, agaricGeo, stickGeo, groundCone } from '../assets/vegetation/forestFloor.js';
+import { createButterflySwarm } from '../assets/fauna/butterflies.js';
 
 /**
  * Forest undergrowth and meadow life on the island, with the same draw logic as the trees and rocks:
@@ -25,6 +26,8 @@ import { boleteGeo, agaricGeo, stickGeo, groundCone } from '../assets/vegetation
  *  - small things (ferns, mushrooms, sticks, spruce cones, meadow flowers): one InstancedMesh per kind whose instance
  *    buffer holds only the tiles near the camera (refilled when the camera has moved a metre or two), dithered out
  *    with distance like everything else; one draw call per kind;
+ *  - butterflies (the plot's wings and flight), several around each wild rose and a few over the meadow, drawn
+ *    only within CONFIG.undergrowth.butterflyRange of the camera;
  *  - pollen by day / fireflies at night: a field of points that follows the camera, sharing the reference pollen's
  *    material so the time of day drives both.
  * Everything is seeded from CONFIG.world.seed, after the trees and rocks (whose positions it avoids).
@@ -230,14 +233,27 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
     a.needsUpdate = true;
   }
 
+  /* ---- butterflies: a few around every wild rose, fewer over the rest of the meadow (own seed, after all the above) ---- */
+  setSeed(seed + 808);
+  const homes = [];
+  roses.forEach(r => { const v = roseV[r.variant], k = UC.butterfliesPerRose[0] + Math.floor(rng() * (UC.butterfliesPerRose[1] - UC.butterfliesPerRose[0] + 1));
+    for (let i = 0; i < k; i++) homes.push({ x: r.x + rr(-0.3, 0.3), y: r.y, z: r.z + rr(-0.3, 0.3), r: rr(0.45, 0.8) * r.s, h: v.height * r.s * rr(0.75, 1.05) }); });
+  for (let tries = 0, n = 0; n < UC.meadowButterflies && tries < UC.meadowButterflies * 100; tries++) {
+    const [x, z] = rpos();
+    if (forest(x, z) > 0.12 || !onLand(x, z, CONFIG.island.beachWidth + 1) || excluded(x, z, 0)) continue;
+    homes.push({ x, y: H(x, z), z, r: rr(0.9, 1.4), h: rr(0.35, 0.6) }); n++;
+  }
+  const butterflies = createButterflySwarm(ctx, homes, UC.butterflyRange);
+
   const all = groups.concat(logGroups);   // for the stats
-  const stats = { bushes: bushes.length, roses: roses.length, logs: logs.length, near: 0, small: 0, smallTotal: smalls.reduce((s, k) => s + k.total, 0) };
+  const stats = { bushes: bushes.length, roses: roses.length, logs: logs.length, near: 0, small: 0, smallTotal: smalls.reduce((s, k) => s + k.total, 0), butterflies: homes.length, butterfliesDrawn: 0 };
   function update(camera, t, withStats) {
     const c = camera.position;
     updateGroups(groups, c, small); updateGroups(logGroups, c);
     for (const s of smalls) s.update(c);
     updateMotes(t, c);
-    if (withStats) { stats.near = all.filter(e => e.g.visible).length; stats.small = smalls.reduce((s, k) => s + k.mesh.count, 0); }
+    butterflies.update(t, c);
+    if (withStats) { stats.near = all.filter(e => e.g.visible).length; stats.small = smalls.reduce((s, k) => s + k.mesh.count, 0); stats.butterfliesDrawn = butterflies.drawn; }
   }
   return { update, stats, bushes, roses, logs, logVariants: logSet.variants, groups: all, smalls };
 }
