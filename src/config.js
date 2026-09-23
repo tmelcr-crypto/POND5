@@ -26,15 +26,16 @@ export const CONFIG = {
     rockSlope: 0.8,         // terrain normal.y below which rock shows through (steep slopes)
   },
 
-  // GPU grass rings around the camera (outside the diorama; the diorama keeps its own grass)
+  // GPU grass around the camera (outside the diorama; the diorama keeps its own grass)
   grass: {
-    radius: 28,             // grass fully gone at this distance
-    fullRadius: 6,          // full density out to here, then falls off quadratically to zero at radius
-    // ring: [inner, outer, cell size, blades per clump, segments per blade]; inner rings are denser
-    rings: isTouch
-      ? [[0, 8, 0.3, 8, 2], [8, 17, 0.58, 8, 1], [17, 28, 1.15, 8, 0]]
-      : [[0, 9, 0.22, 10, 2], [9, 18, 0.48, 10, 1], [18, 28, 0.95, 9, 0]],
-    blend: 1.5,             // dither width (m) where two rings overlap, hides the ring seams
+    density: isTouch ? 300 : 640, // blades/m2 out to fullRadius: the plot's own grass density (30k / 64k blades on 100 m2)
+    fullRadius: 8,          // full density out to here ...
+    radius: 18,             // ... then d(r) = density * ((radius - r) / (radius - fullRadius))^2, zero at radius
+    clumping: 0.3,          // low-frequency noise varies the density by +-30%
+    // rings only set the geometry cost: [inner, outer, blades per cell, segments per blade (2 = 5 tris, 1 = 3, 0 = 1)];
+    // each ring's cell size is derived from the density at its inner edge
+    rings: [[0, 8, 8, 2], [8, 10.5, 8, 2], [10.5, 13, 8, 1], [13, 15.5, 8, 1], [15.5, 18, 8, 0]],
+    blend: 1,               // dither width (m) where two rings overlap, hides the ring seams
     height: [0.16, 0.42],   // blade height range
   },
 
