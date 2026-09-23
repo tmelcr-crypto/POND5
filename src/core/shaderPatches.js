@@ -7,6 +7,7 @@ import { U } from './uniforms.js';
  *  addWorldSway - world-space height-weighted sway (reeds, flower stems)
  *  dampSpecular - less specular on foliage cards
  *  addThinning  - distance-based thinning of tree parts by their detail rank (island trees)
+ *  addDistanceFade - dithered distance cross-fade between a near and a far mesh (island rocks)
  */
 export function addFlutter(mat, amp) {
   mat.onBeforeCompile = s => {
@@ -73,5 +74,27 @@ export function addThinning(mat, cards) {
       #include <project_vertex>`);
     s.fragmentShader = 'uniform vec2 uFade; varying float vTreeD;\n' + s.fragmentShader.replace('void main() {', `void main() {
       if (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) < smoothstep(uFade.x, uFade.y, vTreeD)) discard;`);
+  };
+}
+
+/**
+ * The trees' dithered distance cross-fade on its own, for objects with a near and a far mesh (island rocks):
+ * fadeIn = false dissolves the mesh between uFade.x and uFade.y (the near mesh), fadeIn = true takes exactly the
+ * pixels it gives up (the far mesh). Distance from the object's origin: the instance's with instancing.
+ */
+export function addDistanceFade(mat, fadeIn) {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (s, r) => {
+    prev.call(mat, s, r);
+    Object.assign(s.uniforms, THIN);
+    s.vertexShader = 'uniform vec3 uViewPos; varying float vTreeD;\n' + s.vertexShader.replace('#include <project_vertex>', `
+      #ifdef USE_INSTANCING
+        vTreeD = distance((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz, uViewPos);
+      #else
+        vTreeD = distance(modelMatrix[3].xyz, uViewPos);
+      #endif
+      #include <project_vertex>`);
+    s.fragmentShader = 'uniform vec2 uFade; varying float vTreeD;\n' + s.fragmentShader.replace('void main() {', `void main() {
+      if ((fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) < smoothstep(uFade.x, uFade.y, vTreeD)) != ${fadeIn ? 'true' : 'false'}) discard;`);
   };
 }

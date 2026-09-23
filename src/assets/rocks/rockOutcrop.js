@@ -7,6 +7,38 @@ import { canvasTex } from '../../core/canvasTexture.js';
 import { addFlutter } from '../../core/shaderPatches.js';
 import { ROCK, rockColliders, H } from '../../world/layout.js';
 
+const sand = lin(0xa39580), sandD = lin(0x746b5f), band = lin(0xb8a282), bandD = lin(0x5a534b), moss = lin(0x4f6a26), mossD = lin(0x34491a), lich = lin(0xbdbd86), lichO = lin(0xc08a3a);
+/**
+ * Sandstone paint for a rock geometry: planar uvs, strata bands, cavities and grain, moss on upward faces near the
+ * ground, lichen spots, darker foot. ground(x, z) is the terrain height under the rock (the plot's H by default;
+ * the island's rocks are painted in their own local space with ground = 0).
+ */
+export function finishRock(g, ground = H) {
+  g.computeVertexNormals();
+  const p = g.attributes.position, n = g.attributes.normal, uv = new Float32Array(p.count * 2), col = new Float32Array(p.count * 3), c = new THREE.Color();
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), nx = n.getX(i), ny = n.getY(i), nz = n.getZ(i), ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
+    if (ay >= ax && ay >= az) { uv[i * 2] = x * 0.8; uv[i * 2 + 1] = z * 0.8; } else if (ax >= az) { uv[i * 2] = z * 0.8; uv[i * 2 + 1] = y * 0.8; } else { uv[i * 2] = x * 0.8; uv[i * 2 + 1] = y * 0.8; }
+    const bn = Math.sin(y * 26 + fbm3(x * 2, y * 2, z * 2) * 3.0);
+    c.copy(sand).lerp(sandD, clamp(fbm3(x * 3.1, y * 3.1, z * 3.1) + 0.5));
+    c.lerp(bn > 0.55 ? band : bandD, Math.abs(bn) > 0.55 ? 0.35 : 0);
+    const cav = fbm3(x * 7 + 3, y * 7, z * 7 - 2), grain = vnoise3(x * 38, y * 38, z * 38) * 0.5 + vnoise3(x * 90, y * 90, z * 90) * 0.5; c.multiplyScalar((0.78 + 0.38 * clamp(cav + 0.5)) * (0.9 + 0.12 * grain));
+    const mk = clamp((ny - 0.7) * 3.0 + fbm3(x * 3, y * 3, z * 3) * 1.6 - 0.25) * (0.5 + 0.5 * (1 - smooth(0.2, 0.9, y - ground(x, z))));
+    c.lerp(moss.clone().lerp(mossD, clamp(fbm3(x * 9, y * 9, z * 9) + 0.5)), mk * 0.8);
+    const lv = vnoise3(x * 14, y * 14, z * 14); if (lv > 0.62 && mk < 0.4) c.lerp(hash3(Math.floor(x * 14), Math.floor(y * 14), Math.floor(z * 14)) > 0.8 ? lichO : lich, 0.55);
+    const foot = 1 - smooth(0.0, 0.12, y - ground(x, z)); c.multiplyScalar(1 - foot * 0.35);
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return g;
+}
+/** Rounded boulder: noise-displaced icosphere (subdivision `detail`) with cracks and a flattened base. */
+export function boulder(seed, detail = 5) {
+  const g = blobGeo(detail, 0.22, 1.25, seed), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); const r = 1 - Math.abs(vnoise3(x * 3.5 + seed, y * 3.5, z * 3.5)); let s = 1 - (r > 0.9 ? (r - 0.9) * 0.4 : 0) + fbm3(x * 7, y * 7, z * 7) * 0.03; const yy = y < -0.35 ? -0.35 + (y + 0.35) * 0.3 : y; p.setXYZ(i, x * s, yy * s, z * s); }
+  return g;
+}
+
 /**
  * Stepped sandstone outcrop: rounded, noise-displaced strata slabs, boulders, pebbles, moss/lichen vertex colours and fern clumps.
  * Registers ellipsoid colliders in rockColliders.
@@ -27,26 +59,6 @@ export function createRockOutcrop(ctx) {
     rockTex.wrapS = rockTex.wrapT = THREE.RepeatWrapping; rockTex.anisotropy = maxAniso;
     const rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, envMapIntensity: 0.55 });
 
-    const sand = lin(0xa39580), sandD = lin(0x746b5f), band = lin(0xb8a282), bandD = lin(0x5a534b), moss = lin(0x4f6a26), mossD = lin(0x34491a), lich = lin(0xbdbd86), lichO = lin(0xc08a3a);
-    function finish(g) {
-      g.computeVertexNormals();
-      const p = g.attributes.position, n = g.attributes.normal, uv = new Float32Array(p.count * 2), col = new Float32Array(p.count * 3), c = new THREE.Color();
-      for (let i = 0; i < p.count; i++) {
-        const x = p.getX(i), y = p.getY(i), z = p.getZ(i), nx = n.getX(i), ny = n.getY(i), nz = n.getZ(i), ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
-        if (ay >= ax && ay >= az) { uv[i * 2] = x * 0.8; uv[i * 2 + 1] = z * 0.8; } else if (ax >= az) { uv[i * 2] = z * 0.8; uv[i * 2 + 1] = y * 0.8; } else { uv[i * 2] = x * 0.8; uv[i * 2 + 1] = y * 0.8; }
-        const bn = Math.sin(y * 26 + fbm3(x * 2, y * 2, z * 2) * 3.0);
-        c.copy(sand).lerp(sandD, clamp(fbm3(x * 3.1, y * 3.1, z * 3.1) + 0.5));
-        c.lerp(bn > 0.55 ? band : bandD, Math.abs(bn) > 0.55 ? 0.35 : 0);
-        const cav = fbm3(x * 7 + 3, y * 7, z * 7 - 2), grain = vnoise3(x * 38, y * 38, z * 38) * 0.5 + vnoise3(x * 90, y * 90, z * 90) * 0.5; c.multiplyScalar((0.78 + 0.38 * clamp(cav + 0.5)) * (0.9 + 0.12 * grain));
-        const mk = clamp((ny - 0.7) * 3.0 + fbm3(x * 3, y * 3, z * 3) * 1.6 - 0.25) * (0.5 + 0.5 * (1 - smooth(0.2, 0.9, y - H(x, z))));
-        c.lerp(moss.clone().lerp(mossD, clamp(fbm3(x * 9, y * 9, z * 9) + 0.5)), mk * 0.8);
-        const lv = vnoise3(x * 14, y * 14, z * 14); if (lv > 0.62 && mk < 0.4) c.lerp(hash3(Math.floor(x * 14), Math.floor(y * 14), Math.floor(z * 14)) > 0.8 ? lichO : lich, 0.55);
-        const foot = 1 - smooth(0.0, 0.12, y - H(x, z)); c.multiplyScalar(1 - foot * 0.35);
-        col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
-      }
-      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-      return g;
-    }
     function slab(sx, sy, sz, seed) {
       const g = new THREE.BoxGeometry(1, 1, 1, 34, 12, 26), p = g.attributes.position, v = new V(), c = new V();
       const r = Math.min(sy * 0.28, 0.07), ix = sx / 2 - r, iy = sy / 2 - r, iz = sz / 2 - r;
@@ -62,13 +74,8 @@ export function createRockOutcrop(ctx) {
       }
       return weld(g);
     }
-    function boulder(seed) {
-      const g = blobGeo(5, 0.22, 1.25, seed), p = g.attributes.position;
-      for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); const r = 1 - Math.abs(vnoise3(x * 3.5 + seed, y * 3.5, z * 3.5)); let s = 1 - (r > 0.9 ? (r - 0.9) * 0.4 : 0) + fbm3(x * 7, y * 7, z * 7) * 0.03; const yy = y < -0.35 ? -0.35 + (y + 0.35) * 0.3 : y; p.setXYZ(i, x * s, yy * s, z * s); }
-      return g;
-    }
     const parts = [], hG = H(ROCK.x, ROCK.z);
-    const place = (g, x, y, z, ry, rx = 0, rz = 0) => { g.rotateX(rx); g.rotateZ(rz); g.rotateY(ry); g.translate(ROCK.x + x, y, ROCK.z + z); parts.push(finish(g)); };
+    const place = (g, x, y, z, ry, rx = 0, rz = 0) => { g.rotateX(rx); g.rotateZ(rz); g.rotateY(ry); g.translate(ROCK.x + x, y, ROCK.z + z); parts.push(finishRock(g)); };
     const S = [[0, 0.1, 0, 1.75, 0.36, 1.3, 0.15, 0.04, 0.02], [-0.18, 0.4, -0.06, 1.28, 0.3, 0.98, 0.32, 0.0, 0.05], [-0.3, 0.66, -0.12, 0.84, 0.27, 0.72, 0.06, 0.05, -0.06], [-0.38, 0.87, -0.14, 0.46, 0.19, 0.42, 0.5, 0.0, 0.1]];
     S.forEach(([x, y, z, sx, sy, sz, ry, rx, rz], i) => { place(slab(sx, sy, sz, 3.7 + i * 5.1), x, hG + y, z, ry, rx, rz); rockColliders.push({ x: ROCK.x + x, y: hG + y, z: ROCK.z + z, rx: sx / 2 + 0.2, ry: sy / 2 + 0.2, rz: sz / 2 + 0.2 }); });
     const Bd = [[0.62, 0.2, 0.5, 0.36, 0.3, 0.33], [0.78, 0.1, -0.38, 0.27, 0.2, 0.25], [-0.82, 0.24, 0.52, 0.42, 0.36, 0.37], [0.18, 0.66, 0.24, 0.22, 0.18, 0.2], [-0.84, 0.15, -0.58, 0.3, 0.23, 0.27], [0.95, 0.06, 0.12, 0.16, 0.12, 0.15]];

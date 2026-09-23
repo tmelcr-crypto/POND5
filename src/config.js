@@ -67,6 +67,13 @@ export const CONFIG = {
     billboardTile: 384,     // billboard atlas tile width in pixels (seen from 15 m, so sharper than before)
   },
 
+  // Island boulders: the reference outcrop's boulder generator, same near/far cross-fade as the trees (trees.fade)
+  rocks: {
+    variants: 6,            // differently shaped boulders
+    nearDetail: 10,         // icosphere subdivision of the full-detail mesh (~2.4k triangles)
+    farDetail: 3,           // icosphere subdivision of the far mesh (~320 triangles)
+  },
+
   // Sun, shadows and atmosphere
   light: {
     shadowMapSize: isTouch ? 2048 : 4096,

@@ -88,14 +88,14 @@ src/
     terrain.js              Plot ground mesh + caustics; island heightmap mesh, grass/dirt/rock/sand shader
     grass.js                World GPU grass: camera-following rings of clumps, distance falloff, wind
     scatter.js              Seeded tree + rock scatter, per-tree distance thinning, 8-angle billboard atlases
-    bounds.js               Soft boundary (wading depth at the shore, world edge when flying), trunk/boulder grid
+    bounds.js               Soft boundary (wading depth at the shore, world edge when flying), trunk and boulder grids
     soilSkirt.js            Soil cross-section of the old diorama edge (no longer built)
     timeOfDay.js            Day/night cycle, fog colour
   assets/                   One factory per scene element
     water/     pond.js (pond + the sea), lilyPads.js, reeds.js
     trees/     spruce.js, appleTree.js        (full-detail generator, the reference tree, island variants)
     vegetation/grass.js, meadowFlowers.js, roseBush.js
-    rocks/     rockOutcrop.js, scatteredRocks.js  (+ createRockPrototypes)
+    rocks/     rockOutcrop.js (+ boulder, finishRock), scatteredRocks.js (+ createRockVariants)
     fauna/     butterflies.js, pollen.js
     cabin/     cabin.js     (structure, fireplace, furniture, props, lights, door)
   app/
@@ -166,7 +166,12 @@ export function createRoseBush(ctx) {
   `keep[2]` at 45 m; each tree draws only its first N cards / vertices (one binary search per tree per frame) and
   the shader collapses the rest (`addThinning`, also in the shadow pass); surviving cards grow slightly. Past 42 m
   the tree dissolves (screen-space dither) into a camera-facing billboard baked at load from 8 angles per variant.
-  Pinecones switch to a 32-scale version of the same cone past 6 m. A variant is a plain
+  Pinecones switch to a 32-scale version of the same cone past 6 m.
+  Boulders use the same draw logic: the reference outcrop's `boulder` + `finishRock` (sandstone, moss, lichen) at
+  full detail near the camera (one mesh per rock, `CONFIG.rocks.nearDetail`), dithered into an instanced low-detail
+  mesh of the same shape past `CONFIG.trees.fade`. Each boulder collides as a rotated ellipsoid fitted to its mesh
+  (`rockBodies` in `bounds.js`): when walking you step onto rocks whose peak is within `player.stepHeight` of your
+  feet and are pushed around taller ones. A variant is a plain
   `{ height, width, bounds, parts: [{ geometry, material, depth, instances? }] }` object, so GLB models can replace
   the procedural ones.
 - **Build order:** the world is built after every diorama asset and reseeds the random stream with

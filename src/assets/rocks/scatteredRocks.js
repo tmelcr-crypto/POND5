@@ -3,6 +3,8 @@ import { rng, rr } from '../../core/random.js';
 import { clamp, lin } from '../../core/math.js';
 import { fbm3 } from '../../core/noise.js';
 import { blobGeo, paint, mergeGeos } from '../../core/geometry.js';
+import { addDistanceFade } from '../../core/shaderPatches.js';
+import { boulder, finishRock } from './rockOutcrop.js';
 import { LAKE, lakeR, H } from '../../world/layout.js';
 
 /**
@@ -30,19 +32,29 @@ export function createScatteredRocks(ctx) {
 }
 
 /**
- * Scatter prototypes: a few unit-sized mossy boulders (vertex painted, ~320 triangles each) for the wider world.
- * Local space, resting on y = 0 with ~30% below ground. Replaceable by GLB meshes.
+ * Rock variants for the island, built with the reference outcrop's boulder generator and sandstone paint
+ * (boulder + finishRock from rockOutcrop.js). Each variant has a full-detail mesh (icosphere subdivision nearDetail)
+ * and a cheap mesh of the same shape (farDetail); they cross-fade with the same dithered distance fade as the
+ * trees (CONFIG.trees.fade), in the main and the shadow pass. Local space: base at y = 0, lightly buried.
+ * Returns [{ near, far, ellipsoid: { cx, cy, cz, rx, ry, rz }, bounds }] plus the four shared materials.
  */
-export function createRockPrototypes(count = 3) {
-  const grey = lin(0x7a766d), greyB = lin(0x57544f), moss = lin(0x4b5c26), lichen = lin(0x9c9a78);
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.55 });
-  const out = [];
-  for (let i = 0; i < count; i++) {
-    const g = blobGeo(2, 0.4 + i * 0.06, 1.2 + i * 0.25, 30 + i * 7.7);
-    g.scale(1, 0.55 + i * 0.12, 0.85); g.translate(0, 0.25, 0);
-    g.computeVertexNormals();
-    paint(g, (c, px, py, pz, nx, ny) => { const n = fbm3(px * 5 + i, py * 5, pz * 5); c.copy(grey).lerp(greyB, clamp(n + 0.5)); c.lerp(moss, clamp((ny - 0.5) * 2.2 + n) * 0.8); if (fbm3(px * 11, py * 11, pz * 11) > 0.3) c.lerp(lichen, 0.35); });
-    out.push({ name: 'rock' + i, height: 1, width: 1.6, lods: [{ parts: [{ geometry: g, material: mat, castShadow: true }] }] });
+export function createRockVariants(count, nearDetail, farDetail) {
+  const params = { vertexColors: true, roughness: 0.92, metalness: 0, envMapIntensity: 0.55 }; // as the outcrop
+  const nearMat = new THREE.MeshStandardMaterial(params), farMat = new THREE.MeshStandardMaterial(params);
+  const nearDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), farDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+  addDistanceFade(nearMat, false); addDistanceFade(nearDepth, false); addDistanceFade(farMat, true); addDistanceFade(farDepth, true);
+  const ground = () => 0, variants = [];
+  for (let v = 0; v < count; v++) {
+    const seed = 60 + v * 9.7, sy = 0.5 + 0.12 * (v % 4), sz = 0.8 + 0.08 * ((v * 3) % 5);
+    const make = detail => {
+      const g = boulder(seed, detail); g.scale(1, sy, sz); g.computeBoundingBox();
+      g.translate(0, -g.boundingBox.min.y - 0.1 * sy, 0);   // flat base just below the ground
+      return finishRock(g, ground);
+    };
+    const near = make(nearDetail), far = make(farDetail);
+    near.computeBoundingBox(); near.computeBoundingSphere(); far.boundingSphere = near.boundingSphere.clone();
+    const b = near.boundingBox, c = b.getCenter(new THREE.Vector3()), h = b.getSize(new THREE.Vector3()).multiplyScalar(0.5);
+    variants.push({ near, far, bounds: near.boundingSphere, ellipsoid: { cx: c.x, cy: c.y, cz: c.z, rx: h.x * 0.92, ry: h.y * 0.95, rz: h.z * 0.92 } });
   }
-  return out;
+  return { variants, nearMat, farMat, nearDepth, farDepth };
 }

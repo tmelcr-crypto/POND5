@@ -3,7 +3,7 @@ import { V, UPV, clamp } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
 import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H } from '../world/layout.js';
-import { obstacles, applyBounds } from '../world/bounds.js';
+import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
 
 /**
  * First-person controls and the settings panel. Two modes (G key or the panel button):
@@ -144,18 +144,27 @@ export function createControls(app) {
     const ix = np.x - HOUSE.x, iz = np.z - HOUSE.z;
     if (!st.walk && Math.abs(ix) < 1.58 && Math.abs(iz) < 1.23) { const fy = PAD_H + CB.FL + 0.28; if (np.y < fy && np.y > PAD_H - 0.4) { np.y = fy; st.vel.y = Math.max(0, st.vel.y); } }
   }
-  /** Walkable surface under (x, z) for feet at height `feet`: terrain, cabin floor, or the top of a low rock. Also pushes out of rocks too tall to step onto. */
+  /** Walkable surface under (x, z) for feet at height `feet`: terrain, cabin floor, or the top of a low rock (outcrop or
+   *  island boulder). Also pushes out of rocks too tall to step onto, judged by the feet, not the eye. */
   function groundAt(p, feet) {
     let g = H(p.x, p.z);
     const ix = p.x - HOUSE.x, iz = p.z - HOUSE.z;
     if (Math.abs(ix) < 1.58 && Math.abs(iz) < 1.23) g = Math.max(g, PAD_H + CB.FL);
-    for (const c of rockColliders) {
-      const rx = c.rx - 0.2, rz = c.rz - 0.2, dx = (p.x - c.x) / rx, dz = (p.z - c.z) / rz, q = dx * dx + dz * dz;
-      if (q >= 1) continue;
-      const top = c.y + (c.ry - 0.2) * Math.sqrt(1 - q);
-      if (top - feet <= PC.stepHeight) g = Math.max(g, top);
-      else { const k = 1 / Math.sqrt(q); p.x = c.x + dx * k * rx; p.z = c.z + dz * k * rz; }
-    }
+    const standOn = c => {
+      // in the collider's own (rotated) frame; radii are padded by 0.2, body is the player's radius
+      const cr = Math.cos(c.rot || 0), sr = Math.sin(c.rot || 0), wx = p.x - c.x, wz = p.z - c.z;
+      const lx = cr * wx - sr * wz, lz = sr * wx + cr * wz, b = c.body || 0;
+      const rx = c.rx - 0.2 + b, rz = c.rz - 0.2 + b, dx = lx / rx, dz = lz / rz, q = dx * dx + dz * dz;
+      if (q >= 1) return;
+      const sx = lx / (c.rx - 0.2), sz = lz / (c.rz - 0.2), qs = sx * sx + sz * sz;
+      // step onto a rock only if its peak is within a step of the feet; judging by the surface under the player would
+      // let every rock be climbed like a ramp, since an ellipsoid rises smoothly from its rim
+      const top = c.y + (c.ry - 0.2) * Math.sqrt(Math.max(0, 1 - qs));
+      if (c.y + c.ry - 0.2 - feet <= PC.stepHeight) g = Math.max(g, top);
+      else { const k = 1 / Math.sqrt(q), ox = dx * k * rx, oz = dz * k * rz; p.x = c.x + cr * ox + sr * oz; p.z = c.z - sr * ox + cr * oz; }
+    };
+    for (const c of rockColliders) standOn(c);
+    for (const c of rockBodies.near(p.x, p.z)) standOn(c);
     return g;
   }
   function move(dt) {
@@ -194,7 +203,14 @@ export function createControls(app) {
       } else st.grounded = false;
       houseCollide(np, st.pos);
     } else {
-      for (const c of rockColliders) { const dx = (np.x - c.x) / c.rx, dy = (np.y - c.y) / c.ry, dz = (np.z - c.z) / c.rz, d2 = dx * dx + dy * dy + dz * dz; if (d2 < 1 && d2 > 1e-6) { const k = 1 / Math.sqrt(d2); np.x = c.x + dx * k * c.rx; np.y = c.y + dy * k * c.ry; np.z = c.z + dz * k * c.rz; } }
+      const pushOut = c => {
+        const cr = Math.cos(c.rot || 0), sr = Math.sin(c.rot || 0), wx = np.x - c.x, wz = np.z - c.z;
+        const lx = cr * wx - sr * wz, lz = sr * wx + cr * wz;
+        const dx = lx / c.rx, dy = (np.y - c.y) / c.ry, dz = lz / c.rz, d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 < 1 && d2 > 1e-6) { const k = 1 / Math.sqrt(d2), ox = dx * k * c.rx, oz = dz * k * c.rz; np.x = c.x + cr * ox + sr * oz; np.y = c.y + dy * k * c.ry; np.z = c.z - sr * ox + cr * oz; }
+      };
+      for (const c of rockColliders) pushOut(c);
+      for (const c of rockBodies.near(np.x, np.z)) pushOut(c);
       houseCollide(np, st.pos);
       const g = Math.max(H(np.x, np.z), WATER_Y);
       if (np.y < g + 0.26) { np.y = g + 0.26; st.vel.y = Math.max(st.vel.y, 0); }
