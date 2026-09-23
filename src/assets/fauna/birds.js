@@ -10,27 +10,27 @@ import { SEA_Y } from '../../world/layout.js';
 const BIRDS = {
   groups: 4,                  // groups alive at all times
   perGroup: [6, 8],           // birds per group (min, max)
-  wingspan: 1.2,              // metres (gull)
+  wingspan: 2.0,              // metres (a big gull; the whole silhouette scales with it)
   color: 0x1c2026,            // unlit silhouette colour; the scene fog blends it into the haze ...
-  fog: 0.45,                  // ... at this fraction of the scene fog's strength (full fog washes them out by 80 m)
+  fog: 0.35,                  // ... at this fraction of the scene fog's strength (full fog washes them out by 80 m)
   dihedral: 0.32,             // radians the wings are held up (the V) when gliding / at mid-beat
   flapAmp: 0.62,              // radians of wing beat
-  altitude: [25, 70],         // metres above the water
-  loopRadius: [40, 90],       // radius of each group's circle / figure-eight
+  altitude: [18, 40],         // metres above the water (clear of the tallest spruces)
+  loopRadius: [20, 45],       // radius of each group's circle / figure-eight
   birdSpeed: [9, 13],         // m/s along the loop
-  spread: 9,                  // metres a bird may sit from the group's path (formation + wobble)
+  spread: 7,                  // metres a bird may sit from the group's path (formation + wobble)
   drift: 0.6,                 // m/s the loop centres wander
   flapRate: [3, 4],           // wing beats per second
   glideEvery: [5, 9],         // seconds between glides (each bird its own)
-  minDistance: 50,            // no bird ever comes closer than this to the camera
-  maxDistance: 250,           // a group whose centre is farther than this is recycled ...
-  respawn: [120, 200],        // ... to this distance from the camera, ahead of the direction of travel
+  minDistance: 25,            // no bird ever comes closer than this to the camera
+  maxDistance: 160,           // a group whose centre is farther than this is recycled ...
+  respawn: [60, 120],         // ... to this distance from the camera, ahead of the direction of travel
   respawnCone: 0.8,           // radians either side of the heading (never behind)
   fadeTime: 2.5,              // seconds to fade a recycled group out / in
-  unseenRecycle: 3,           // a group entirely out of visible range this long is recycled at once (it is invisible)
-  visible: [120, 145],        // birds dissolve between these distances (camera far plane is CONFIG.camera.far)
+  unseenRecycle: 2,           // a group entirely out of visible range this long is recycled at once (it is invisible)
+  visible: [110, 140],        // birds dissolve between these distances (camera far plane is CONFIG.camera.far)
   steerMargin: 6,             // m/s the keep-away steering is faster than the player can ever close in
-  steerZone: [20, 8],         // steering starts this many metres outside minDistance and is at full speed this close
+  steerZone: [12, 4],         // steering starts this many metres outside minDistance and is at full speed this close
   night: [0.15, 0.6],         // sky night value over which the birds fade out at dusk (hidden, paused at night)
 };
 const rr = (a, b) => a + (b - a) * Math.random();
@@ -38,7 +38,7 @@ const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a
 
 /** One bird: a thin body and two swept wings (inner + outer panel), 10 triangles. y = 1 marks wing vertices. */
 function birdGeometry(span) {
-  const h = span / 2, e = h * 0.45, P = [];
+  const h = 0.6, e = h * 0.45, P = [], k = span / 1.2;   // drawn at a 1.2 m span, then scaled as a whole
   const tri = (a, b, c) => P.push(...a, ...b, ...c);
   const B = { head: [0, 0, 0.24], l: [-0.035, 0, 0.02], r: [0.035, 0, 0.02], tail: [0, 0, -0.2], tl: [-0.07, 0, -0.3], tr: [0.07, 0, -0.3] };
   tri(B.head, B.l, B.tail); tri(B.head, B.tail, B.r); tri(B.tail, B.tl, [0, 0, -0.26]); tri(B.tail, [0, 0, -0.26], B.tr);
@@ -47,7 +47,8 @@ function birdGeometry(span) {
     tri(r1, r2, e1); tri(e1, r2, e2); tri(e1, e2, tip);
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
-  return { geometry: g, elbow: e };
+  g.scale(k, 1, k);   // y only flags wing vertices
+  return { geometry: g, elbow: e * k };
 }
 
 /**
@@ -111,8 +112,8 @@ export function createBirds(ctx) {
   function place(g, first) {
     // heading: where the player travels (or looks), never behind; distance far enough that no bird starts too close
     const h = vel.lengthSq() > 1 ? Math.atan2(vel.x, vel.z) : (camera.getWorldDirection(fwd), Math.atan2(fwd.x, fwd.z));
-    // nearest birds start 70-100 m away (inside the visible range, outside the steering zone), within the respawn range
-    const a = h + (first ? rr(-Math.PI, Math.PI) : rr(-C.respawnCone, C.respawnCone)), d = Math.min(C.respawn[1], Math.max(C.respawn[0], reach(g) + rr(16, 46)));
+    // nearest birds start 40-65 m away (inside the visible range, outside the steering zone), within the respawn range
+    const a = h + (first ? rr(-Math.PI, Math.PI) : rr(-C.respawnCone, C.respawnCone)), d = Math.min(C.respawn[1], Math.max(C.respawn[0], reach(g) + rr(10, 35)));
     g.c.set(cam.x + Math.sin(a) * d, SEA_Y + g.alt, cam.z + Math.cos(a) * d);
     // start the flock on the near side of its loop (one of the points closest to the player), so it is in view
     const cand = []; for (let i = 0; i < 16; i++) { const u = i / 16 * 6.2832; pathAt(g, u, P); cand.push([Math.hypot(g.c.x + P.x - cam.x, g.c.z + P.z - cam.z), u]); }
