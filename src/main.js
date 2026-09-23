@@ -78,7 +78,7 @@ function frame(now) {
   followSun(camera.position);
   worldGrass.update(camera.position);
   ocean.update(camera.position);
-  camera.updateMatrixWorld(); scatter.update(camera);
+  camera.updateMatrixWorld(); scatter.update(camera, debug.on);
   updateCabin(dt, t);
   const nearDoor = camera.position.distanceTo(cabin.door.world) < 2.8;
   if (nearDoor !== st.nearDoor) { st.nearDoor = nearDoor; actEl.classList.toggle('hide', !(nearDoor && st.playing && !isTouch)); btnDoor.style.display = nearDoor && st.playing ? '' : 'none'; }

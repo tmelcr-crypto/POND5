@@ -35,30 +35,34 @@ export function limb(a, b, r0, r1, radial = 8, hs = 1) {
 }
 export function joint(p, r) { const g = new THREE.SphereGeometry(r, 8, 6); g.translate(p.x, p.y, p.z); return g; }
 /**
- * Card batch: collects alpha-tested quads (position, normal, uv, color) into one BufferGeometry.
- * add(p, xAxis, yAxis, w, h, color, n) puts a w x h card with its bottom-centre at p (yAxis = up the card),
- * normal n (defaults to the card's face normal). Used by the scatter prototypes.
+ * Detail ranks for continuous thinning (see addThinning in shaderPatches.js): every part of a tree gets a rank in
+ * [0, 1] and is drawn while rank < keep(distance). Parts are stored sorted by rank, so "rank < keep" is simply "the
+ * first N": a tree draws only its first N instances (InstancedMesh.count) or vertices (drawRange), found by
+ * binary search in the returned sorted ranks.
+ *
+ * mergeRanked merges geometries (non-indexed), sorted by rankOf(list[i], i), with a per-vertex 'aRank'.
+ * Returns { geometry, ranks } (ranks: one per vertex, ascending).
  */
-export function cardBatch() {
-  const pos = [], nor = [], uv = [], col = [], idx = [];
-  const face = new THREE.Vector3();
-  return {
-    add(p, X, Y, w, h, c, n) {
-      const b = pos.length / 3; if (!n) n = face.crossVectors(X, Y).normalize();
-      const corners = [[-0.5, 0], [0.5, 0], [-0.5, 1], [0.5, 1]];
-      for (const [u, v] of corners) { pos.push(p.x + X.x * u * w + Y.x * v * h, p.y + X.y * u * w + Y.y * v * h, p.z + X.z * u * w + Y.z * v * h); nor.push(n.x, n.y, n.z); uv.push(u + 0.5, v); col.push(c.r, c.g, c.b); }
-      idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
-    },
-    geometry() {
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
-      return g;
-    },
-  };
+export function mergeRanked(list, attrs, rankOf) {
+  const items = list.map((g, i) => ({ g, r: rankOf(g, i) })).sort((a, b) => a.r - b.r);
+  const geometry = mergeGeos(items.map(it => it.g), attrs), ranks = [];
+  items.forEach(({ g, r }) => { const n = g.index ? g.index.count : g.attributes.position.count; for (let k = 0; k < n; k++) ranks.push(r); });
+  geometry.setAttribute('aRank', new THREE.Float32BufferAttribute(ranks, 1));
+  return { geometry, ranks: Float32Array.from(ranks) };
 }
-/** Merge indexed or non-indexed geometries into one non-indexed geometry, painting a constant vertex colour on each. */
-export function mergeColored(list, color) {
-  list.forEach(g => { if (!g.attributes.color) { const n = g.attributes.position.count, c = new Float32Array(n * 3); for (let i = 0; i < n; i++) { c[i * 3] = color.r; c[i * 3 + 1] = color.g; c[i * 3 + 2] = color.b; } g.setAttribute('color', new THREE.BufferAttribute(c, 3)); } });
-  return mergeGeos(list, ['position', 'normal', 'uv', 'color']);
+/**
+ * Instanced parts (cards, cones, fruit) for a tree prototype, sorted by rank: a geometry that shares base's buffers
+ * plus an instanced 'aRank', and the per-instance transform / colour buffers, meant to be shared by every tree that
+ * uses this prototype (assign them to each tree's InstancedMesh; they are uploaded once). ranks: ascending.
+ */
+export function rankedInstances(base, matrices, ranks, colors) {
+  const n = matrices.length, order = [...ranks.keys()].sort((a, b) => ranks[a] - ranks[b]), g = new THREE.BufferGeometry();
+  for (const k in base.attributes) g.setAttribute(k, base.attributes[k]);
+  if (base.index) g.setIndex(base.index);
+  const r = Float32Array.from(order.map(i => ranks[i]));
+  g.setAttribute('aRank', new THREE.InstancedBufferAttribute(r, 1));
+  const m = new Float32Array(n * 16); order.forEach((i, j) => matrices[i].toArray(m, j * 16));
+  const out = { geometry: g, matrix: new THREE.InstancedBufferAttribute(m, 16), color: null, count: n, ranks: r };
+  if (colors) { const c = new Float32Array(n * 3); order.forEach((i, j) => colors[i].toArray(c, j * 3)); out.color = new THREE.InstancedBufferAttribute(c, 3); }
+  return out;
 }

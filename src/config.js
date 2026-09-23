@@ -54,8 +54,18 @@ export const CONFIG = {
     clearingRadius: 13,     // no trees closer than this to the diorama centre (open meadow around the pond)
     minSpacing: 4.5,        // minimum trunk spacing for spruces (sets the densest a grove can get)
     pathWidth: 1.6,         // walkable path from the cabin door to the pond shore stays clear
-    lod: [18, 50],          // full mesh < lod[0] < simplified mesh < lod[1] < camera-facing billboard
-    lodHysteresis: 2,       // metres of hysteresis on every LOD switch (avoids flicker at the boundary)
+  },
+
+  // Island trees: the reference generators at full detail, thinned continuously with distance on the GPU
+  trees: {
+    variants: 4,            // differently seeded full-detail variants per species (build time grows with this)
+    spruceScale: [1.1, 1.7],// the reference spruce is 5.8 m tall
+    appleScale: [0.85, 1.2],
+    keep: [15, 45, 0.12],   // all detail up to keep[0] m, then ease out to the fraction keep[2] at keep[1] m
+                            // (0.12 keeps the densest view under ~150k cards on touch; measured 137k)
+    grow: 0.35,             // surviving cards grow by up to this much as detail drops, so crowns stay full
+    fade: [42, 48],         // dithered cross-fade from the tree to its billboard (8 baked angles)
+    billboardTile: 256,     // billboard atlas tile width in pixels
   },
 
   // Sun, shadows and atmosphere

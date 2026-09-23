@@ -87,13 +87,13 @@ src/
     lights.js               Sun/moon light, shadow box that follows the player, hemisphere fill
     terrain.js              Plot ground mesh + caustics; island heightmap mesh, grass/dirt/rock/sand shader
     grass.js                World GPU grass: camera-following rings of clumps, distance falloff, wind
-    scatter.js              Seeded tree + rock scatter, InstancedMesh LODs, baked billboard impostors
+    scatter.js              Seeded tree + rock scatter, per-tree distance thinning, 8-angle billboard atlases
     bounds.js               Soft boundary (wading depth at the shore, world edge when flying), trunk/boulder grid
     soilSkirt.js            Soil cross-section of the old diorama edge (no longer built)
     timeOfDay.js            Day/night cycle, fog colour
   assets/                   One factory per scene element
     water/     pond.js (pond + the sea), lilyPads.js, reeds.js
-    trees/     spruce.js, appleTree.js        (hero trees + createSprucePrototype / createApplePrototype for the scatter)
+    trees/     spruce.js, appleTree.js        (full-detail generator, the reference tree, island variants)
     vegetation/grass.js, meadowFlowers.js, roseBush.js
     rocks/     rockOutcrop.js, scatteredRocks.js  (+ createRockPrototypes)
     fauna/     butterflies.js, pollen.js
@@ -157,11 +157,18 @@ export function createRoseBush(ctx) {
   into 8 sectors so the ones behind the camera are culled.
 - **Trees and rocks** (`world/scatter.js`): seeded Poisson-style placement driven by `forest(x, z)` (groves between
   the meadow and the beach, spaced at least `minSpacing` apart), kept off the beach and out of `EXCLUSIONS`
-  (plot, cabin yard, pond, cabin -> pond path; push more to add zones). Each prototype has a full and a
-  simplified mesh LOD and a camera-facing billboard rendered from the full mesh at load. Instances are re-bucketed
-  on the CPU every frame (distance with hysteresis + frustum test) into InstancedMeshes. A prototype is a plain
-  `{ height, width, lods: [{ parts: [{ geometry, material }] }] }` object, so GLB models can replace the procedural
-  ones without touching the scatter.
+  (plot, cabin yard, pond, cabin -> pond path; push more to add zones).
+  Every island tree uses the **reference generators** (`buildSpruce`, `buildApple`) at full detail: each species has
+  `CONFIG.trees.variants` differently seeded variants, built once in tree-local space. A tree is a small group of
+  meshes sharing its variant's geometry, card buffers and materials; its position, rotation and scale are in its
+  modelMatrix. Every part has a detail rank (outer / silhouette cards low, twigs and fruit high) and parts are
+  stored sorted by rank, so detail thins continuously with distance: keep(d) = 1 up to 15 m, easing out to
+  `keep[2]` at 45 m; each tree draws only its first N cards / vertices (one binary search per tree per frame) and
+  the shader collapses the rest (`addThinning`, also in the shadow pass); surviving cards grow slightly. Past 42 m
+  the tree dissolves (screen-space dither) into a camera-facing billboard baked at load from 8 angles per variant.
+  Pinecones switch to a 32-scale version of the same cone past 6 m. A variant is a plain
+  `{ height, width, bounds, parts: [{ geometry, material, depth, instances? }] }` object, so GLB models can replace
+  the procedural ones.
 - **Build order:** the world is built after every diorama asset and reseeds the random stream with
   `CONFIG.world.seed`, so the plot looks exactly as before and the world can be re-rolled on its own.
 - **Tuning:** every number lives in `src/config.js`.

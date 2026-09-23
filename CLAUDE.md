@@ -21,7 +21,8 @@ quality near the camera. See `ROADMAP.md`.
 - `src/world/layout.js` — site plan and `H(x, z)`, the terrain height function everything samples
 - `src/config.js` — world size, seed, grass, tree counts, LOD distances, shadows, fog, player
 - `src/main.js` — build order and the render loop
-- `src/assets/trees/spruce.js`, `src/assets/vegetation/grass.js` — the two heaviest assets
+- `src/assets/trees/spruce.js`, `src/assets/vegetation/grass.js` — the two heaviest assets; `buildSpruce` /
+  `buildApple` must keep drawing random numbers in the same order, or the reference trees change
 
 ## Hard constraints
 
@@ -93,7 +94,9 @@ the scene gets tested on the iPad.
 - Plot grass: ~64k instanced blades (30k touch), GPU wind, never casts shadows. World grass: rings in
   `world/grass.js` (density / radius in `config.js`), also no shadows; only ~1/3 of submitted blade slots
   end up visible, the rest are discarded in the vertex shader.
-- Apple tree: ~23k individual leaf cards. Spruce: ~10k needle sprays. Both merged at build time.
+- Reference apple tree: 20.7k leaf cards (14.7k touch). Reference spruce: 10.6k needle sprays (5.7k touch).
+  The island trees use the same generators (4 variants each) and thin with distance (`CONFIG.trees`); the
+  densest view measured 137k foliage cards on touch. The Stats overlay shows the cards drawn.
 - Pixel ratio capped at 1.5 on touch devices; shadow map 2048 there, 4096 on desktop.
 - The fireplace point light casts shadows on desktop only.
 - Quality scaling keys off `isTouch` in `src/core/env.js`.
