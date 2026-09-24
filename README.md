@@ -212,6 +212,14 @@ export function createRoseBush(ctx) {
   every 7-9 s, slows up the beach and leaves lace that fades, each stretch of coast at its own moment. Each part
   runs only on its detail-manager band (the pond's within 20 m / 15 m); one draw for the rings while any is alive,
   two for the dragonflies.
+- **Day cycle** (`world/timeOfDay.js`, `CONFIG.time`): a continuous 24 h day in 18 real minutes, starting at 16:30; the
+  panel's time slider follows it (drag to jump) and "Day cycle" pauses it. Sun and sky update 5 times a second, the
+  sky's environment map is rebuilt every 4 s around dawn and dusk and every 15 s otherwise; the cabin lights switch on
+  at dusk and off after sunrise (the button overrides them until the next change).
+- **Atmosphere** (`world/atmosphere.js`, numbers in `ATMO`): the fog thickens smoothly at dawn (2x around 06:00, clear
+  by 10:00) and a little at dusk and night, never below the midday density; morning mist (05:00-09:00) in soft layers
+  over the pond and the sea near the shore, drifting with the wind and burning off as the sun climbs; a faint shooting
+  star every 40-90 s at night; moths at the lit windows at night while the cabin lights are on.
 - **Cloud shadows** (`core/shaderPatches.js` `addCloudShadow`, `CONFIG.clouds`): one tileable canvas texture of soft
   cloud footprints (`cloudField` in `core/noise.js`, roughly 20-60 m across) lies flat over the world and drifts with the
   wind. `finalizeScene` puts it on every lit material except the cabin interior. It dims only the sun's direct light

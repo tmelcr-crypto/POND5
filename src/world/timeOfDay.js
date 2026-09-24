@@ -22,9 +22,13 @@ function displayColor(out, c, exposure) {
 /**
  * Day/night cycle: moves the sun (or moon), recolours the sky, exposure, fog colour, fireflies and chimney smoke.
  * scheduleEnv() debounces the PMREM environment rebuild while the slider is dragged.
+ * The clock runs a continuous 24 h cycle in CONFIG.time.dayMinutes real minutes (update(dt); clock.running pauses
+ * it): the sun and sky follow a few times a second, the sky's environment map is rebuilt every few seconds (more
+ * often around dawn and dusk), and the cabin lights switch on at dusk and off after sunrise (the button overrides
+ * them until the next change).
  */
 export function createTimeOfDay(ctx) {
-  const { renderer, scene, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin } = ctx;
+  const { renderer, scene, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin, setLights } = ctx, TC = CONFIG.time;
   const sunDir = new V();
   const moonDir = new V(-0.35, 0.72, 0.6).normalize();
   function setSun(hours) {
@@ -51,6 +55,21 @@ export function createTimeOfDay(ctx) {
     cabin.smokeF = 0.35 + 0.65 * day;
   }
   let envTimer = null;
-  function scheduleEnv(now) { clearTimeout(envTimer); if (now) rebuildEnv(); else envTimer = setTimeout(rebuildEnv, 120); }
-  return { setSun, scheduleEnv };
+  function scheduleEnv(now) { clearTimeout(envTimer); if (now) rebuildEnv(); else envTimer = setTimeout(rebuildEnv, 120); envAcc = 0; }
+
+  const clock = { hours: 12, running: true };
+  let sunAcc = 0, envAcc = 0, dark = null;
+  const stats = { envMs: 0, envBuilds: 0 };
+  function lightsFor(night) { const d = night > 0.5; if (d !== dark) { if (dark !== null && setLights) setLights(d); dark = d; } }
+  /** Jump to an hour (the slider): sun and sky at once, the environment map shortly after. */
+  function setHours(h) { clock.hours = ((h % 24) + 24) % 24; setSun(clock.hours); dark = skyUniforms.uNight.value > 0.5; }
+  function update(dt) {
+    if (!clock.running) return;
+    clock.hours = (clock.hours + dt * 24 / (TC.dayMinutes * 60)) % 24;
+    sunAcc += dt; envAcc += dt;
+    if (sunAcc >= TC.sunEvery) { sunAcc = 0; setSun(clock.hours); lightsFor(skyUniforms.uNight.value); }
+    const n = skyUniforms.uNight.value, changing = n > 0.02 && n < 0.98;   // dawn and dusk: the sky changes fast
+    if (envAcc >= (changing ? TC.envEvery[0] : TC.envEvery[1])) { envAcc = 0; const t0 = performance.now(); rebuildEnv(); stats.envMs = performance.now() - t0; stats.envBuilds++; }
+  }
+  return { setSun, scheduleEnv, clock, setHours, update, stats };
 }

@@ -16,7 +16,7 @@ import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
  *    (walls, roof, door, floor) and a soft world boundary
  */
 export function createControls(app) {
-  const { canvas, camera, cabin, toggleDoor, setLights, setSun, scheduleEnv } = app;
+  const { canvas, camera, cabin, toggleDoor, setLights, setHours, clock, scheduleEnv } = app;
   const PC = CONFIG.player;
   const st = { yaw: 0, pitch: -0.14, pos: new V(4.3, 1.45, 4.5), vel: new V(), keys: {}, speed: 2.2, locked: false, drag: false, joy: { x: 0, y: 0 }, up: 0, down: 0, playing: false, walk: PC.startMode === 'walk', grounded: false };
   st.pos.set(4.3, 1.55, 4.2); { const t = new V(1.6, 1.0, -2.2).sub(st.pos); st.yaw = Math.atan2(-t.x, -t.z); st.pitch = Math.atan2(t.y, Math.hypot(t.x, t.z)); }
@@ -103,7 +103,13 @@ export function createControls(app) {
   const timeIn = document.getElementById('time'), windIn = document.getElementById('wind'), speedIn = document.getElementById('speed');
   const timeV = document.getElementById('timeV'), windV = document.getElementById('windV'), speedV = document.getElementById('speedV');
   function fmtTime(h) { const hh = Math.floor(h), mm = Math.round((h - hh) * 60); return String(hh + (mm === 60 ? 1 : 0)).padStart(2, '0') + ':' + String(mm % 60).padStart(2, '0'); }
-  timeIn.addEventListener('input', () => { const h = +timeIn.value; timeV.textContent = fmtTime(h); setSun(h); scheduleEnv(false); });
+  let dragging = false;
+  timeIn.addEventListener('input', () => { const h = +timeIn.value; timeV.textContent = fmtTime(h); setHours(h); scheduleEnv(false); });
+  timeIn.addEventListener('pointerdown', () => { dragging = true; }); addEventListener('pointerup', () => { dragging = false; });
+  /** The slider and its label follow the running clock (not while it is being dragged). */
+  function showTime(h) { if (dragging) return; timeIn.value = h.toFixed(2); timeV.textContent = fmtTime(h); }
+  const cycleBtn = document.getElementById('cycleBtn');
+  if (cycleBtn) cycleBtn.addEventListener('click', () => { clock.running = !clock.running; cycleBtn.textContent = clock.running ? 'On' : 'Off'; cycleBtn.setAttribute('aria-pressed', String(clock.running)); });
   windIn.addEventListener('input', () => { const w = +windIn.value; U.uWind.value = w; windV.textContent = w < 0.08 ? 'Still' : w < 0.45 ? 'Light air' : w < 0.9 ? 'Breeze' : w < 1.3 ? 'Windy' : 'Gusty'; });
   function setSpeed(v) { st.speed = clamp(v, 0.3, 10); speedIn.value = st.speed; speedV.textContent = st.speed.toFixed(1) + ' m/s'; }
   speedIn.addEventListener('input', () => setSpeed(+speedIn.value));
@@ -220,5 +226,5 @@ export function createControls(app) {
     camera.position.copy(st.pos);
     camera.rotation.set(st.pitch, st.yaw, 0);
   }
-  return { st, move, fmtTime, setSpeed, setWalk, timeIn, timeV };
+  return { st, move, fmtTime, setSpeed, setWalk, timeIn, timeV, showTime };
 }

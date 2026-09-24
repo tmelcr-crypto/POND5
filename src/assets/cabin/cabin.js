@@ -15,7 +15,7 @@ import { HOUSE, PAD_H, CB, roofY } from '../../world/layout.js';
 export function createCabin(ctx) {
   const { scene, camera, maxAniso } = ctx;
   const { barkTex, leafTex, softDot } = ctx.tex;
-  const cabin = { lamps: [], glows: [], lightsOn: true, door: null, boxes: [], fireLight: null, emberMat: null, sparks: null, smoke: [], hands: null, pendulum: null, group: null };
+  const cabin = { lamps: [], glows: [], windows: [], lightsOn: true, door: null, boxes: [], fireLight: null, emberMat: null, sparks: null, smoke: [], hands: null, pendulum: null, group: null };
   {
     const { FL, R, S, XW, ZW, EAVE, PITCH } = CB;
     const house = new THREE.Group(); house.position.set(HOUSE.x, PAD_H, HOUSE.z); scene.add(house); cabin.group = house;
@@ -284,7 +284,8 @@ export function createCabin(ctx) {
       if (op.door) { add(lo, hi, b - 0.02, b + 0.02, -D2, D2, M.dark); return; }
       add(lo - J - 0.04, hi + J + 0.04, b - J, b + E, -D2 - 0.05, D2 + 0.05, M.trim);
       const gl = add(lo, hi, b, t, -0.004, 0.004, M.glass); gl.userData.noShadow = true;
-      const mu = (lo + hi) / 2, mv = (b + t) / 2;
+      const mu = (lo + hi) / 2, mv = (b + t) / 2, sd = Math.sign(w.c) || 1;
+      cabin.windows.push(w.axis === 'x' ? { c: new V(mu, mv, w.c), n: new V(0, 0, sd), w: hi - lo, h: t - b } : { c: new V(w.c, mv, mu), n: new V(sd, 0, 0), w: hi - lo, h: t - b });   // house space
       add(mu - 0.015, mu + 0.015, b, t, -0.022, 0.022, M.trim);
       add(lo, hi, mv - 0.015, mv + 0.015, -0.022, 0.022, M.trim);
       add(lo, hi, b, b + 0.03, -0.03, 0.03, M.trim); add(lo, hi, t - 0.03, t, -0.03, 0.03, M.trim);
