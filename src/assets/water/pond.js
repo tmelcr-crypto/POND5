@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { U } from '../../core/uniforms.js';
-import { WATER_Y, LAKE, H } from '../../world/layout.js';
+import { WATER_Y, LAKE, H, lakeD, streamDist } from '../../world/layout.js';
 
 /**
  * Pond surface: MeshStandardMaterial with procedural wave normals, depth tint, shoreline foam.
@@ -11,15 +11,19 @@ export function createPond(ctx) {
   {
     const S = 5.4, SEG = 90;
     const g = new THREE.PlaneGeometry(S, S, SEG, SEG); g.rotateX(-Math.PI / 2); g.translate(LAKE.x, WATER_Y, LAKE.z);
-    const p = g.attributes.position, dep = new Float32Array(p.count);
-    for (let i = 0; i < p.count; i++) dep[i] = WATER_Y - H(p.getX(i), p.getZ(i));
-    g.setAttribute('aDepth', new THREE.BufferAttribute(dep, 1));
+    const p = g.attributes.position, dep = new Float32Array(p.count), keep = new Float32Array(p.count);
+    const smooth = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), z = p.getZ(i); dep[i] = WATER_Y - H(x, z);
+      keep[i] = 1 - smooth(0.9, 1.05, lakeD(x, z)) * (1 - smooth(0.3, 1.0, streamDist(x, z)));   // hands over to the stream in its channel
+    }
+    g.setAttribute('aDepth', new THREE.BufferAttribute(dep, 1)); g.setAttribute('aKeep', new THREE.BufferAttribute(keep, 1));
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, envMapIntensity: 1.25 });
     m.onBeforeCompile = s => {
       s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind;
-      s.vertexShader = 'attribute float aDepth; varying float vDepth; varying vec3 vWP;\n' +
-        s.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDepth = aDepth; vWP = (modelMatrix*vec4(transformed,1.0)).xyz;');
-      s.fragmentShader = `varying float vDepth; varying vec3 vWP; uniform float uTime; uniform float uWind;
+      s.vertexShader = 'attribute float aDepth; attribute float aKeep; varying float vDepth; varying float vKeep; varying vec3 vWP;\n' +
+        s.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDepth = aDepth; vKeep = aKeep; vWP = (modelMatrix*vec4(transformed,1.0)).xyz;');
+      s.fragmentShader = `varying float vDepth; varying float vKeep; varying vec3 vWP; uniform float uTime; uniform float uWind;
         vec2 wv(vec2 p, float t, vec2 d, float f, float sp, float a){ return d * (a*f*cos(dot(d,p)*f + t*sp)); }
         vec2 waveGrad(vec2 p, float t){
           vec2 g = vec2(0.0);
@@ -36,7 +40,7 @@ export function createPond(ctx) {
           diffuseColor.rgb = mix(vec3(0.16,0.17,0.08), vec3(0.018,0.06,0.058), sh);
           float foam = (1.0 - smoothstep(0.0, 0.035, vDepth)) * (0.55 + 0.45*sin(vWP.x*18.0 + vWP.z*13.0 + uTime*1.5));
           diffuseColor.rgb += vec3(0.28,0.3,0.26) * foam * 0.5;
-          diffuseColor.a = smoothstep(-0.005, 0.03, vDepth) * mix(0.42, 0.93, sh);`)
+          diffuseColor.a = smoothstep(-0.005, 0.03, vDepth) * mix(0.42, 0.93, sh) * vKeep;`)
         .replace('#include <normal_fragment_maps>', `
           vec2 wg = waveGrad(vWP.xz, uTime);
           vec3 nW = normalize(vec3(-wg.x, 1.0, -wg.y));

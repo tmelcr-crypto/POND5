@@ -16,38 +16,39 @@ export const STREAM_LOOK = {
   foamSlope: [0.025, 0.08],   // foam from this slope .. full at this
   rocks: { perRapid: 5, size: [0.1, 0.28] },
   pebbles: { count: 320, size: [0.025, 0.07] },
+  fadeIn: [0.25, 0.6],        // s (m) over which the stream takes over from the pond's water sheet (pond.js fades out there)
+  pondLook: [0.6, 3.5],       // s (m) over which its colour turns from the pond's to its own
 };
 
 export function createStream(ctx) {
   const { scene } = ctx, S = STREAM, P = S.pts, L = STREAM_LOOK;
   let seed = 911; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }, rr = (a, b) => a + (b - a) * rnd();
 
-  /* ---- the water ribbon: from where it leaves the pond's own water plane to a little way into the sea ---- */
-  const inPondPlane = p => Math.abs(p.x - LAKE.x) < 2.55 && Math.abs(p.z - LAKE.z) < 2.55;
-  let k0 = P.findIndex(p => !inPondPlane(p)); k0 = Math.max(0, k0 - 2);
+  /* ---- the water ribbon: from inside the pond (it cross-fades with the pond's sheet at the outlet) to a little way into the sea ---- */
+  const k0 = 0, smooth = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
   let k1 = P.findIndex((p, k) => k > k0 && p.W <= SEA_Y + 0.03); if (k1 < 0) k1 = P.length - 1;   // ends where it reaches the sea's level
   const n = k1 - k0 + 1, A = L.across, pos = [], flow = [], extra = [], idx = [];
   let tau = 0;   // travel time along the stream: the ripples advance by it, so they run at each place's own speed
   for (let k = k0; k <= k1; k++) {
     const p = P[k], sp = L.speed[0] + L.speed[1] * Math.max(0, p.slope);
     if (k > k0) tau += (p.s - P[k - 1].s) / sp;
-    const nx = -p.tz, nz = p.tx, fadeIn = Math.min(1, (k - k0) / 6), fadeOut = Math.min(1, (k1 - k) / 14);
+    const nx = -p.tz, nz = p.tx, fadeIn = smooth(L.fadeIn[0], L.fadeIn[1], p.s), fadeOut = Math.min(1, (k1 - k) / 14);
     for (let a = 0; a < A; a++) {
       const t = (a / (A - 1) * 2 - 1) * L.spill, x = p.x + nx * t * p.w, z = p.z + nz * t * p.w;
-      pos.push(x, p.W, z); flow.push(tau, t); extra.push(p.W - H(x, z), p.slope, Math.min(fadeIn, fadeOut), Math.atan2(p.tz, p.tx));
+      pos.push(x, p.W, z); flow.push(tau, t, 1 - smooth(L.pondLook[0], L.pondLook[1], p.s)); extra.push(p.W - H(x, z), p.slope, Math.min(fadeIn, fadeOut), Math.atan2(p.tz, p.tx));
     }
   }
   for (let k = 0; k < n - 1; k++) for (let a = 0; a < A - 1; a++) { const i = k * A + a; idx.push(i, i + 1, i + A, i + 1, i + A + 1, i + A); }   // facing up
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aFlow', new THREE.Float32BufferAttribute(flow, 2)); g.setAttribute('aX', new THREE.Float32BufferAttribute(extra, 4));
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aFlow', new THREE.Float32BufferAttribute(flow, 3)); g.setAttribute('aX', new THREE.Float32BufferAttribute(extra, 4));
   g.setIndex(idx); g.computeVertexNormals(); g.computeBoundingSphere();
   const F = L.foamSlope;
-  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.06, metalness: 0, transparent: true, envMapIntensity: 1.2 });
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.06, metalness: 0, transparent: true, depthWrite: false, envMapIntensity: 1.2 });   // no depth: the pond draws over its faded start
   m.onBeforeCompile = s => {
     s.uniforms.uTime = U.uTime;
-    s.vertexShader = 'attribute vec2 aFlow; attribute vec4 aX; varying vec2 vFlow; varying vec4 vX; varying vec3 vWP;\n' +
+    s.vertexShader = 'attribute vec3 aFlow; attribute vec4 aX; varying vec3 vFlow; varying vec4 vX; varying vec3 vWP;\n' +
       s.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vFlow = aFlow; vX = aX; vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    s.fragmentShader = `uniform float uTime; varying vec2 vFlow; varying vec4 vX; varying vec3 vWP;
+    s.fragmentShader = `uniform float uTime; varying vec3 vFlow; varying vec4 vX; varying vec3 vWP;
       float sHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float sNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
         return mix(mix(sHash(i), sHash(i + vec2(1.0, 0.0)), f.x), mix(sHash(i + vec2(0.0, 1.0)), sHash(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -57,11 +58,12 @@ export function createStream(ctx) {
         vec2 fp = vec2((vFlow.x - uTime) * 1.6, vFlow.y * 2.2);          // flowing coordinates
         float lace = smoothstep(0.45, 0.8, 0.6 * sNoise(fp * vec2(1.0, 1.5)) + 0.4 * sNoise(fp * vec2(2.3, 3.1) + 7.1));
         float streak = smoothstep(0.55, 0.9, sNoise(vec2(fp.x * 0.35, vFlow.y * 6.0)));
-        float sh = smoothstep(0.0, 0.3, dep);
-        diffuseColor.rgb = mix(vec3(0.13, 0.15, 0.1), vec3(0.02, 0.06, 0.065), sh);
+        float pondLook = vFlow.z;                                        // near the outlet: the pond's colours (pond.js)
+        float sh = smoothstep(0.0, mix(0.3, 0.32, pondLook), dep);
+        diffuseColor.rgb = mix(mix(vec3(0.13, 0.15, 0.1), vec3(0.16, 0.17, 0.08), pondLook), mix(vec3(0.02, 0.06, 0.065), vec3(0.018, 0.06, 0.058), pondLook), sh);
         float foam = rapid * max(lace, streak * 0.8) + (1.0 - smoothstep(0.0, 0.05, dep)) * 0.35 * lace;   // white water / a little at the edges
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.85, 0.88, 0.86), clamp(foam, 0.0, 1.0));
-        diffuseColor.a = smoothstep(-0.005, 0.03, dep) * mix(0.28, 0.85, sh) * vX.z;
+        diffuseColor.a = smoothstep(-0.005, 0.03, dep) * mix(mix(0.28, 0.42, pondLook), mix(0.85, 0.93, pondLook), sh) * vX.z;
         diffuseColor.a = max(diffuseColor.a, clamp(foam, 0.0, 1.0) * smoothstep(-0.005, 0.02, dep) * vX.z);
         float streamFoam = foam;`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.8, clamp(streamFoam, 0.0, 1.0));')
@@ -73,7 +75,7 @@ export function createStream(ctx) {
         vec3 nW = normalize(vec3(-(gr.x * c - gr.y * sn), 1.0, -(gr.x * sn + gr.y * c)));
         normal = normalize((viewMatrix * vec4(nW, 0.0)).xyz);`);
   };
-  const water = new THREE.Mesh(g, m); water.renderOrder = 2; water.receiveShadow = true; scene.add(water);
+  const water = new THREE.Mesh(g, m); water.renderOrder = 1; water.receiveShadow = true; scene.add(water);   // before the pond, whose faded sheet over the outlet would hide it in the depth buffer
 
   /* ---- rocks in the rapids, pebbles along the banks (one instanced mesh) ---- */
   const rockGeo = new THREE.IcosahedronGeometry(1, 1); {
