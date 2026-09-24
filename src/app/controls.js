@@ -2,7 +2,7 @@ import { isTouch } from '../core/env.js';
 import { V, UPV, clamp } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, SEATS } from '../world/layout.js';
+import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, jettyDeckY, SEATS } from '../world/layout.js';
 import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
 
 /**
@@ -125,7 +125,7 @@ export function createControls(app) {
   /* walk / fly */
   const modeBtn = document.getElementById('modeBtn');
   function setWalk(on) {
-    if (st.seat) return;   // stand up first
+    if (st.seat || st.aboard) return;   // stand up / leave the boat first
     st.walk = on; st.vel.y = 0;
     if (modeBtn) { modeBtn.textContent = on ? 'Walk' : 'Fly'; modeBtn.setAttribute('aria-pressed', String(on)); }
     document.getElementById('btnUp').textContent = on ? 'Jump' : 'Up';
@@ -155,13 +155,13 @@ export function createControls(app) {
     const ix = np.x - HOUSE.x, iz = np.z - HOUSE.z;
     if (!st.walk && Math.abs(ix) < 1.58 && Math.abs(iz) < 1.23) { const fy = PAD_H + CB.FL + 0.28; if (np.y < fy && np.y > PAD_H - 0.4) { np.y = fy; st.vel.y = Math.max(0, st.vel.y); } }
   }
-  /** Walkable surface under (x, z) for feet at height `feet`: terrain, cabin floor, the footbridge's deck, or the top of a
+  /** Walkable surface under (x, z) for feet at height `feet`: terrain, cabin floor, the footbridge's or jetty's deck, or the top of a
    *  low rock (outcrop or island boulder). Also pushes out of rocks too tall to step onto, judged by the feet, not the eye. */
   function groundAt(p, feet) {
     let g = H(p.x, p.z);
     const ix = p.x - HOUSE.x, iz = p.z - HOUSE.z;
     if (Math.abs(ix) < 1.58 && Math.abs(iz) < 1.23) g = Math.max(g, PAD_H + CB.FL);
-    const deck = bridgeDeckY(p.x, p.z); if (deck - feet <= PC.stepHeight) g = Math.max(g, deck);   // the footbridge (not from under it)
+    const deck = Math.max(bridgeDeckY(p.x, p.z), jettyDeckY(p.x, p.z)); if (deck - feet <= PC.stepHeight) g = Math.max(g, deck);   // the footbridge and the jetty (not from under them)
     const standOn = c => {
       // in the collider's own (rotated) frame; radii are padded by 0.2, body is the player's radius
       const cr = Math.cos(c.rot || 0), sr = Math.sin(c.rot || 0), wx = p.x - c.x, wz = p.z - c.z;
@@ -179,7 +179,9 @@ export function createControls(app) {
     for (const c of rockBodies.near(p.x, p.z)) standOn(c);
     return g;
   }
+  let vehicle = null;   // the boat (app/boating.js) takes the camera while you are aboard
   function move(dt) {
+    if (vehicle && vehicle(dt)) { seatButton(''); return; }
     if (seatUpdate(dt)) return;
     const K = st.keys;
     fwd.set(-Math.sin(st.yaw) * Math.cos(st.pitch), Math.sin(st.pitch), -Math.cos(st.yaw) * Math.cos(st.pitch));
@@ -205,7 +207,7 @@ export function createControls(app) {
       if (d < t.r && d > 1e-4) { np.x = t.x + dx / d * t.r; np.z = t.z + dz / d * t.r; }
     }
     obstacles.resolve(np, 0.15);
-    applyBounds(np, st.vel, dt, st.walk);
+    applyBounds(np, st.vel, dt, st.walk && jettyDeckY(np.x, np.z) === -Infinity);   // on the jetty, deep water below is fine
     if (st.walk) {
       // eye height above the walkable surface; step up smoothly, stick to the ground going down hill
       const feet = st.pos.y - PC.eyeHeight, gy = groundAt(np, feet) + PC.eyeHeight;
@@ -243,7 +245,7 @@ export function createControls(app) {
   const ease = t => t * t * (3 - 2 * t);
   /** The seat the player may sit on: in walk mode, on the ground, within reach and in front of it. */
   function nearSeat() {
-    if (!st.walk || !st.grounded || !st.playing) return null;
+    if (!st.walk || !st.grounded || !st.playing || st.aboard) return null;
     let best = null, bd = SIT.reach;
     for (const s of SEATS) {
       const dx = st.pos.x - s.x, dz = st.pos.z - s.z, d = Math.hypot(dx, dz);
@@ -312,5 +314,5 @@ export function createControls(app) {
     camera.rotation.set(st.pitch, st.yaw, 0);
     return true;
   }
-  return { st, move, fmtTime, setSpeed, setWalk, timeIn, timeV, showTime, toggleSeat };
+  return { st, move, fmtTime, setSpeed, setWalk, timeIn, timeV, showTime, toggleSeat, setVehicle: f => { vehicle = f; } };
 }

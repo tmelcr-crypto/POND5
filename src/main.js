@@ -39,6 +39,9 @@ import { createHorizon } from './world/horizon.js';
 import { createStream } from './assets/water/stream.js';
 import { createFootbridge } from './assets/cabin/footbridge.js';
 import { createBenches } from './assets/cabin/benches.js';
+import { createJetty } from './assets/water/jetty.js';
+import { createSailboat } from './assets/water/sailboat.js';
+import { createBoating } from './app/boating.js';
 import { createControls } from './app/controls.js';
 import { createDebugOverlay } from './app/debugOverlay.js';
 
@@ -96,7 +99,7 @@ await step(88);
 const tod = createTimeOfDay({ ...ctx, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin, setLights }), { scheduleEnv, clock, setHours } = tod;
 
 // Controls + UI
-const { st, move, fmtTime, setSpeed, timeIn, timeV, showTime } = createControls({ ...ctx, cabin, toggleDoor, setLights, setHours, clock, scheduleEnv });
+const { st, move, fmtTime, setSpeed, timeIn, timeV, showTime, setVehicle } = createControls({ ...ctx, cabin, toggleDoor, setLights, setHours, clock, scheduleEnv });
 
 // Loop
 const { renderer, scene, camera } = ctx;
@@ -115,7 +118,7 @@ function frame(now) {
   worldGrass.update(camera.position);
   ocean.update(camera.position);
   camera.updateMatrixWorld(); scatter.update(camera, debug.on); undergrowth.update(camera, t, debug.on); detail.update(dt);
-  updateCabin(dt, t); benches.update(t);
+  updateCabin(dt, t); benches.update(t); jetty.update(t);
   const nearDoor = camera.position.distanceTo(cabin.door.world) < 2.8;
   if (nearDoor !== st.nearDoor) { st.nearDoor = nearDoor; actEl.classList.toggle('hide', !(nearDoor && st.playing && !isTouch)); btnDoor.style.display = nearDoor && st.playing ? '' : 'none'; }
   if (plotBands.pads.on) for (let i = 0; i < pads.length; i++) { const p = pads[i]; p.position.y = WATER_Y + 0.006 + Math.sin(t * 1.3 + p.userData.ph) * 0.0035; p.rotation.y += Math.sin(t * 0.4 + p.userData.ph) * 0.0006; }
@@ -143,13 +146,16 @@ const atmosphere = createAtmosphere({ ...ctx, detail, skyUniforms, clock, cabin,
 const stream = createStream(ctx);   // the stream from the pond to the sea
 const footbridge = createFootbridge(ctx);   // the footbridge over the stream and the stepping-stone paths
 const benches = createBenches({ ...ctx, cabin });   // the sunrise and sunset benches with their lanterns
+const jetty = createJetty({ ...ctx, cabin });   // the jetty on the east beach with its lamp post
+const boat = createSailboat(ctx);   // the sailboat at the jetty
+const boating = createBoating({ camera: ctx.camera, st, boat }); setVehicle(boating.update);   // boarding, sailing, docking
 const horizon = createHorizon({ ...ctx, skyUniforms });   // distant sailboat, lighthouse
 const moments = createSmallMoments({ ...ctx, detail, plot: { apple: plotApple, spruce: plotSpruce, rose: plotRose } });   // falling leaves, apples, cones, rose petals
 const waterLife = createWaterLife({ ...ctx, detail, skyUniforms, ocean });   // fish rises, dragonflies, shore foam
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);
