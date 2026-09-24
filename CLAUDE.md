@@ -71,7 +71,7 @@ returns whatever the render loop needs. `src/app/controls.js` has flight, touch 
 the settings panel and collisions. `src/engine/detailManager.js` + `src/world/plotDetail.js` put the plot's assets on distance bands (the island's
 15 m / 19 m rules; lights are never toggled). `src/engine/finalizeScene.js` runs once after every asset
 is built: it makes outdoor materials skip point lights (so cabin lamps don't leak through
-log walls), gives each material a unique program cache key, and fits instanced-mesh
+log walls), adds the drifting cloud shadows (`addCloudShadow`, sunlight only), gives each material a unique program cache key, and fits instanced-mesh
 bounding spheres for culling.
 
 ## Running it

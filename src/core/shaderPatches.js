@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { U } from './uniforms.js';
+import { cloudField } from './noise.js';
+import { canvasTex } from './canvasTexture.js';
 
 /**
  * onBeforeCompile patches for MeshStandardMaterial:
@@ -9,6 +11,7 @@ import { U } from './uniforms.js';
  *  addThinning  - distance-based thinning of tree parts by their detail rank (island trees)
  *  addDistanceFade - dithered distance cross-fade between a near and a far mesh (island rocks)
  *  addRegionFade   - the same dither, by the camera's distance to a fixed box / point (the plot's assets)
+ *  addCloudShadow  - soft cloud shadows drifting over everything the sun lights (CLOUD uniforms)
  */
 export function addFlutter(mat, amp) {
   mat.onBeforeCompile = s => {
@@ -126,4 +129,62 @@ export function addRegionFade(mat, region, fadeIn = false) {
       float regionD = distance(clamp(uViewPos, uRMin, uRMax), uViewPos);
       if ((fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) < smoothstep(uRRange.x, uRRange.y, regionD)) != ${fadeIn ? 'true' : 'false'}) discard;`);
   };
+}
+
+/**
+ * Cloud shadows. One tileable noise texture (made on a canvas at load by makeCloudTexture) lies flat over the world:
+ * uCloudOffset is its drift (texture units, wraps), uCloudScale 1 / the metres one repeat covers, uCloudStrength the
+ * share of direct sunlight a full shadow takes away (the time of day sets it; 0 at night). Mutate .value only.
+ */
+export const CLOUD = { tCloud: { value: null }, uCloudOffset: { value: new THREE.Vector2() }, uCloudScale: { value: 1 / 320 }, uCloudStrength: { value: 0 } };
+
+/**
+ * The cloud texture, made once at load on a canvas from cloudField() (core/noise.js): separate soft cloud footprints
+ * `sizes` metres across covering `coverage` of a `tile`-metre tile that repeats seamlessly. Its own seed, not the
+ * seeded stream, so the rest of the build is unchanged.
+ */
+export function makeCloudTexture({ tile = 320, size = 256, sizes = [22, 64], coverage = 0.3, soft = 7, seed = 17 } = {}) {
+  const c = cloudField({ tile, size, sizes, coverage, soft, seed });
+  const tex = canvasTex(size, size, g => {
+    const img = g.createImageData(size, size);
+    for (let i = 0; i < c.length; i++) { img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = Math.round(c[i] * 255); img.data[i * 4 + 3] = 255; }
+    g.putImageData(img, 0, 0);
+  }, false);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  CLOUD.tCloud.value = tex; CLOUD.uCloudScale.value = 1 / tile;
+  return tex;
+}
+
+/** Move the cloud shadows by dt seconds of wind: dir the wind's unit x/z direction, speed in m/s. */
+export function driftCloudShadows(dt, dir, speed) {
+  const o = CLOUD.uCloudOffset.value, k = speed * dt * CLOUD.uCloudScale.value;
+  o.set((o.x - dir.x * k) % 1, (o.y - dir.y * k) % 1);
+}
+
+/**
+ * Cloud shadows on a MeshStandardMaterial: only the sun's direct light (direct diffuse and specular) is dimmed, by one
+ * lookup of the cloud texture at the fragment's world x/z; ambient, sky and point lights (the cabin's lamps and fire)
+ * are untouched. It wraps three's getDirectionalDirectLightIrradiance, so it chains with every other patch here and
+ * with finalizeScene's point-light switch. Idempotent.
+ */
+export function addCloudShadow(mat) {
+  if (mat.userData.cloud) return mat;
+  mat.userData.cloud = true; mat.needsUpdate = true;
+  if (!CLOUD.tCloud.value) makeCloudTexture();
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (s, r) => {
+    prev.call(mat, s, r);
+    Object.assign(s.uniforms, CLOUD);
+    s.fragmentShader = s.fragmentShader.replace('#include <lights_pars_begin>', `#include <lights_pars_begin>
+      #if NUM_DIR_LIGHTS > 0
+        uniform sampler2D tCloud; uniform vec2 uCloudOffset; uniform float uCloudScale; uniform float uCloudStrength;
+        void cloudShadowedSun(const in DirectionalLight light, const in GeometricContext geo, out IncidentLight direct) {
+          getDirectionalDirectLightIrradiance(light, geo, direct);
+          vec2 xz = cameraPosition.xz + (vec4(geo.position, 0.0) * viewMatrix).xz;   // view space -> world
+          direct.color *= 1.0 - uCloudStrength * texture2D(tCloud, xz * uCloudScale + uCloudOffset).r;
+        }
+        #define getDirectionalDirectLightIrradiance cloudShadowedSun
+      #endif`);
+  };
+  return mat;
 }

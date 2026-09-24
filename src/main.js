@@ -6,6 +6,7 @@ import { createEngine } from './engine/createEngine.js';
 import { finalizeScene } from './engine/finalizeScene.js';
 import { mergeStatic } from './engine/mergeStatic.js';
 import { createDetailManager } from './engine/detailManager.js';
+import { makeCloudTexture, driftCloudShadows } from './core/shaderPatches.js';
 import { prepareCabinInterior, registerPlotDetail } from './world/plotDetail.js';
 import { CONFIG } from './config.js';
 import { createSharedTextures } from './world/sharedTextures.js';
@@ -103,6 +104,7 @@ function frame(now) {
   move(dt);
   sky.position.copy(camera.position);
   followSun(camera.position);
+  driftCloudShadows(dt, U.uWindDir.value, CONFIG.clouds.speed[0] + CONFIG.clouds.speed[1] * U.uWind.value);
   worldGrass.update(camera.position);
   ocean.update(camera.position);
   camera.updateMatrixWorld(); scatter.update(camera, debug.on); undergrowth.update(camera, t, debug.on); detail.update(dt);
@@ -127,7 +129,8 @@ const cabinMerge = mergeStatic(cabin.group, { ...cabin, group: null }); // ~360 
 const detail = createDetailManager(camera);
 const plotBands = registerPlotDetail(ctx, detail, { spruce: plotSpruce, apple: plotApple, rose: plotRose, reeds: plotReeds, flowers: plotFlowers, outcrop: plotOutcrop, pads, grass: plotGrass, pollen, cabin });
 const ambience = createAmbience({ ...ctx, detail, skyUniforms, cabin });   // sound starts on the Start tap
-finalizeScene(scene, cabin.group);
+makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
+finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
 window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
