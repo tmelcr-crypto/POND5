@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { clamp, smooth } from '../core/math.js';
 import { fbm2 } from '../core/noise.js';
 import { CONFIG } from '../config.js';
@@ -56,13 +57,75 @@ export function hillsH(x, z) {
   const shore = c > 0 ? SEA_Y + 0.12 * c : Math.max(SEA_Y - IC.seaDepth, SEA_Y + 0.25 * c);
   return land + (shore - land) * (1 - smooth(IC.beachWidth * 0.4, IC.beachWidth * 1.6, c));
 }
-/** Terrain height everywhere. Exactly dioramaH() inside the plot, so every authored asset sits where it did. */
-export function H(x, z) {
+/**
+ * Terrain height before the stream is carved: exactly dioramaH() inside the plot. The plot's builders use it for their
+ * placement decisions, so their random draws (and so the reference trees) are the same as before the stream.
+ */
+export function H0(x, z) {
   const q = coreDist(x, z);
   if (q <= 0) return dioramaH(x, z);
   const w = smooth(0, WC.coreBlend, q);
   return dioramaH(x, z) * (1 - w) + hillsH(x, z) * w;
 }
+/** Terrain height everywhere: H0 with the stream's channel and banks carved in. */
+export function H(x, z) {
+  const h0 = H0(x, z), q = streamAt(x, z);
+  if (!q) return h0;
+  const bed = q.W - q.depth, g = q.d < q.w ? bed + q.depth * 1.08 * (q.d / q.w) ** 2 : q.W + 0.03 + (q.d - q.w) * q.bank;
+  const k = 0.06, t = clamp(0.5 + 0.5 * (g - h0) / k);                 // smooth minimum: no crease where the bank meets the land
+  return g * (1 - t) + h0 * t - k * t * (1 - t);
+}
+
+/*
+ * The stream: from the pond's south-east rim, past the cabin, north through a low valley and down three rapids to the
+ * beach. A centripetal Catmull-Rom course through STREAM_COURSE; along it (s = metres from the pond) the water level W
+ * steps down through pools and rapids from the pond's level to the sea, the channel's half-width w and depth vary, and
+ * the terrain is carved to a bed and banks (H above). Keys are [s, value]; values between keys ease smoothly.
+ */
+const STREAM_COURSE = [[2.37, 1.62], [2.9, 1.95], [3.9, 2.35], [4.9, 1.7], [5.9, 0.4], [7.3, -1.3], [7.6, -4.4], [9.4, -7.6], [8.9, -12], [10.9, -16.2], [10.1, -20.8], [11.9, -25], [12.9, -27.6], [11.3, -30.4], [12.2, -33.8]];
+const STREAM_LEVEL = [[0, 0], [4, 0], [6.5, -0.07], [13, -0.1], [15, -0.22], [22, -0.26], [24.5, -0.44], [28, -0.5], [29.6, -0.68], [33, -0.75], [36, -0.8], [99, -0.8]];
+const STREAM_WIDTH = [[0, 0.5], [3, 0.42], [6, 0.55], [14, 0.5], [18, 0.62], [24, 0.5], [30, 0.6], [33, 1.0], [36, 1.8], [99, 2.2]];
+const STREAM_BANK = [[0, 0.62], [31, 0.62], [35, 0.2], [99, 0.15]];   // bank slope: gentle where it fans out over the beach
+const STREAM_DEPTH = [[0, 0.3], [4, 0.18], [6.5, 0.1], [9, 0.2], [15, 0.08], [18, 0.22], [24.5, 0.07], [27, 0.2], [29.6, 0.07], [32, 0.16], [99, 0.2]];
+function keyed(keys, s) {
+  let i = 0; while (i < keys.length - 2 && keys[i + 1][0] < s) i++;
+  const [s0, v0] = keys[i], [s1, v1] = keys[i + 1], t = clamp((s - s0) / (s1 - s0));
+  return v0 + (v1 - v0) * t * t * (3 - 2 * t);
+}
+export const STREAM = (() => {
+  const curve = new THREE.CatmullRomCurve3(STREAM_COURSE.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
+  const len = curve.getLength(), step = 0.2, n = Math.ceil(len / step), pts = [];
+  let wMin = 0;
+  for (let i = 0; i <= n; i++) {
+    const u = i / n, p = curve.getPointAt(u), t = curve.getTangentAt(u), s = u * len;
+    // falls only, stays below the natural ground (outside the pond) and ends at the sea
+    wMin = Math.min(wMin, keyed(STREAM_LEVEL, s), lakeD(p.x, p.z) > 1.02 ? H0(p.x, p.z) - 0.08 : Infinity);
+    pts.push({ x: p.x, z: p.z, tx: t.x, tz: t.z, s, W: Math.max(wMin, SEA_Y), w: keyed(STREAM_WIDTH, s), depth: keyed(STREAM_DEPTH, s), bank: keyed(STREAM_BANK, s) });
+  }
+  for (let i = 0; i < pts.length; i++) {   // slope of the water (for flow speed and foam): drop over the next metre
+    const j = Math.min(pts.length - 1, i + 5); pts[i].slope = (pts[i].W - pts[j].W) / Math.max(1e-3, pts[j].s - pts[i].s);
+  }
+  // a 1 m grid of the samples within reach of each cell, for fast lookups
+  const R = 5.5, x0 = Math.min(...pts.map(p => p.x)) - R, z0 = Math.min(...pts.map(p => p.z)) - R;
+  const nx = Math.ceil(Math.max(...pts.map(p => p.x)) + R - x0) + 1, nz = Math.ceil(Math.max(...pts.map(p => p.z)) + R - z0) + 1, cells = Array.from({ length: nx * nz }, () => []);
+  pts.forEach((p, k) => { for (let j = Math.floor(p.z - R - z0); j <= Math.floor(p.z + R - z0); j++) for (let i = Math.floor(p.x - R - x0); i <= Math.floor(p.x + R - x0); i++) if (i >= 0 && j >= 0 && i < nx && j < nz) cells[j * nx + i].push(k); });
+  return { pts, len, reach: R, grid: { x0, z0, nx, nz, cells } };
+})();
+/**
+ * The nearest point of the stream to (x, z) within its reach (null otherwise): d (m to the centre line), s (m along),
+ * W (water level), w (half-width), depth, slope, and the sample index k.
+ */
+export function streamAt(x, z) {
+  const G = STREAM.grid, i = Math.floor(x - G.x0), j = Math.floor(z - G.z0);
+  if (i < 0 || j < 0 || i >= G.nx || j >= G.nz) return null;
+  const list = G.cells[j * G.nx + i]; if (!list.length) return null;
+  let best = -1, bd = Infinity;
+  for (const k of list) { const p = STREAM.pts[k], d = (x - p.x) ** 2 + (z - p.z) ** 2; if (d < bd) { bd = d; best = k; } }
+  const p = STREAM.pts[best], d = Math.sqrt(bd);
+  return d > STREAM.reach ? null : { d, s: p.s, W: p.W, w: p.w, depth: p.depth, slope: p.slope, bank: p.bank, k: best };
+}
+/** Signed distance to the stream's water edge (< 0 in the water); Infinity far from it. */
+export function streamDist(x, z) { const q = streamAt(x, z); return q ? q.d - q.w : Infinity; }
 /** Spruce forest density 0..1: noise-driven groves between the meadow around the plot and the beach. */
 export function forest(x, z) {
   const groves = smooth(0.1, 0.32, fbm2(x * 0.045 + SZ, z * 0.045 + SX, 3));
@@ -84,5 +147,6 @@ export const EXCLUSIONS = [
   (x, z) => houseRectDist(x, z) - 3,                                                          // cabin + yard
   (x, z) => (lakeD(x, z) - 1) * lakeR(Math.atan2(z - LAKE.z, x - LAKE.x)) - 2.5,              // pond + shore
   (x, z) => segDist(x, z, PATH.a, PATH.b) - SC.pathWidth / 2,                                 // cabin -> pond path
+  (x, z) => streamDist(x, z) - 1.4,                                                          // the stream and its banks
 ];
 export function excluded(x, z, margin = 0) { for (const f of EXCLUSIONS) if (f(x, z) < margin) return true; return false; }

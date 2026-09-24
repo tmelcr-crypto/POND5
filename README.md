@@ -204,6 +204,13 @@ export function createRoseBush(ctx) {
   the island's 4 m rule. Terrain, pond, cabin exterior, chimney smoke, the outcrop rock and stones always draw. The
   manager only switches things once they are fully faded, a few times a second with hysteresis; lights are never
   toggled (intensity only), and every shader is compiled once at load (`renderer.compile`).
+- **Stream** (`STREAM` in `world/layout.js`, water and stones in `assets/water/stream.js`, sound in `audio/ambience.js`):
+  from the pond's south-east rim past the cabin, north through a low valley and down three rapids to a sandy inlet on
+  the beach, ~33 m. A curved course; along it the water level steps down from the pond's level to the sea through
+  pools and rapids, and `H(x, z)` carves a bed and banks into the terrain (`H0` is the uncarved ground, which the plot's
+  builders use for their placement decisions so their random draws, and so the reference trees, are unchanged). One
+  flowing water ribbon (faster, foaming over the rapids), rocks in the rapids, pebbles on the banks; trees, bushes and
+  grass keep clear; a babbling sound from its nearest point, a rush by the rapids.
 - **Water life** (`assets/water/waterLife.js`, numbers in its `WATER` object): fish rises, a ring spreading about 1 m
   on the sea (0.45 m on the pond) and fading in 2 s, every 4-10 s on each water (sometimes two in a row); on the sea
   they appear 2.5-14 m out from the shore, 5-30 m in front of the camera. Three dragonflies dart and hover over the pond

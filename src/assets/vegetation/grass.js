@@ -5,7 +5,7 @@ import { clamp, smooth, lin } from '../../core/math.js';
 import { fbm2 } from '../../core/noise.js';
 import { U } from '../../core/uniforms.js';
 import { THIN } from '../../core/shaderPatches.js';
-import { WATER_Y, houseRectDist, inRocks, inRose, inSteps, CON, APP, H } from '../../world/layout.js';
+import { WATER_Y, houseRectDist, inRocks, inRose, inSteps, CON, APP, H, H0, streamDist } from '../../world/layout.js';
 
 /**
  * Instanced grass blades (up to 64k) with GPU wind sway. Avoids the pond, cabin, rocks and rose bush.
@@ -30,7 +30,7 @@ export function createGrass(ctx) {
     let n = 0, tries = 0;
     while (n < N && tries < N * 8) {
       tries++;
-      const x = rr(-4.985, 4.985), z = rr(-4.985, 4.985), h = H(x, z), above = h - WATER_Y;
+      const x = rr(-4.985, 4.985), z = rr(-4.985, 4.985), h = H0(x, z), above = h - WATER_Y;   // decisions on the uncarved ground: the same random draws as before the stream
       if (above < 0.02) continue;
       if (houseRectDist(x, z) < 0.1 || inSteps(x, z) || inRocks(x, z, -0.08) || inRose(x, z, 0.14)) continue;
       let p = smooth(0.02, 0.1, above);
@@ -40,8 +40,8 @@ export function createGrass(ctx) {
       p *= 0.7 + 0.3 * (patch + 0.5);
       if (rng() > p) continue;
       const tall = (0.16 + 0.27 * rng()) * (0.75 + 0.55 * clamp(patch + 0.5)) * (0.6 + 0.4 * smooth(0.02, 0.2, above)) * (0.65 + 0.35 * smooth(0.5, 1.8, dc));
-      off[n * 4] = x; off[n * 4 + 1] = h - 0.01; off[n * 4 + 2] = z; off[n * 4 + 3] = rng() * Math.PI * 2;
-      scl[n * 3] = rr(0.03, 0.058); scl[n * 3 + 1] = tall; scl[n * 3 + 2] = rr(0.3, 1.3);
+      off[n * 4] = x; off[n * 4 + 1] = H(x, z) - 0.01; off[n * 4 + 2] = z; off[n * 4 + 3] = rng() * Math.PI * 2;
+      scl[n * 3] = rr(0.03, 0.058); scl[n * 3 + 1] = streamDist(x, z) < 0.12 ? 0 : tall; scl[n * 3 + 2] = rr(0.3, 1.3);   // (none in the stream)
       tc.copy(tA).lerp(tB, clamp(rng() * 0.8 + patch * 0.6 + 0.2)); if (rng() < 0.07) tc.lerp(tDry, 0.7);
       tc.multiplyScalar(0.85 + rng() * 0.3);
       tint[n * 3] = tc.r; tint[n * 3 + 1] = tc.g; tint[n * 3 + 2] = tc.b;
