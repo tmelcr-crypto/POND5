@@ -96,7 +96,7 @@ src/
     soilSkirt.js            Soil cross-section of the old diorama edge (no longer built)
     timeOfDay.js            Day/night cycle, fog colour
   assets/                   One factory per scene element
-    water/     pond.js (pond + the sea), lilyPads.js, reeds.js
+    water/     pond.js (pond + the sea), lilyPads.js, reeds.js, waterLife.js (fish rises, dragonflies)
     trees/     spruce.js, appleTree.js        (full-detail generator, the reference tree, island variants)
                fallenLog.js                   (fallen trunk + the stump it broke from, near / far meshes)
     vegetation/grass.js, meadowFlowers.js, roseBush.js (+ wild rose variants), bush.js, forestFloor.js
@@ -204,6 +204,12 @@ export function createRoseBush(ctx) {
   the island's 4 m rule. Terrain, pond, cabin exterior, chimney smoke, the outcrop rock and stones always draw. The
   manager only switches things once they are fully faded, a few times a second with hysteresis; lights are never
   toggled (intensity only), and every shader is compiled once at load (`renderer.compile`).
+- **Water life** (`assets/water/waterLife.js`, numbers in its `WATER` object): fish rises, a ring spreading about 1 m
+  on the sea (0.45 m on the pond) and fading in 2 s, every 4-10 s on each water (sometimes two in a row); on the sea
+  they appear 2.5-14 m out from the shore, 5-30 m in front of the camera. Three dragonflies dart and hover over the pond
+  by day (instanced bodies and translucent flapping wings), fly off at dusk and come back in the morning. Each part
+  runs only on its detail-manager band (the pond's within 20 m / 15 m); one draw for the rings while any is alive,
+  two for the dragonflies.
 - **Cloud shadows** (`core/shaderPatches.js` `addCloudShadow`, `CONFIG.clouds`): one tileable canvas texture of soft
   cloud footprints (`cloudField` in `core/noise.js`, roughly 20-60 m across) lies flat over the world and drifts with the
   wind. `finalizeScene` puts it on every lit material except the cabin interior. It dims only the sun's direct light

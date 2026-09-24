@@ -32,6 +32,7 @@ import { createCabin } from './assets/cabin/cabin.js';
 import { createPollen } from './assets/fauna/pollen.js';
 import { createBirds } from './assets/fauna/birds.js';
 import { createAmbience } from './audio/ambience.js';
+import { createWaterLife } from './assets/water/waterLife.js';
 import { createControls } from './app/controls.js';
 import { createDebugOverlay } from './app/debugOverlay.js';
 
@@ -115,6 +116,7 @@ function frame(now) {
   updateButterflies(flies, t, camera.position, CONFIG.detail.butterflies);
   birds.update(dt);
   ambience.update(dt);
+  waterLife.update(dt);
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
   debug.frame(now);
@@ -129,10 +131,11 @@ const cabinMerge = mergeStatic(cabin.group, { ...cabin, group: null }); // ~360 
 const detail = createDetailManager(camera);
 const plotBands = registerPlotDetail(ctx, detail, { spruce: plotSpruce, apple: plotApple, rose: plotRose, reeds: plotReeds, flowers: plotFlowers, outcrop: plotOutcrop, pads, grass: plotGrass, pollen, cabin });
 const ambience = createAmbience({ ...ctx, detail, skyUniforms, cabin });   // sound starts on the Start tap
+const waterLife = createWaterLife({ ...ctx, detail, skyUniforms });      // fish rises, dragonflies
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 setSun(+timeIn.value); timeV.textContent = fmtTime(+timeIn.value); scheduleEnv(true); setSpeed(2.2);
 move(0);
