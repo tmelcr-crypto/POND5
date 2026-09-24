@@ -3,7 +3,10 @@ import { rng, rr, setSeed } from '../../core/random.js';
 import { V, UPV, lin } from '../../core/math.js';
 import { mergeGeos, mergeRanked, rankedInstances } from '../../core/geometry.js';
 import { canvasTex } from '../../core/canvasTexture.js';
-import { addFlutter, addThinning } from '../../core/shaderPatches.js';
+import { addFlutter, addThinning, addPlantSway } from '../../core/shaderPatches.js';
+
+// wind: leaflets flutter like the island bushes' leaves (~2 mm at the tip); the whole bush sways from its base
+const LEAF_FLUTTER = 0.034, SWAY = 0.05;
 import { ROSE, H } from '../../world/layout.js';
 
 /** The rose's canvas textures (petal, leaflet, sepal). Draws from the shared random stream. */
@@ -125,16 +128,19 @@ export function createRoseBush(ctx) {
     const { petIn, petOut, petFlat, lfG, spG, thornG } = roseGeometries();
     const { canes, thorns, leaflets, pin, pout, sep, stam, hips, ground } = buildRose(base, H);
 
-    const caneMat = new THREE.MeshStandardMaterial({ color: lin(0x55682c), roughness: 0.6, envMapIntensity: 0.6 });
+    const sway = m => addPlantSway(m, SWAY, base);   // the bush is built in world space: sway from its world base
+    const caneMat = sway(new THREE.MeshStandardMaterial({ color: lin(0x55682c), roughness: 0.6, envMapIntensity: 0.6 }));
     const cm = new THREE.Mesh(mergeGeos(canes, ['position', 'normal']), caneMat); cm.castShadow = cm.receiveShadow = true; scene.add(cm);
+    cm.customDepthMaterial = sway(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }));
     const inst = (geo, mat, list, depthMap, alpha) => {
-      const im = new THREE.InstancedMesh(geo, mat, list.length);
+      const im = new THREE.InstancedMesh(geo, sway(mat), list.length);
       list.forEach((e, i) => { if (Array.isArray(e)) { im.setMatrixAt(i, e[0]); im.setColorAt(i, e[1]); } else im.setMatrixAt(i, e); });
-      im.castShadow = im.receiveShadow = true; if (depthMap) im.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: depthMap, alphaTest: alpha });
+      im.castShadow = im.receiveShadow = true;
+      im.customDepthMaterial = sway(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: depthMap || null, alphaTest: depthMap ? alpha : 0 }));
       scene.add(im); return im;
     };
     inst(thornG, new THREE.MeshStandardMaterial({ color: lin(0x8a3b26), roughness: 0.5 }), thorns);
-    const lMat = new THREE.MeshStandardMaterial({ map: leafletTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.38, envMapIntensity: 0.8 }); addFlutter(lMat, 0.006);
+    const lMat = new THREE.MeshStandardMaterial({ map: leafletTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.38, envMapIntensity: 0.8 }); addFlutter(lMat, LEAF_FLUTTER);
     inst(lfG, lMat, leaflets, leafletTex, 0.5);
     const pMat = new THREE.MeshStandardMaterial({ map: petalTex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.5, envMapIntensity: 0.55, emissive: new THREE.Color(0.35, 0.02, 0.04), emissiveMap: petalTex, emissiveIntensity: 0.12 });
     inst(petIn, pMat, pin, petalTex, 0.45); inst(petOut, pMat, pout, petalTex, 0.45); inst(petFlat, pMat, ground, petalTex, 0.45);
@@ -157,9 +163,9 @@ export function createRoseVariants(ctx, count, seed, thin) {
   const { petalTex, leafletTex, sepalTex } = roseTextures();
   const { petIn, petOut, lfG, spG, thornG } = roseGeometries({ petalSegs: 2, leafSegs: 2, sepalSegs: 2, thornSides: 3 });
   const depth = (map, alphaTest) => new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map, alphaTest });
-  const thinned = (m, cards) => { addThinning(m, cards, thin); return m; };
+  const thinned = (m, cards) => { addThinning(m, cards, thin); return addPlantSway(m, SWAY); };   // variants are built at the origin
   const solidMat = thinned(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, envMapIntensity: 0.6 }), false);
-  const lMat = new THREE.MeshStandardMaterial({ map: leafletTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.38, envMapIntensity: 0.8 }); addFlutter(lMat, 0.006); thinned(lMat, true);
+  const lMat = new THREE.MeshStandardMaterial({ map: leafletTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.38, envMapIntensity: 0.8 }); addFlutter(lMat, LEAF_FLUTTER); thinned(lMat, true);
   const pMat = thinned(new THREE.MeshStandardMaterial({ map: petalTex, vertexColors: true, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.5, envMapIntensity: 0.55, emissive: new THREE.Color(0.35, 0.02, 0.04), emissiveMap: petalTex, emissiveIntensity: 0.12 }), false);
   const sMat = thinned(new THREE.MeshStandardMaterial({ map: sepalTex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.6 }), true);
   const solidDepth = thinned(depth(null, 0), false), lDepth = thinned(depth(leafletTex, 0.5), true), pDepth = thinned(depth(petalTex, 0.45), false), sDepth = thinned(depth(sepalTex, 0.45), true);

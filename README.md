@@ -78,7 +78,7 @@ src/
     geometry.js             weld, blobGeo, paint, mergeGeos, limb, joint
     canvasTexture.js        canvasTex: draw a texture with the 2D canvas API
     uniforms.js             Shared shader uniforms (time, wind, sun)
-    shaderPatches.js        addFlutter / addWorldSway / addThinning / addDistanceFade / addCloudShadow material patches
+    shaderPatches.js        addFlutter / addWorldSway / addPlantSway / addThinning / addDistanceFade / addCloudShadow patches
     env.js                  isTouch (quality scaling)
   world/                    The site itself
     layout.js               Site plan: asset positions, H(x, z) (diorama inside the plot, hills, beach and

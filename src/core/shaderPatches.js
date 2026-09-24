@@ -7,6 +7,7 @@ import { canvasTex } from './canvasTexture.js';
  * onBeforeCompile patches for MeshStandardMaterial:
  *  addFlutter   - per-instance leaf/needle flutter (InstancedMesh)
  *  addWorldSway - world-space height-weighted sway (reeds, flower stems)
+ *  addPlantSway - the same for a whole shrub, measured from the plant's base, so all its parts move together (roses)
  *  dampSpecular - less specular on foliage cards
  *  addThinning  - distance-based thinning of tree parts by their detail rank (island trees)
  *  addDistanceFade - dithered distance cross-fade between a near and a far mesh (island rocks)
@@ -43,6 +44,35 @@ export function addWorldSway(mat, k) {
       mvPosition = modelViewMatrix * mvPosition;
       gl_Position = projectionMatrix * mvPosition;`);
   };
+}
+/**
+ * Whole-plant sway for a shrub whose parts must move together (the rose's canes, leaflets, flowers and hips): every
+ * vertex is pushed along the wind by k * wind * h^2, h its height above the plant's base, with gusts timed by the
+ * plant's position, so a flower moves exactly with the cane tip it sits on. base: the plant's base in object space
+ * (a mesh built in world space passes its world position). Chains any existing patch; it replaces the projection, so
+ * apply it after addThinning (which only adds code before project_vertex). Use it on the matching depth material too.
+ */
+export function addPlantSway(mat, k, base = new THREE.Vector3()) {
+  const prev = mat.onBeforeCompile, uBase = { value: base.clone() };
+  mat.onBeforeCompile = (s, r) => {
+    prev.call(mat, s, r);
+    Object.assign(s.uniforms, { uTime: U.uTime, uWind: U.uWind, uWindDir: U.uWindDir, uPlantBase: uBase });
+    const decl = ['uniform float uTime;', 'uniform float uWind;', 'uniform vec2 uWindDir;', 'uniform vec3 uPlantBase;'].filter(d => !s.vertexShader.includes(d)).join(' ');
+    s.vertexShader = decl + '\n' + s.vertexShader.replace('#include <project_vertex>', `
+      vec4 mvPosition = vec4(transformed, 1.0);
+      #ifdef USE_INSTANCING
+        mvPosition = instanceMatrix * mvPosition;
+      #endif
+      vec4 plantW = modelMatrix * mvPosition;
+      vec3 plantO = (modelMatrix * vec4(uPlantBase, 1.0)).xyz;
+      float plantH = max(plantW.y - plantO.y, 0.0);
+      float plantG = 0.6 + 0.4 * sin(uTime * 1.6 + plantO.x * 0.8 + plantO.z * 0.6) + 0.2 * sin(uTime * 3.7 + plantO.z * 1.9);
+      plantW.xz += uWindDir * (uWind * plantH * plantH * ${k.toFixed(4)} * plantG)
+        + vec2(sin(uTime * 2.9 + plantO.z * 3.1 + plantH * 5.0), cos(uTime * 2.6 + plantO.x * 2.7 + plantH * 5.0)) * 0.008 * uWind * plantH;
+      mvPosition = viewMatrix * plantW;
+      gl_Position = projectionMatrix * mvPosition;`);
+  };
+  return mat;
 }
 /** Scale down specular reflection (sun glints and sky reflections) on foliage cards; chains any existing patch. */
 export function dampSpecular(mat, k) {
