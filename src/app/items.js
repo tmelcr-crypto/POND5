@@ -31,8 +31,11 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
 
   /* ---- sources: fixed places (hide / show by index), on a 1 m grid ---- */
   const sources = [], grid = new Map(), gk = (i, j) => i * 73856093 ^ j * 19349663;
-  function addSource(id, kind, points, hide, show) {
-    const s = { id, kind, points, hide, show }, si = sources.push(s) - 1;
+  const protos = {};   // per kind, the look of one real item (for what you throw or let go)
+  /** look(i): the item's own geometry, material, matrix and colour, so what flies to you is exactly what lay there. */
+  function addSource(id, kind, points, hide, show, look) {
+    const s = { id, kind, points, hide, show, look }, si = sources.push(s) - 1;
+    if (look && points.length && !protos[kind]) protos[kind] = look(0);
     points.forEach((p, i) => { const k = gk(Math.floor(p.x), Math.floor(p.z)); (grid.get(k) || grid.set(k, []).get(k)).push([si, i]); });
     for (const key in taken) { const [sid, i] = key.split(':'); if (sid === id && points[+i]) hide(+i); }   // still gone from before
   }
@@ -42,20 +45,28 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     for (let i = from; i < im.count; i++) { im.getMatrixAt(i, m4); pts.push(new V().setFromMatrixPosition(m4)); }
     addSource(id, kind, pts,
       i => { im.getMatrixAt(i + from, m4); if (!saved.has(i)) saved.set(i, m4.clone()); im.setMatrixAt(i + from, zero); im.instanceMatrix.needsUpdate = true; },
-      i => { const m = saved.get(i); if (m) { im.setMatrixAt(i + from, m); im.instanceMatrix.needsUpdate = true; } });
+      i => { const m = saved.get(i); if (m) { im.setMatrixAt(i + from, m); im.instanceMatrix.needsUpdate = true; } },
+      i => { const m = saved.get(i) || (im.getMatrixAt(i + from, m4), m4.clone()), c = im.instanceColor ? new THREE.Color().fromArray(im.instanceColor.array, (i + from) * 3) : null; return { geo: im.geometry, mat: im.material, m, color: c }; });
   }
   const P = moments && moments.parts;
   if (P) { imSource('plotApple', 'apple', P.appleIM); imSource('plotCone', 'cone', P.coneIM); imSource('plotPetal', 'petal', P.groundPetals); }
-  if (undergrowth) for (const [id, kind, t] of [['cone', 'cone', undergrowth.cones], ['stick', 'stick', undergrowth.sticks]]) if (t) addSource(id, kind, t.positions(), i => t.hide(i), i => t.show(i));
+  if (undergrowth) for (const [id, kind, t] of [['cone', 'cone', undergrowth.cones], ['stick', 'stick', undergrowth.sticks]]) if (t) addSource(id, kind, t.positions(), i => t.hide(i), i => t.show(i), i => t.look(i));
   if (stream) imSource('streamPebble', 'pebble', stream.stones, stream.pebbleFrom);
-  if (forage) for (const [id, kind, f] of [['windfall', 'apple', forage.windfalls], ['berry', 'berry', forage.berries], ['pebble', 'pebble', forage.pebbles]]) addSource(id, kind, f.points, f.hide, f.show);
+  if (forage) for (const [id, kind, f] of [['windfall', 'apple', forage.windfalls], ['berry', 'berry', forage.berries], ['pebble', 'pebble', forage.pebbles]]) addSource(id, kind, f.points, f.hide, f.show, f.look);
   // rose bushes: petals picked straight off them (a few a day each)
   const roses = [{ x: ROSE.x, z: ROSE.z, y: H(ROSE.x, ROSE.z), h: 0.9, r: 0.45 }];
   if (undergrowth) undergrowth.roses.forEach(r => { const v = undergrowth.roseVariants[r.variant]; roses.push({ x: r.x, z: r.z, y: r.y, h: (v.height || 0.9) * r.s, r: 0.45 * r.s }); });
 
-  /* ---- small models: what flies to you, is thrown, or drifts away ---- */
-  const models = {};
-  function model(kind) {
+  /* ---- models: what flies to you, is thrown, or drifts away: a one-instance copy of the real item (its own geometry,
+     material, size, turn and colour; one instance keeps every instanced attribute and shader patch working) ---- */
+  const models = {}, mq = new THREE.Quaternion(), ms = new V(), mp = new V();
+  function model(kind, look) {
+    const L = look || protos[kind];
+    if (L) {
+      const im = new THREE.InstancedMesh(L.geo, L.mat, 1); L.m.decompose(mp, mq, ms);
+      im.setMatrixAt(0, m4.compose(mp.set(0, 0, 0), mq, ms)); if (L.color) im.setColorAt(0, L.color);
+      im.frustumCulled = false; im.castShadow = kind !== 'petal'; im.receiveShadow = true; im.userData.dynamic = true; scene.add(im); return im;
+    }
     if (!models[kind]) {
       const K = KINDS[kind], mat = new THREE.MeshStandardMaterial({ color: lin(K.color), roughness: 0.6, metalness: 0, side: kind === 'petal' ? THREE.DoubleSide : THREE.FrontSide, flatShading: kind === 'pebble' });
       const geo = kind === 'cone' ? new THREE.ConeGeometry(0.028, 0.08, 8).rotateX(Math.PI / 2) : kind === 'stick' ? new THREE.CylinderGeometry(0.009, 0.012, 0.3, 5).rotateZ(Math.PI / 2)
@@ -138,7 +149,8 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     else if (a.type === 'loose') { if (a.it.mine) { scene.remove(a.it.obj.mesh); thrown.splice(thrown.indexOf(a.it.obj), 1); } else moments.take(a.it); }
     else if (a.type === 'rose') { taken['rose:' + a.i + ':' + Math.random().toString(36).slice(2, 7)] = total; dirty = true; }
     const dip = from.y < feet + 0.7 ? clamp(eye.y - (from.y + 0.95), 0, 0.75) : 0, reachUp = from.y > eye.y - 0.25 ? 0.07 : 0;
-    const m = model(kind); m.position.copy(from);
+    const look = a.type === 'static' && sources[a.si].look ? sources[a.si].look(a.k) : a.type === 'loose' && !a.it.mine && protos[kind] && a.it.obj.q ? { ...protos[kind], m: new THREE.Matrix4().compose(new V(), a.it.obj.q, a.it.obj.s || new V(1, 1, 1)) } : null;
+    const m = a.type === 'loose' && a.it.mine ? a.it.obj.mesh : model(kind, look); m.position.copy(from); scene.add(m);
     pick = { t: 0, dur: IC.pickTime, base: st.pos.clone(), dip, reachUp, from, m, kind, done: false };
     aimed = null; glow.visible = false; hint.classList.add('hide');
   }

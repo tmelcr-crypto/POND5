@@ -50,7 +50,7 @@ export function createChests(ctx) {
     group.add(new THREE.Mesh(mergeGeos(body, ['position', 'normal', 'uv', 'color']), woodMat));
     // the lid: a curved top on a hinge along the back edge (lid.rotation.x < 0 opens it)
     const lid = new THREE.Group(); lid.position.set(0, Hh, -D / 2); group.add(lid);
-    const shell = new THREE.CylinderGeometry(R, R, L, 18, 1, true, 0, Math.PI).toNonIndexed();   // the upper half, once turned along x shell.rotateZ(Math.PI / 2); shell.scale(1, rise / R, 1); shell.translate(0, 0, D / 2);
+    const shell = new THREE.CylinderGeometry(R, R, L, 18, 1, true, 0, Math.PI).toNonIndexed(); shell.rotateZ(Math.PI / 2); shell.scale(1, rise / R, 1); shell.translate(0, 0, D / 2);   // the upper half, turned along x
     { const uv = shell.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * 1.2, uv.getY(k) * L); }
     const ends = [-1, 1].map(sx => { const s = new THREE.Shape(); s.moveTo(-R, 0); s.absarc(0, 0, R, Math.PI, 0, true); s.lineTo(-R, 0); const g = new THREE.ShapeGeometry(s, 10).toNonIndexed(); g.scale(1, rise / R, 1); g.rotateY(sx * Math.PI / 2); g.translate(sx * L / 2, 0, D / 2); return g; });
     const lidMat = woodMat.clone(); lidMat.side = THREE.DoubleSide;   // its underside shows when open

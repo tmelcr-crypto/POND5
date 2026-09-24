@@ -209,6 +209,7 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
       positions: () => items.map(it => { const e = it[0].elements; return { x: e[12], y: e[13], z: e[14] }; }),
       hide(i) { const [t, n] = where.get(items[i]); t.m.fill(0, n * 16, n * 16 + 16); last.x = 1e9; },
       show(i) { const [t, n] = where.get(items[i]); items[i][0].toArray(t.m, n * 16); last.x = 1e9; },
+      look: i => ({ geo: mesh.geometry, mat: mesh.material, m: items[i][0], color: items[i][1] || null }),
       update(c) {
         if (Math.hypot(c.x - last.x, c.z - last.z) < 1.5) return;   // the +2 m margin covers the movement in between
         last.copy(c); let n = 0;

@@ -23,13 +23,14 @@ export function createForage(ctx, { scatter, undergrowth }) {
 
   /** An instanced set of pickable things: entries [x, y, z, scale, colour]. */
   function set(geo, mat, entries, shadow) {
-    const im = new THREE.InstancedMesh(geo, mat, Math.max(1, entries.length)), mats = [];
-    entries.forEach(([x, y, z, s, c], i) => { M.compose(P.set(x, y, z), Q.setFromEuler(E.set(rr(-0.3, 0.3), rr(0, 6.28), rr(-0.3, 0.3))), S.setScalar(s)); im.setMatrixAt(i, M); mats.push(M.clone()); im.setColorAt(i, c); });
+    const im = new THREE.InstancedMesh(geo, mat, Math.max(1, entries.length)), mats = [], cols = [];
+    entries.forEach(([x, y, z, s, c], i) => { M.compose(P.set(x, y, z), Q.setFromEuler(E.set(rr(-0.3, 0.3), rr(0, 6.28), rr(-0.3, 0.3))), S.setScalar(s)); im.setMatrixAt(i, M); mats.push(M.clone()); cols.push(c); im.setColorAt(i, c); });
     im.count = entries.length; im.castShadow = shadow; im.receiveShadow = true; scene.add(im);
     return {
       mesh: im, points: entries.map(([x, y, z]) => ({ x, y, z })),
       hide(i) { im.setMatrixAt(i, zero); im.instanceMatrix.needsUpdate = true; },
       show(i) { im.setMatrixAt(i, mats[i]); im.instanceMatrix.needsUpdate = true; },
+      look: i => ({ geo, mat, m: mats[i], color: cols[i] }),   // for the one that flies to you (app/items.js)
     };
   }
 
