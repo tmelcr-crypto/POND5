@@ -225,13 +225,20 @@ export function createRoseBush(ctx) {
   stands high, and a lamp post whose lantern lights with the cabin's lights. The deck and stairs are walkable. A little
   sailboat (white hull, burgundy and red trim, red jib, wooden ship's wheel) lies moored at the head.
 - **Sailing** (`app/boating.js`, `CONFIG.boat`): the boat button (B on desktop) boards the boat by the jetty (step down
-  to the wheel) or from the shore when it has run aground (a shaky climb). The on-screen wheel slides in as you reach
-  the helm. The left joystick or W / S sets the speed, and left / right turns the wheel, which only turns the boat while
-  it moves and springs back when released. The top speed follows the wind setting and the angle to the wind (a crawl
-  in a calm); the boom and mainsail swing out away from the wind and across in a turn, and the boat heels. Beyond
+  to the wheel) or from the shore when it has run aground (you jump in). The left joystick or W / S sets the speed, and left / right turns the wheel, which only turns the boat while
+  it moves and springs back when released. The top speed is 2 m/s in a calm (reached in 4 s) plus what the wind and the
+  angle to it add, up to 4.5 m/s; the boom and mainsail swing out away from the wind and across in a turn, and the boat heels. Beyond
   `maxOffshore` from the shore the boat turns itself back. Near the
   berth the button docks it (it brings itself in and ties up), then leaves it onto the jetty; elsewhere you can leave
   only where land is within a jump.
+- **Wind** (`world/wind.js`, `CONFIG.wind`): the wind holds a random strength (leaning strong) and direction for 30-60
+  in-game minutes, then shifts to the next over 10 minutes. Grass, trees, clouds and the boat all follow it. The panel's
+  Wind slider follows it too, and dragging it overrides the strength; the wind carries on changing from there.
+- **Sleeping** (`app/sleeping.js`, `BED` in `world/layout.js`, `CONFIG.sleep`): inside the cabin, near the bed and with it
+  in view, the bed button lets you sleep once 14 in-game hours have passed since you last did. You sit on the edge, turn
+  and lie back looking up, tilted to one side. The screen fades to black and the clock moves on 7-9 hours, and you wake
+  still lying, with stand and sit buttons. Earlier than that, you only sit on the edge and a photo album opens: a book
+  whose pages you swipe (placeholder symbols for now). Sitting shows stand, and sleep too once it is allowed.
 - **Sitting** (`app/controls.js`, `CONFIG.player.sit`): in front of a bench the seat button (R on desktop) turns you to
   it, walks you up, turns you round and sits you down; seated you can only look around; the stand button raises you and
   gives the controls back.

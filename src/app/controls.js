@@ -5,6 +5,10 @@ import { CONFIG } from '../config.js';
 import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, jettyDeckY, SEATS } from '../world/layout.js';
 import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
 
+/** Icons of the sit and stand buttons (also used by the bed, app/sleeping.js). */
+export const ICON_SIT = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8.5" cy="4.5" r="2"/><path d="M8.5 7.5v6h6v6"/><path d="M3 14.5h18M5 14.5v5M19 14.5v5"/></svg>';
+export const ICON_STAND = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="4" r="2"/><path d="M10 7v7M10 14l-3 6M10 14l3 6M6.5 10.5h7"/><path d="M19 13V5M16.5 7.5L19 5l2.5 2.5"/></svg>';
+
 /**
  * First-person controls and the settings panel. Two modes (G key or the panel button):
  *  - walk: eye height above the terrain / cabin floor / low rocks, gravity, Space or Up to jump
@@ -117,7 +121,11 @@ export function createControls(app) {
   function showTime(h) { if (dragging) return; timeIn.value = h.toFixed(2); timeV.textContent = fmtTime(h); }
   const cycleBtn = document.getElementById('cycleBtn');
   if (cycleBtn) cycleBtn.addEventListener('click', () => { clock.running = !clock.running; cycleBtn.textContent = clock.running ? 'On' : 'Off'; cycleBtn.setAttribute('aria-pressed', String(clock.running)); });
-  windIn.addEventListener('input', () => { const w = +windIn.value; U.uWind.value = w; windV.textContent = w < 0.08 ? 'Still' : w < 0.45 ? 'Light air' : w < 0.9 ? 'Breeze' : w < 1.3 ? 'Windy' : 'Gusty'; });
+  const windName = w => w < 0.08 ? 'Still' : w < 0.45 ? 'Light air' : w < 0.9 ? 'Breeze' : w < 1.3 ? 'Windy' : 'Gusty';
+  windIn.addEventListener('input', () => { const w = +windIn.value; U.uWind.value = w; windV.textContent = windName(w); });
+  /** The slider and its label follow the wind as it changes by itself (world/wind.js), except while being dragged. */
+  let windHeld = false; windIn.addEventListener('pointerdown', () => { windHeld = true; }); addEventListener('pointerup', () => { windHeld = false; });
+  function showWind(w) { if (windHeld) return; windIn.value = w.toFixed(2); windV.textContent = windName(w); }
   function setSpeed(v) { st.speed = clamp(v, 0.3, 10); speedIn.value = st.speed; speedV.textContent = st.speed.toFixed(1) + ' m/s'; }
   speedIn.addEventListener('input', () => setSpeed(+speedIn.value));
   const panel = document.getElementById('panel'), toggle = document.getElementById('toggle');
@@ -128,7 +136,7 @@ export function createControls(app) {
   /* walk / fly */
   const modeBtn = document.getElementById('modeBtn');
   function setWalk(on) {
-    if (st.seat || st.aboard) return;   // stand up / leave the boat first
+    if (st.seat || st.aboard || st.inBed) return;   // stand up / leave the boat / get out of bed first
     st.walk = on; st.vel.y = 0;
     if (modeBtn) { modeBtn.textContent = on ? 'Walk' : 'Fly'; modeBtn.setAttribute('aria-pressed', String(on)); }
     document.getElementById('btnUp').textContent = on ? 'Jump' : 'Up';
@@ -182,9 +190,11 @@ export function createControls(app) {
     for (const c of rockBodies.near(p.x, p.z)) standOn(c);
     return g;
   }
-  let vehicle = null;   // the boat (app/boating.js) takes the camera while you are aboard
+  const takeovers = [];   // things that take the camera for a while: the boat (app/boating.js), the bed (app/sleeping.js)
   function move(dt) {
-    if (vehicle && vehicle(dt)) { seatButton(''); return; }
+    const busy = st.aboard || st.inBed || !!st.seat;   // no jumping in the boat, in bed or on a bench
+    if (busy !== st.busyUI) { st.busyUI = busy; document.getElementById('btnUp').style.visibility = busy ? 'hidden' : ''; }
+    for (const f of takeovers) if (f(dt)) { seatButton(''); return; }
     if (seatUpdate(dt)) return;
     const K = st.keys;
     fwd.set(-Math.sin(st.yaw) * Math.cos(st.pitch), Math.sin(st.pitch), -Math.cos(st.yaw) * Math.cos(st.pitch));
@@ -241,14 +251,12 @@ export function createControls(app) {
 
   /* ---- sitting on a bench ---- */
   const SIT = PC.sit, seatBtn = document.getElementById('btnSeat');
-  const ICON_SIT = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8.5" cy="4.5" r="2"/><path d="M8.5 7.5v6h6v6"/><path d="M3 14.5h18M5 14.5v5M19 14.5v5"/></svg>';
-  const ICON_STAND = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="4" r="2"/><path d="M10 7v7M10 14l-3 6M10 14l3 6M6.5 10.5h7"/><path d="M19 13V5M16.5 7.5L19 5l2.5 2.5"/></svg>';
   st.seat = null;
   const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a)), yawTo = (dx, dz) => Math.atan2(-dx, -dz);
   const ease = t => t * t * (3 - 2 * t);
   /** The seat the player may sit on: in walk mode, on the ground, within reach and in front of it. */
   function nearSeat() {
-    if (!st.walk || !st.grounded || !st.playing || st.aboard) return null;
+    if (!st.walk || !st.grounded || !st.playing || st.aboard || st.inBed) return null;
     let best = null, bd = SIT.reach;
     for (const s of SEATS) {
       const dx = st.pos.x - s.x, dz = st.pos.z - s.z, d = Math.hypot(dx, dz);
@@ -317,5 +325,5 @@ export function createControls(app) {
     camera.rotation.set(st.pitch, st.yaw, 0);
     return true;
   }
-  return { st, move, fmtTime, setSpeed, setWalk, timeIn, timeV, showTime, toggleSeat, resetInput, setVehicle: f => { vehicle = f; } };
+  return { st, move, fmtTime, setSpeed, setWalk, timeIn, timeV, showTime, toggleSeat, resetInput, showWind, addTakeover: f => { takeovers.push(f); } };
 }
