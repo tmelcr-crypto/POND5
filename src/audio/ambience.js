@@ -443,6 +443,8 @@ export function createAmbience(ctx) {
   const fwd = new camera.position.constructor(), stats = { updateMs: 0, running: false };
   return {
     stats,
+    /** The running audio context and the master gain (for short effects elsewhere, e.g. app/items.js), or null. */
+    get audio() { return ac && g && ac.state === 'running' ? { ac, out: g.master } : null; },
     update(dt) {
       if (!ac || ac.state !== 'running') { stats.running = false; return; }
       stats.running = true; acc += dt; if (acc < A.update) return; acc = 0;

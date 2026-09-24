@@ -155,14 +155,44 @@ export const CONFIG = {
     sit: { reach: 2.4, front: 0.35, approach: 0.8, seatF: 0.02, eye: 0.74, walk: 1.1, turn: 2.6, lower: 1.1, rise: 0.9 },   // m, m/s, rad/s, s
   },
 
+  // The wind changing by itself (world/wind.js); the panel's Wind slider overrides the strength
+  wind: {
+    hold: [30, 60],                // in-game minutes it holds a strength and direction
+    shift: 10,                     // in-game minutes to shift to the next
+    strength: [0.2, 1.6, 0.7],     // range, and the power on a uniform random number (< 1 leans strong: mean ~1.0)
+  },
+
+  // Sleeping in the cabin's bed (app/sleeping.js)
+  sleep: {
+    reach: 2.6, cone: 0.6,         // m from the bed, and how near the middle of the view it must be (rad)
+    every: 14,                     // in-game hours after falling asleep before you can sleep again
+    hours: [7, 9],                 // the clock moves on this much (random) while you sleep
+    fade: 1.2, black: 1.0,         // s: fade to black, stay black, fade back in
+    lie: 1.7, lookUp: 1.3, tilt: 0.785,   // s to lie back; pitch looking up and the sideways tilt lying (rad)
+  },
+
+  // Picking things up and carrying them (app/items.js, app/inventory.js)
+  items: {
+    stack: 10,                     // pieces of one kind in a quick slot
+    reach: 0.95, above: 0.8,       // m around you, and above your eyes, that your hand gets to (crouching / reaching up)
+    pickTime: 0.7,                 // s of the crouch / reach and the item flying to you
+    throwSpeed: 7,                 // m/s
+    maxThrown: 16,                 // thrown things lying about (the oldest goes)
+    respawn: 24,                   // in-game hours before what you took is back
+    rosePetals: 3,                 // petals a rose bush gives a day
+  },
+
+  // Storage chests (app/chestUI.js)
+  chest: { reach: 2, cone: 0.6, lidOpen: 1.9, longPress: 450 },   // m, rad (in view), rad (lid open), ms (a press that picks how many)
+
   // The sailboat (app/boating.js)
   boat: {
-    maxSpeed: 3.4, reverse: 0.9,   // m/s ahead in a full wind on the best point of sail, astern
-    calmSpeed: 0.15,               // m/s with no wind at all
+    maxSpeed: 4.5, reverse: 0.9,   // m/s ahead in a full wind on the best point of sail, astern
+    minSpeed: 2.0,                 // m/s with no wind at all (the wind adds up to maxSpeed)
     windFull: 1.0,                 // wind setting (0 still .. 1.6 gusty) at which the boat reaches maxSpeed
     polar: [0.3, 0.75],            // drive head to wind and dead downwind (1 on a beam reach)
     turnSpeed: 1.2,                // m/s from which the wheel turns the boat fully (slower, less)
-    accel: 0.9, decel: 1.3,        // m/s^2
+    accel: 0.5, decel: 1.3,        // m/s^2 (0 to minSpeed in 4 s)
     turnRate: 0.7,                 // rad/s with the wheel hard over at full speed (less when slower, none when still)
     draft: 0.62,                   // m of water the keel needs
     maxOffshore: 90,               // m from the shore; beyond it the boat turns itself back towards the island (the fog hides the island much further out)

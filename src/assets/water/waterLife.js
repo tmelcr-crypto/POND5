@@ -239,6 +239,8 @@ export function createWaterLife(ctx) {
 
   return {
     stats, rings, bodies, wings, flies,
+    /** A ring spreading on the water at (x, y, z) (something thrown in, app/items.js). */
+    splash: ring,
     update(dt) {
       const t0 = performance.now();
       for (const w of waters) { if (!w.band || !w.band.on) continue; w.next -= dt; if (w.next <= 0) { w.spawn(); w.next = rr(...W.rise.every); } }

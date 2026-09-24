@@ -22,6 +22,25 @@ export const rockColliders = [];
 export function inRocks(x, z, m = 0) { const dx = (x - ROCK.x) / (1.12 + m), dz = (z - ROCK.z) / (0.9 + m); return dx * dx + dz * dz < 1; }
 export function inRose(x, z, r = 0.3) { return Math.hypot(x - ROSE.x, z - ROSE.z) < r; }
 export function inSteps(x, z) { const lx = x - HOUSE.x, lz = z - HOUSE.z; return lx > 0.4 && lx < 1.5 && lz > CB.ZW && lz < CB.ZW + 0.7; }
+/**
+ * The cabin's bed (built in assets/cabin/cabin.js at these house-local coordinates): its footprint in world space,
+ * the mattress top, where you sit on its open (west) side facing the room, and where your head lies on the pillow.
+ * Sleeping in it: app/sleeping.js.
+ */
+export const BED = (() => {
+  const fl = PAD_H + CB.FL, x0 = HOUSE.x + 0.6, x1 = HOUSE.x + 1.56, z0 = HOUSE.z - 1.2, z1 = HOUSE.z + 0.52, top = fl + 0.53;
+  return { x0, x1, z0, z1, top, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, floor: fl,
+    edge: { x: x0 + 0.14, z: HOUSE.z - 0.2, fx: -1, fz: 0, top },          // sitting on the side, facing the room
+    pillow: { x: (x0 + x1) / 2, z: z0 + 0.36, y: top + 0.14 } };          // the lying eye, head on the pillow
+})();
+/**
+ * Storage chests (meshes: assets/cabin/chest.js; using them: app/chestUI.js). Each keeps its own contents. (x, z): the
+ * middle of its base; rot: the turn about y that points its front (the lid's open side, local +z) where it faces;
+ * length along its front, depth, height.
+ */
+export const CHESTS = [
+  { id: 'cabin', x: HOUSE.x - 2.1, z: HOUSE.z - 1.35, rot: -Math.PI / 2, length: 0.86, depth: 0.5, height: 0.52 },   // by the woodpile on the west wall, facing west
+];
 export const CON = { x: -3.0, z: -2.55 };
 export const APP = { x: -2.35, z: 2.45 };
 export function lakeR(a) { return 1.85 + 0.3 * Math.sin(3 * a + 1.0) + 0.17 * Math.sin(5 * a + 2.3) + 0.09 * Math.sin(7 * a + 0.4); }

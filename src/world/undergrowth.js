@@ -195,8 +195,9 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
   function tiled(geo, mat, depthMat, items, cast) {
     const T = UC.tile, buckets = new Map();
     items.forEach(it => { const e = it[0].elements, i = Math.floor(e[12] / T), j = Math.floor(e[14] / T), k = i * 4096 + j; let b = buckets.get(k); if (!b) buckets.set(k, b = { i, j, list: [] }); b.list.push(it); });
-    const tiles = [...buckets.values()].map(b => { const m = new Float32Array(b.list.length * 16), c = b.list[0][1] ? new Float32Array(b.list.length * 3) : null;
-      b.list.forEach((it, n) => { it[0].toArray(m, n * 16); if (c) it[1].toArray(c, n * 3); }); return { x0: b.i * T, z0: b.j * T, n: b.list.length, m, c }; });
+    const where = new Map();   // item -> [its tile, its place in the tile] (for hide / show)
+    const tiles = [...buckets.values()].map(b => { const m = new Float32Array(b.list.length * 16), c = b.list[0][1] ? new Float32Array(b.list.length * 3) : null, tile = { x0: b.i * T, z0: b.j * T, n: b.list.length, m, c };
+      b.list.forEach((it, n) => { it[0].toArray(m, n * 16); if (c) it[1].toArray(c, n * 3); where.set(it, [tile, n]); }); return tile; });
     const mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, items.length));
     if (items.length && items[0][1]) mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(items.length * 3), 3);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.count = 0;
@@ -204,6 +205,10 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
     const last = new V(1e9, 0, 0), reach = TC.fade[1] + 2;
     return {
       mesh, total: items.length,
+      /** Where each item is (x, y, z), and hide(i) / show(i) for picking one up and its coming back (app/items.js). */
+      positions: () => items.map(it => { const e = it[0].elements; return { x: e[12], y: e[13], z: e[14] }; }),
+      hide(i) { const [t, n] = where.get(items[i]); t.m.fill(0, n * 16, n * 16 + 16); last.x = 1e9; },
+      show(i) { const [t, n] = where.get(items[i]); items[i][0].toArray(t.m, n * 16); last.x = 1e9; },
       update(c) {
         if (Math.hypot(c.x - last.x, c.z - last.z) < 1.5) return;   // the +2 m margin covers the movement in between
         last.copy(c); let n = 0;
@@ -264,5 +269,5 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
     butterflies.update(t, c);
     if (withStats) { stats.near = all.filter(e => e.g.visible).length; stats.small = smalls.reduce((s, k) => s + k.mesh.count, 0); stats.butterfliesDrawn = butterflies.drawn; }
   }
-  return { update, stats, bushes, roses, logs, logVariants: logSet.variants, groups: all, smalls };
+  return { update, stats, bushes, roses, bushVariants: bushV, roseVariants: roseV, logs, logVariants: logSet.variants, groups: all, smalls, sticks: smalls[3], cones: smalls[4] };
 }

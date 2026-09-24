@@ -6,11 +6,10 @@ import { H, SEA_Y, JETTY, coastDist, jettyDeckY, jettyDist } from '../world/layo
 /**
  * Sailing the boat (assets/water/sailboat.js). One icon button (B on desktop) does what fits where you are:
  *  - board: near the boat. From the jetty you turn to it and step down into the cockpit, turning to the wheel; from the
- *    shore (the boat run aground) you walk up to its side and climb in, the camera shaking as you clamber over. The
- *    on-screen wheel slides up as you step in and arrives exactly as you stand at the helm.
+ *    shore (the boat run aground) you walk up to its side and jump in, then step to the wheel.
  *  - sailing: the left joystick (W / S) sets the speed, left / right (A / D) turns the wheel, which turns the boat only
  *    while it moves; the wheel springs back to the middle when you let go. The top speed follows the wind (U.uWind) and
- *    the angle the boat makes with it (a crawl with no wind); the boom and mainsail swing out away from the wind and
+ *    the angle the boat makes with it (CONFIG.boat.minSpeed with no wind); the boom and mainsail swing out away from the wind and
  *    across in a turn, and the boat heels. Looking around stays free and turns with the
  *    boat. More than CONFIG.boat.maxOffshore from the shore the boat turns itself back towards the island. It cannot
  *    sail through the jetty; in shallow water it drags and runs aground.
@@ -108,16 +107,17 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
       play([turn, step(0.01, () => { e = helm(); yS = st.yaw; dS = wrapA(bowYaw(b.h) - yS); }),
         step(dur, k => { e = helm(); st.pos.set(p0.x + (e.x - p0.x) * k, p0.y + (e.y - p0.y) * k + Math.sin(k * Math.PI) * 0.12, p0.z + (e.z - p0.z) * k); st.yaw = yS + dS * ease(Math.min(1, k * 1.3)); st.pitch = -0.25 + 0.2 * k; })],
       () => { mode = b.docked ? 'moored' : 'sailing'; });
-    } else {           // from the shore: walk to its side, then clamber over the gunwale (shaky)
+    } else {           // from the shore: walk to its side, jump in over the gunwale (like jumping ashore, reversed), then to the wheel
       const c = Math.cos(b.h), s = Math.sin(b.h), dx = p0.x - b.x, dz = p0.z - b.z, lx = clamp(c * dx + s * dz, -1.6, 1.8), side = -s * dx + c * dz > 0 ? 1 : -1;
-      const lz = side * (boat.halfBeam(lx) + 0.45), sx = b.x + c * lx - s * lz, sz = b.z + s * lx + c * lz, sy = eyeAt(sx, sz), walk = Math.hypot(sx - p0.x, sz - p0.z);
-      let e = null, yS = 0, dS = 0; const g = toWorld(lx, boat.sheer(lx) + 0.15, side * boat.halfBeam(lx) * 0.9);
-      const shake = k => Math.sin(k * 41) * 0.035 + Math.sin(k * 67 + 1.3) * 0.02;
+      const lz = side * (boat.halfBeam(lx) + 0.45), sx = b.x + c * lx - s * lz, sz = b.z + s * lx + c * lz, walk = Math.hypot(sx - p0.x, sz - p0.z);
+      const cx = clamp(lx, -1.7, 0.1), inL = new V(cx, 0.24 + PC.eyeHeight, side * 0.3);   // where you land, in the cockpit (boat frame)
+      let a = null, yS = 0, dS = 0;
       play([turn,
-        step(walk / 1.1, k => { st.pos.set(p0.x + (sx - p0.x) * k, 0, p0.z + (sz - p0.z) * k); st.pos.y = eyeAt(st.pos.x, st.pos.z) + (p0.y - eyeAt(p0.x, p0.z)) * (1 - k); }),
-        step(0.9, k => { st.pos.set(sx + (g.x - sx) * k * 0.6, sy + (g.y + 0.9 - sy) * k + shake(k * 3), sz + (g.z - sz) * k * 0.6); st.pitch = -0.25 - 0.3 * Math.sin(k * Math.PI) + shake(k * 2.1) * 2; st.yaw += shake(k * 1.7) * 0.05; }),   // haul up
-        step(0.01, () => { e = helm(); yS = st.yaw; dS = wrapA(bowYaw(b.h) - yS); }),
-        step(1.3, k => { e = helm(); const a = new V(sx + (g.x - sx) * 0.6, g.y + 0.9, sz + (g.z - sz) * 0.6); st.pos.set(a.x + (e.x - a.x) * k, a.y + (e.y - a.y) * k + shake(k * 2.5 + 3) * (1 - k), a.z + (e.z - a.z) * k); st.yaw = yS + dS * ease(k); st.pitch = -0.4 + 0.35 * k + shake(k * 3 + 1) * (1 - k); })],   // over the gunwale, to the wheel
+        step(walk / 1.1, k => { st.pos.set(p0.x + (sx - p0.x) * k, 0, p0.z + (sz - p0.z) * k); st.pos.y = eyeAt(st.pos.x, st.pos.z) + (p0.y - eyeAt(p0.x, p0.z)) * (1 - k); st.yaw = yawTo(b.x - st.pos.x, b.z - st.pos.z); }),
+        step(0.01, () => { a = st.pos.clone(); }),
+        step(0.95, k => { const e = toWorld(inL.x, inL.y, inL.z); st.pos.lerpVectors(a, e, k); st.pos.y += Math.sin(k * Math.PI) * 0.55 + (k > 0.85 ? -Math.sin((k - 0.85) / 0.15 * Math.PI) * 0.08 : 0); st.pitch = -0.25 + 0.1 * k; }),   // the jump
+        step(0.01, () => { a = st.pos.clone(); yS = st.yaw; dS = wrapA(bowYaw(b.h) - yS); }),
+        step(1.1, k => { const e = toWorld(boat.helm.x, boat.helm.y, boat.helm.z); st.pos.lerpVectors(a, e, k); st.pos.y += Math.sin(k * Math.PI) * 0.03; st.yaw = yS + dS * ease(k); st.pitch = -0.15 + 0.1 * k; })],   // to the wheel
       () => { mode = 'sailing'; });
     }
   }
@@ -168,7 +168,7 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     if (off > BC.maxOffshore) auto = true; else if (auto && Math.abs(home) < 0.25) auto = false;
     const want = auto ? clamp(home * 2, -1, 1) : steerIn;
     wheelA += (want - wheelA) * Math.min(1, dt * 6);                               // springs back to the middle
-    const w = wind(), top = BC.calmSpeed + (BC.maxSpeed - BC.calmSpeed) * w.k * w.drive;   // what the wind allows now; a crawl with none
+    const w = wind(), top = BC.minSpeed + (BC.maxSpeed - BC.minSpeed) * w.k * w.drive;   // what the wind allows now; minSpeed with none
     const target = auto ? Math.max(throttle, 0.5) * top : throttle > 0 ? throttle * top : throttle * BC.reverse * (0.25 + 0.75 * w.k);
     b.speed += clamp(target - b.speed, -BC.decel * dt, BC.accel * dt);
     const dh = wheelA * BC.turnRate * clamp(b.speed / BC.turnSpeed, -1, 1) * dt;   // turns only while it moves
