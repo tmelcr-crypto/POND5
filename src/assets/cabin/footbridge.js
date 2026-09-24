@@ -6,10 +6,10 @@ import { canvasTex } from '../../core/canvasTexture.js';
 import { BRIDGE, FOOTPATH, H } from '../../world/layout.js';
 
 /**
- * The wooden footbridge over the stream and the stepping-stone path from the cabin to it (positions: BRIDGE and
- * FOOTPATH in world/layout.js). The bridge: two log stringers resting on flat stones on each bank, an arched deck of
+ * The wooden footbridge over the stream and the stepping-stone paths: from the cabin to it, and on from it to the two
+ * benches (positions: BRIDGE and FOOTPATH in world/layout.js). The bridge: two log stringers resting on flat stones on each bank, an arched deck of
  * weathered planks laid across them, posts and two rails each side. The path: flat, irregular sandstone slabs set almost
- * flush with the ground, the grass growing up to their edges. Three meshes (planks, logs, stones). Its own random
+ * flush with the ground, the grass growing up to their edges. Planks, logs, and one stone mesh per route. Its own random
  * numbers, so the seeded build is unchanged. Every number is in FOOTBRIDGE_LOOK.
  */
 export const FOOTBRIDGE_LOOK = {
@@ -81,8 +81,10 @@ export function createFootbridge(ctx) {
     const M = 18, rings = [[0, ST.top + 0.012], [0.55, ST.top + 0.008], [0.9, ST.top - 0.002], [1.0, ST.top - 0.022], [1.05, ST.top - ST.thick]];
     const ph = rr(0, 6.28), ph2 = rr(0, 6.28), rad = Array.from({ length: M }, (_, k) => 1 + 0.16 * Math.sin(k / M * 6.28 * 2 + ph) + 0.09 * Math.sin(k / M * 6.28 * 3 + ph2) + rr(-0.09, 0.06));
     // ground frame: the stone lies on the terrain's slope
-    const e = 0.2, n = new V(H(x - e, z) - H(x + e, z), 2 * e, H(x, z - e) - H(x, z + e)).normalize(), t1 = new V(1, 0, 0).addScaledVector(n, -n.x).normalize(), t2 = new V().crossVectors(t1, n);
-    const c = new V(x, H(x, z) - sink, z), cr = Math.cos(rot), sr = Math.sin(rot), pos = [];
+    const e = Math.max(0.2, r), n = new V(H(x - e, z) - H(x + e, z), 2 * e, H(x, z - e) - H(x, z + e)).normalize(), t1 = new V(1, 0, 0).addScaledVector(n, -n.x).normalize(), t2 = new V().crossVectors(t1, n);
+    // lift it where the ground bulges above its plane under the rim, so no ground shows through its top
+    let lift = 0; for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28, rx = Math.cos(a) * r * sx * 0.95, rz = Math.sin(a) * r * 0.95, p = new V(x, H(x, z), z).addScaledVector(t1, rx * Math.cos(rot) - rz * Math.sin(rot)).addScaledVector(t2, rx * Math.sin(rot) + rz * Math.cos(rot)); lift = Math.max(lift, H(p.x, p.z) - p.y); }
+    const c = new V(x, H(x, z) + Math.min(lift, 0.08) - sink, z), cr = Math.cos(rot), sr = Math.sin(rot), pos = [];
     for (const [f, y] of rings) for (let k = 0; k < (f ? M : 1); k++) {
       const a = k / M * 6.28, lx = Math.cos(a) * r * f * rad[k] * sx, lz = Math.sin(a) * r * f * rad[k], ux = lx * cr - lz * sr, uz = lx * sr + lz * cr;
       const yy = y + (f && f < 1 ? 0.004 * vnoise3(ux * 20 + x, 0, uz * 20 + z) : 0);
@@ -107,13 +109,15 @@ export function createFootbridge(ctx) {
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
     return g.toNonIndexed();
   }
-  const slabs = FOOTPATH.stones.map(s => slab(s.x, s.z, s.r, s.sx, s.rot, s.sink));
+  const slabs = Array.from({ length: FOOTPATH.routes }, () => []);   // one mesh per route, so each is culled on its own
+  FOOTPATH.stones.forEach(s => slabs[s.route].push(slab(s.x, s.z, s.r, s.sx, s.rot, s.sink)));
   for (const end of [-1, 1]) for (const v of [-S.v, S.v]) {   // footing stones under the stringer ends
     const u = end * (B.half - 0.02), x = B.x + B.ax * u + B.az * v, z = B.z + B.az * u - B.ax * v;
-    slabs.push(slab(x, z, rr(0.14, 0.18), rr(1.1, 1.4), rr(0, 6.28), -0.03));
+    slabs[0].push(slab(x, z, rr(0.14, 0.18), rr(1.1, 1.4), rr(0, 6.28), -0.03));
   }
-  const stoneMesh = new THREE.Mesh(mergeGeos(slabs, ['position', 'normal', 'color']), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, envMapIntensity: 0.5 }));
+  const stoneMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, envMapIntensity: 0.5 });
+  const stoneMeshes = slabs.map(list => new THREE.Mesh(mergeGeos(list, ['position', 'normal', 'color']), stoneMat));
 
-  for (const m of [plankMesh, logMesh, stoneMesh]) { m.castShadow = m.receiveShadow = true; m.geometry.computeBoundingSphere(); scene.add(m); }
-  return { planks: plankMesh, logs: logMesh, stones: stoneMesh, stats: { planks: n, stones: FOOTPATH.stones.length } };
+  for (const m of [plankMesh, logMesh, ...stoneMeshes]) { m.castShadow = m.receiveShadow = true; m.geometry.computeBoundingSphere(); scene.add(m); }
+  return { planks: plankMesh, logs: logMesh, stones: stoneMeshes, stats: { planks: n, stones: FOOTPATH.stones.length } };
 }

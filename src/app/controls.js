@@ -2,7 +2,7 @@ import { isTouch } from '../core/env.js';
 import { V, UPV, clamp } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY } from '../world/layout.js';
+import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, SEATS } from '../world/layout.js';
 import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
 
 /**
@@ -14,6 +14,9 @@ import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
  *  - touch: left-half virtual joystick, right-half look, Up/Down buttons
  *  - collisions with terrain, tree trunks and boulders (world/bounds.js grid), the rock outcrop, the cabin
  *    (walls, roof, door, floor) and a soft world boundary
+ *  - sitting: near a bench (SEATS in world/layout.js), in front of it, the sit button (or R) turns you to the bench,
+ *    walks you up to it, turns you round and sits you down; seated, you can only look around; the stand button (or R)
+ *    raises you and gives the controls back. Nothing else moves you while it plays.
  */
 export function createControls(app) {
   const { canvas, camera, cabin, toggleDoor, setLights, setHours, clock, scheduleEnv } = app;
@@ -41,6 +44,7 @@ export function createControls(app) {
     if (e.code === 'KeyF' && !e.repeat) toggleDoor();
     if (e.code === 'KeyL' && !e.repeat) setLights(!cabin.lightsOn);
     if (e.code === 'KeyG' && !e.repeat) setWalk(!st.walk);
+    if (e.code === 'KeyR' && !e.repeat) toggleSeat();
   });
   addEventListener('keyup', e => { st.keys[e.code] = false; });
   addEventListener('blur', () => { st.keys = {}; });
@@ -121,6 +125,7 @@ export function createControls(app) {
   /* walk / fly */
   const modeBtn = document.getElementById('modeBtn');
   function setWalk(on) {
+    if (st.seat) return;   // stand up first
     st.walk = on; st.vel.y = 0;
     if (modeBtn) { modeBtn.textContent = on ? 'Walk' : 'Fly'; modeBtn.setAttribute('aria-pressed', String(on)); }
     document.getElementById('btnUp').textContent = on ? 'Jump' : 'Up';
@@ -175,6 +180,7 @@ export function createControls(app) {
     return g;
   }
   function move(dt) {
+    if (seatUpdate(dt)) return;
     const K = st.keys;
     fwd.set(-Math.sin(st.yaw) * Math.cos(st.pitch), Math.sin(st.pitch), -Math.cos(st.yaw) * Math.cos(st.pitch));
     if (st.walk) fwd.set(-Math.sin(st.yaw), 0, -Math.cos(st.yaw));
@@ -227,5 +233,84 @@ export function createControls(app) {
     camera.position.copy(st.pos);
     camera.rotation.set(st.pitch, st.yaw, 0);
   }
-  return { st, move, fmtTime, setSpeed, setWalk, timeIn, timeV, showTime };
+
+  /* ---- sitting on a bench ---- */
+  const SIT = PC.sit, seatBtn = document.getElementById('btnSeat');
+  const ICON_SIT = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8.5" cy="4.5" r="2"/><path d="M8.5 7.5v6h6v6"/><path d="M3 14.5h18M5 14.5v5M19 14.5v5"/></svg>';
+  const ICON_STAND = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="4" r="2"/><path d="M10 7v7M10 14l-3 6M10 14l3 6M6.5 10.5h7"/><path d="M19 13V5M16.5 7.5L19 5l2.5 2.5"/></svg>';
+  st.seat = null;
+  const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a)), yawTo = (dx, dz) => Math.atan2(-dx, -dz);
+  const ease = t => t * t * (3 - 2 * t);
+  /** The seat the player may sit on: in walk mode, on the ground, within reach and in front of it. */
+  function nearSeat() {
+    if (!st.walk || !st.grounded || !st.playing) return null;
+    let best = null, bd = SIT.reach;
+    for (const s of SEATS) {
+      const dx = st.pos.x - s.x, dz = st.pos.z - s.z, d = Math.hypot(dx, dz);
+      if (d < bd && dx * s.fx + dz * s.fz > SIT.front && Math.abs(st.pos.y - PC.eyeHeight - s.top) < 1.2) { best = s; bd = d; }
+    }
+    return best;
+  }
+  /** A step of the animation: over `dur` seconds, f(k) sets the pose for k = 0..1 (eased). */
+  const step = (dur, f) => ({ dur: Math.max(dur, 0.05), f });
+  function sitDown(s) {
+    const p0 = st.pos.clone(), y0 = st.yaw, pi0 = st.pitch;
+    const ax = s.x + s.fx * SIT.approach, az = s.z + s.fz * SIT.approach, ay = H(ax, az) + PC.eyeHeight, dy0 = p0.y - (H(p0.x, p0.z) + PC.eyeHeight);   // where you stand before sitting
+    const ex = s.x + s.fx * SIT.seatF, ez = s.z + s.fz * SIT.seatF, ey = s.top + SIT.eye;                                           // the seated eye
+    const yawC = yawTo(s.x - p0.x, s.z - p0.z), d1 = wrapA(yawC - y0), pitchC = -0.3, walk = Math.hypot(ax - p0.x, az - p0.z);
+    const yawSeat = yawTo(s.fx, s.fz);
+    let yawW = yawC, yawT = 0;
+    const steps = [
+      step(Math.abs(d1) / SIT.turn + 0.25, k => { st.yaw = y0 + d1 * k; st.pitch = pi0 + (pitchC - pi0) * k; }),                       // turn to the bench
+      step(walk / SIT.walk, k => {                                                                                                       // walk up to it
+        st.pos.set(p0.x + (ax - p0.x) * k, 0, p0.z + (az - p0.z) * k); st.pos.y = H(st.pos.x, st.pos.z) + PC.eyeHeight + dy0 * (1 - k) + Math.sin(k * walk * 7) * 0.012;   // over the ground, a slight step bob
+        st.yaw = yawW = yawC + wrapA(yawTo(s.x - st.pos.x, s.z - st.pos.z) - yawC) * Math.min(1, k * 3); st.pitch = pitchC;
+      }),
+      step(0.01, () => { yawT = wrapA(yawSeat - yawW); }),
+      step(Math.PI / SIT.turn + 0.2, k => { st.yaw = yawW + yawT * k; st.pitch = pitchC + (-0.04 - pitchC) * k; }),                 // turn round
+      step(SIT.lower, k => { st.pos.set(ax + (ex - ax) * k, ay + (ey - ay) * k - Math.sin(k * Math.PI) * 0.04, az + (ez - az) * k); }),   // sit down
+    ];
+    st.seat = { s, steps, i: 0, t: 0, seated: false, stand: { x: ax, y: ay, z: az }, eye: { x: ex, y: ey, z: ez } };
+    st.vel.set(0, 0, 0);
+  }
+  function standUp() {
+    const S = st.seat, a = S.stand, e = S.eye;
+    S.steps = [step(SIT.rise, k => { st.pos.set(e.x + (a.x - e.x) * k, e.y + (a.y - e.y) * k, e.z + (a.z - e.z) * k); })];   // rise
+    S.i = 0; S.t = 0; S.seated = false; S.leaving = true;
+  }
+  function toggleSeat() {
+    if (st.seat) { if (st.seat.seated) standUp(); return; }
+    const s = nearSeat(); if (s) sitDown(s);
+  }
+  if (seatBtn) {
+    seatBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); toggleSeat(); });
+    seatBtn.addEventListener('contextmenu', e => e.preventDefault());
+  }
+  let seatCheck = 0, btnState = '';
+  function seatButton(state) {
+    if (!seatBtn || state === btnState) return; btnState = state;
+    seatBtn.style.display = state ? '' : 'none';
+    if (state) { seatBtn.innerHTML = state === 'sit' ? ICON_SIT : ICON_STAND; seatBtn.setAttribute('aria-label', state === 'sit' ? 'Sit down' : 'Stand up'); }
+    seatBtn.classList.toggle('busy', state === 'busy');
+  }
+  /** Plays the sit / stand animation or holds the seated pose (look only). Returns true while it has the camera. */
+  function seatUpdate(dt) {
+    const S = st.seat;
+    if (!S) {
+      if ((seatCheck -= dt) <= 0) { seatCheck = 0.2; seatButton(nearSeat() ? 'sit' : ''); }
+      return false;
+    }
+    if (!S.seated) {
+      S.t += dt;
+      while (S.i < S.steps.length && S.t >= S.steps[S.i].dur) { S.steps[S.i].f(1); S.t -= S.steps[S.i].dur; S.i++; }
+      if (S.i < S.steps.length) S.steps[S.i].f(ease(S.t / S.steps[S.i].dur));
+      else if (S.leaving) { st.seat = null; st.vel.set(0, 0, 0); st.grounded = true; seatButton(''); seatCheck = 0; }
+      else { S.seated = true; st.pos.set(S.eye.x, S.eye.y, S.eye.z); }
+      if (st.seat) seatButton(S.seated ? 'stand' : 'busy');
+    }
+    camera.position.copy(st.pos);
+    camera.rotation.set(st.pitch, st.yaw, 0);
+    return true;
+  }
+  return { st, move, fmtTime, setSpeed, setWalk, timeIn, timeV, showTime, toggleSeat };
 }

@@ -5,7 +5,7 @@ import { fbm2 } from '../core/noise.js';
 import { addFlutter, addWorldSway, addDistanceFade, THIN_SMALL } from '../core/shaderPatches.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { H, WORLD_HALF, SEA_Y, forest, excluded, coastDist } from './layout.js';
+import { H, WORLD_HALF, SEA_Y, forest, excluded, coastDist, walkwayDist } from './layout.js';
 import { obstacles, rockBodies } from './bounds.js';
 import { placer, plantGroups, updateGroups, bakeAtlas, billboards } from './scatter.js';
 import { createBushVariants } from '../assets/vegetation/bush.js';
@@ -53,8 +53,10 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
     for (let i = i0 - 2; i <= i0 + 2; i++) for (let j = j0 - 2; j <= j0 + 2; j++) { const l = occ.get(ok(i, j)); if (l) for (const c of l) if (Math.hypot(c.x - x, c.z - z) < c.r + m) return false; }
     return true;
   };
-  scatter.spruce.forEach(t => occupy(t.x, t.z, 0.45 * t.s)); scatter.apple.forEach(t => occupy(t.x, t.z, 0.4 * t.s));
-  scatter.rocks.forEach(l => l.forEach(r => occupy(r.x, r.z, r.s)));
+  // (everything as placed, before the walkways were cleared of it: the same draws as without them)
+  const placed = scatter.placed;
+  placed.spruce.forEach(t => occupy(t.x, t.z, 0.45 * t.s)); placed.apple.forEach(t => occupy(t.x, t.z, 0.4 * t.s));
+  placed.rocks.forEach(l => l.forEach(r => occupy(r.x, r.z, r.s)));
   const onLand = (x, z, m) => coastDist(x, z) > m, rpos = () => [rr(-WORLD_HALF, WORLD_HALF), rr(-WORLD_HALF, WORLD_HALF)];
 
   /* ---- fallen trunks + stumps: in the woods, along ground flat enough for the trunk to lie on ---- */
@@ -74,14 +76,6 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
     logs.push({ x, y: y0, z, s: 1, rot, pitch, variant: k });
     for (let s = 0; s <= v.length; s += 0.5) occupy(x + dx * s, z + dz * s, 0.45);
   }
-  // colliders: the stump like a tree trunk, the trunk as a chain of ellipsoids (the boulders' format) in the log's frame
-  logs.forEach(t => {
-    const v = logSet.variants[t.variant], cr = Math.cos(t.rot), sr = Math.sin(t.rot), sp = Math.sin(t.pitch), cp = Math.cos(t.pitch);
-    obstacles.add(t.x, t.z, v.stump.r + 0.1, t.y + v.stump.top);
-    v.log.forEach(c => { const lx = c.x * cp - c.y * sp, ly = c.x * sp + c.y * cp;
-      rockBodies.add({ x: t.x + cr * lx + sr * c.z, y: t.y + ly, z: t.z - sr * lx + cr * c.z, rx: c.hx + 0.2, ry: c.r + 0.2, rz: c.r + 0.2, rot: t.rot - v.yaw, body: 0.25 }); });
-  });
-
   /* ---- bushes: in the woods and thickest along their edges ---- */
   const bushes = [], bushPts = placer(2.2);
   for (let tries = 0; bushes.length < UC.bushes && tries < UC.bushes * 80; tries++) {
@@ -133,8 +127,8 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
     const s = rr(0.35, 1.3);
     sticks.push([M().compose(new V(x, H(x, z), z), Q.setFromEuler(E.set(rr(-0.08, 0.08), rng() * 6.28, rr(-0.06, 0.06))), new V(s, rr(0.8, 1.3), rr(0.8, 1.3)))]);
   }
-  for (let tries = 0; cones.length < UC.cones && tries < UC.cones * 10 && scatter.spruce.length; tries++) {
-    const t = scatter.spruce[Math.floor(rng() * scatter.spruce.length)], a = rng() * 6.28, r = rr(0.45, 2.8) * t.s, x = t.x + Math.cos(a) * r, z = t.z + Math.sin(a) * r;
+  for (let tries = 0; cones.length < UC.cones && tries < UC.cones * 10 && placed.spruce.length; tries++) {
+    const t = placed.spruce[Math.floor(rng() * placed.spruce.length)], a = rng() * 6.28, r = rr(0.45, 2.8) * t.s, x = t.x + Math.cos(a) * r, z = t.z + Math.sin(a) * r;
     if (!onLand(x, z, 0.5) || excluded(x, z, 0.2) || !free(x, z, 0.05)) continue;
     cones.push([M().compose(new V(x, H(x, z) - 0.004, z), Q.setFromEuler(E.set(rr(-0.2, 0.2), rng() * 6.28, rr(-0.3, 0.3))), new V(1, 1, 1).multiplyScalar(rr(0.8, 1.15)))]);
   }
@@ -148,6 +142,21 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
     flowers.push([M().compose(new V(x, H(x, z) - 0.02, z), q, new V(1, rr(0.75, 1.25), 1).multiplyScalar(rr(0.85, 1.15)))]);
     flowerCols.push(flowerTint(rng()));
   }
+
+  /* ---- clear the walkways (paths, bridge, benches) of anything placed on them; nothing else moves ---- */
+  const off = m => it => { const e = it[0].elements; return walkwayDist(e[12], e[14]) > m; };
+  const logClear = t => { const v = logSet.variants[t.variant], dx = Math.cos(t.rot - v.yaw), dz = -Math.sin(t.rot - v.yaw); for (let s = 0; s <= v.length; s += 0.4) if (walkwayDist(t.x + dx * s, t.z + dz * s) < 0.7) return false; return walkwayDist(t.x, t.z) > 0.7; };
+  const keep = (list, ok) => { const k = list.filter(ok); list.length = 0; list.push(...k); };
+  keep(logs, logClear); keep(bushes, t => walkwayDist(t.x, t.z) > 0.6 * t.s + 0.4); keep(roses, t => walkwayDist(t.x, t.z) > 0.6 * t.s + 0.4);
+  keep(ferns, off(0.45)); mush.forEach(l => keep(l, off(0.1))); keep(sticks, off(0.5)); keep(cones, off(0.05));
+  { const k = flowers.map((f, i) => [f, flowerCols[i]]).filter(([f]) => off(0.08)(f)); flowers.length = flowerCols.length = 0; k.forEach(([f, c]) => { flowers.push(f); flowerCols.push(c); }); }
+  // colliders: the stump like a tree trunk, the trunk as a chain of ellipsoids (the boulders' format) in the log's frame
+  logs.forEach(t => {
+    const v = logSet.variants[t.variant], cr = Math.cos(t.rot), sr = Math.sin(t.rot), sp = Math.sin(t.pitch), cp = Math.cos(t.pitch);
+    obstacles.add(t.x, t.z, v.stump.r + 0.1, t.y + v.stump.top);
+    v.log.forEach(c => { const lx = c.x * cp - c.y * sp, ly = c.x * sp + c.y * cp;
+      rockBodies.add({ x: t.x + cr * lx + sr * c.z, y: t.y + ly, z: t.z - sr * lx + cr * c.z, rx: c.hx + 0.2, ry: c.r + 0.2, rz: c.r + 0.2, rot: t.rot - v.yaw, body: 0.25 }); });
+  });
 
   /* ---- meshes ---- */
   const groups = plantGroups(scene, bushes, bushV, 'bush').concat(plantGroups(scene, roses, roseV, 'rose'));

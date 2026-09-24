@@ -151,5 +151,7 @@ export const CONFIG = {
     jump: 4.2,
     flyCeiling: 30,         // maximum height above the terrain in fly mode
     boundaryMargin: 3,      // soft push-back starts this far inside the world edge (fly mode over the sea)
+    // sitting on a bench (app/controls.js): the button shows within `reach` m of a seat, at least `front` m in front of it
+    sit: { reach: 2.4, front: 0.35, approach: 0.8, seatF: 0.02, eye: 0.74, walk: 1.1, turn: 2.6, lower: 1.1, rise: 0.9 },   // m, m/s, rad/s, s
   },
 };
