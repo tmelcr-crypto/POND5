@@ -128,7 +128,7 @@ export const CONFIG = {
   // The wider world on the horizon (world/horizon.js). No other island exists yet, so the lighthouse stands on a small
   // rock at sea; move `lighthouse` to the next island's position when there is one.
   horizon: {
-    lighthouse: { x: 330, z: -300, rock: 16 },   // m; rock: its radius
+    lighthouse: { x: 330, z: -300, rock: 16, cliff: 11 },   // m; rock: its radius, cliff: its height
     islands: [{ x: 0, z: 0, r: 45 }],           // islands the sailboats keep clear of (the home island's coast is ~37-49 m out)
   },
   time: {
