@@ -131,7 +131,7 @@ const cabinMerge = mergeStatic(cabin.group, { ...cabin, group: null }); // ~360 
 const detail = createDetailManager(camera);
 const plotBands = registerPlotDetail(ctx, detail, { spruce: plotSpruce, apple: plotApple, rose: plotRose, reeds: plotReeds, flowers: plotFlowers, outcrop: plotOutcrop, pads, grass: plotGrass, pollen, cabin });
 const ambience = createAmbience({ ...ctx, detail, skyUniforms, cabin });   // sound starts on the Start tap
-const waterLife = createWaterLife({ ...ctx, detail, skyUniforms });      // fish rises, dragonflies
+const waterLife = createWaterLife({ ...ctx, detail, skyUniforms, ocean });   // fish rises, dragonflies, shore foam
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });

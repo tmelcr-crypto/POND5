@@ -150,8 +150,8 @@ export function createRoseBush(ctx) {
   heightmap cut out under the plot, whose finer ground mesh stays as it was. One shader blends grass (vertex
   colour x detail texture), dirt / forest floor, rock by slope and sand near sea level.
 - **Sea** (`createOcean` in `assets/water/pond.js`): one opaque plane at `CONFIG.island.seaLevel` (below the plot's
-  pond basin) that follows the camera; colour from the water depth (read from the grass ground texture), a foam
-  line at the shore, world-space waves, fog into the sky's horizon colour. Walking deeper than `wadeDepth`
+  pond basin) that follows the camera; colour from the water depth (read from the grass ground texture), shore foam
+  (from `waterLife.js`), world-space waves, fog into the sky's horizon colour. Walking deeper than `wadeDepth`
   eases you back to shore.
 - **Grass** (`world/grass.js`): only outside the plot (the plot keeps its 64k blades). Density matches the plot
   (`CONFIG.grass.density`: 300 blades/m2 on touch, 640 on desktop) out to 8 m, then falls off continuously as
@@ -207,7 +207,9 @@ export function createRoseBush(ctx) {
 - **Water life** (`assets/water/waterLife.js`, numbers in its `WATER` object): fish rises, a ring spreading about 1 m
   on the sea (0.45 m on the pond) and fading in 2 s, every 4-10 s on each water (sometimes two in a row); on the sea
   they appear 2.5-14 m out from the shore, 5-30 m in front of the camera. Three dragonflies dart and hover over the pond
-  by day (instanced bodies and translucent flapping wings), fly off at dusk and come back in the morning. Each part
+  by day (instanced bodies and translucent flapping wings), fly off at dusk and come back in the morning. Shore foam
+  (added to the sea's shader at its `shore-foam` marker): a band out to 0.6 m of water where a breaking line runs in
+  every 7-9 s, slows up the beach and leaves lace that fades, each stretch of coast at its own moment. Each part
   runs only on its detail-manager band (the pond's within 20 m / 15 m); one draw for the rings while any is alive,
   two for the dragonflies.
 - **Cloud shadows** (`core/shaderPatches.js` `addCloudShadow`, `CONFIG.clouds`): one tileable canvas texture of soft
