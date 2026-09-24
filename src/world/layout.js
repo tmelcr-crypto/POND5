@@ -39,7 +39,7 @@ export const BED = (() => {
  * length along its front, depth, height.
  */
 export const CHESTS = [
-  { id: 'cabin', x: HOUSE.x - 2.1, z: HOUSE.z - 1.35, rot: -Math.PI / 2, length: 0.86, depth: 0.5, height: 0.52 },   // by the woodpile on the west wall, facing west
+  { id: 'cabin', x: HOUSE.x - 2.58, z: HOUSE.z - 1.38, rot: -Math.PI / 2, length: 0.86, depth: 0.5, height: 0.52 },   // behind the woodpile's back end, clear of the wall's log ends, facing west
 ];
 export const CON = { x: -3.0, z: -2.55 };
 export const APP = { x: -2.35, z: 2.45 };
