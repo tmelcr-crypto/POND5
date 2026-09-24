@@ -1,5 +1,6 @@
 import { V, clamp } from '../core/math.js';
 import { CONFIG } from '../config.js';
+import { U } from '../core/uniforms.js';
 import { H, SEA_Y, JETTY, coastDist, jettyDeckY, jettyDist } from '../world/layout.js';
 
 /**
@@ -8,7 +9,9 @@ import { H, SEA_Y, JETTY, coastDist, jettyDeckY, jettyDist } from '../world/layo
  *    shore (the boat run aground) you walk up to its side and climb in, the camera shaking as you clamber over. The
  *    on-screen wheel slides up as you step in and arrives exactly as you stand at the helm.
  *  - sailing: the left joystick (W / S) sets the speed, left / right (A / D) turns the wheel, which turns the boat only
- *    while it moves; the wheel springs back to the middle when you let go. Looking around stays free and turns with the
+ *    while it moves; the wheel springs back to the middle when you let go. The top speed follows the wind (U.uWind) and
+ *    the angle the boat makes with it (a crawl with no wind); the boom and mainsail swing out away from the wind and
+ *    across in a turn, and the boat heels. Looking around stays free and turns with the
  *    boat. More than CONFIG.boat.maxOffshore from the shore the boat turns itself back towards the island. It cannot
  *    sail through the jetty; in shallow water it drags and runs aground.
  *  - dock: near the berth at the jetty head the boat brings itself in and ties up (steering off); exit then steps you
@@ -26,15 +29,36 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     exit: svg('<path d="M3 17h13l-2.5 3.5H5.5z"/><path d="M9 6v11"/><path d="M9 7l4.5 7H9"/><path d="M17 13V4M14.5 6.5L17 4l2.5 2.5"/>'),
   };
   const b = { x: J.berth.x, z: J.berth.z, h: J.berth.heading, speed: 0, docked: true, aground: false };
-  let mode = null, anim = null, wheelA = 0, boomA = 0, boomTo = 0, auto = false, T = 0, check = 0, action = '';
+  let mode = null, anim = null, wheelA = 0, boomA = 0, boomOverride = null, auto = false, T = 0, check = 0, action = '';
   const boom = () => boat.boom;
   const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a)), yawTo = (dx, dz) => Math.atan2(-dx, -dz), ease = t => t * t * (3 - 2 * t);
   const bowYaw = h => -Math.PI / 2 - h;   // the camera yaw that looks along the bow
   const toWorld = (lx, ly, lz) => { boat.group.updateMatrixWorld(); return new V(lx, ly, lz).applyMatrix4(boat.group.matrixWorld); };
   const eyeAt = (x, z) => Math.max(H(x, z), jettyDeckY(x, z)) + PC.eyeHeight;
 
-  function pose() {   // bob, roll and pitch on the swell (less while tied up or aground)
-    const calm = b.docked || b.aground ? 0.35 : 1, heel = -wheelA * clamp(b.speed / BC.maxSpeed, -1, 1) * 0.1;
+  /**
+   * The wind as the boat feels it (U.uWind strength, U.uWindDir the way it blows): k 0 (still) .. 1 (CONFIG.boat.windFull
+   * or more), off: the angle off the bow it comes from (0 dead ahead .. PI from astern), side: +1 when it comes from the
+   * right (starboard). drive: how well the sails pull at that angle (weak head to wind, best on a beam reach).
+   */
+  function wind() {
+    const k = clamp(U.uWind.value / BC.windFull), wd = U.uWindDir.value, fx = -wd.x, fz = -wd.y, l = Math.hypot(fx, fz) || 1;
+    const c = Math.cos(b.h), s = Math.sin(b.h), off = Math.acos(clamp((fx * c + fz * s) / l, -1, 1)), side = -fx * s + fz * c >= 0 ? 1 : -1;
+    const drive = off < Math.PI / 2 ? BC.polar[0] + (1 - BC.polar[0]) * Math.sin(off) : 1 - (1 - BC.polar[1]) * (off - Math.PI / 2) / (Math.PI / 2);
+    return { k, off, side, drive };
+  }
+  /** Where the boom wants to be: out on the side away from the wind, further the more the wind comes from astern; swung
+   *  the other way by a turn (turn left, the sail goes right); with no wind only the turn moves it. */
+  function boomTarget() {
+    if (boomOverride !== null) return boomOverride;
+    if (b.docked || mode === 'docking') return 0;                                 // sheeted in at the berth
+    const w = wind(), lee = -w.side * (0.12 + 1.2 * w.off / Math.PI);           // positive: the boom's end out to the right
+    const turn = mode === 'sailing' ? -wheelA * (0.25 + 0.4 * (1 - w.k)) * clamp(Math.abs(b.speed) / 1.2) : 0;
+    return clamp(lee * Math.min(1, w.k * 4) + turn, -1.35, 1.35);   // any breeze fills the sail to its angle; slack in a calm
+  }
+  function pose() {   // bob, roll and pitch on the swell (less while tied up or aground); heel away from the wind and out of a turn
+    const w = wind(), sailing = mode === 'sailing' ? clamp(Math.abs(b.speed) / 1.5) : 0;
+    const calm = b.docked || b.aground ? 0.35 : 1, heel = -wheelA * clamp(b.speed / BC.maxSpeed, -1, 1) * 0.1 - w.side * w.k * Math.sin(w.off) * 0.09 * sailing;
     boat.setPose(b.x, b.z, b.h, (0.025 * Math.sin(T * 0.9) + 0.012 * Math.sin(T * 1.7)) * calm + heel, (0.014 * Math.sin(T * 1.1 + 1)) * calm, (0.03 * Math.sin(T * 1.3) + 0.012 * Math.sin(T * 2.3)) * calm);
     boat.wheel.rotation.x = -wheelA * 2.2;
     boom().rotation.y = boomA;
@@ -118,12 +142,12 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     if (!b.docked) {   // along the side deck on the landing's side (the boom swings out the other way), then jump
       const c = Math.cos(b.h), s = Math.sin(b.h), dx = land.x - b.x, dz = land.z - b.z, lx = clamp(c * dx + s * dz, -0.6, 1.9), side = -s * dx + c * dz >= 0 ? 1 : -1;
       const lz = side * (boat.halfBeam(lx) - 0.28), mid = new V(b.x + c * lx - s * lz, SEA_Y + boat.sheer(lx) + PC.eyeHeight, b.z + s * lx + c * lz); from = mid;
-      boomTo = -side * 0.9;
+      boomOverride = -side * 0.9;
       steps.push(step(p0.distanceTo(mid) / 1.0, k => { st.pos.lerpVectors(p0, mid, k); st.pos.y += Math.sin(k * Math.PI) * 0.15; st.yaw = yawTo(land.x - st.pos.x, land.z - st.pos.z); }));
     }
     const f0 = () => from;
     steps.push(step(Math.max(0.9, land.distanceTo(f0()) / 2.2), k => { const a = f0(); st.pos.lerpVectors(a, land, k); st.pos.y += Math.sin(k * Math.PI) * arc + (k > 0.85 ? -Math.sin((k - 0.85) / 0.15 * Math.PI) * 0.08 : 0); st.pitch = -0.2 + 0.1 * k; }));
-    play(steps, () => { mode = null; st.vel.set(0, 0, 0); st.grounded = true; boomTo = 0; resetInput(); });   // a fresh touch is needed to walk
+    play(steps, () => { mode = null; st.vel.set(0, 0, 0); st.grounded = true; boomOverride = null; resetInput(); });   // a fresh touch is needed to walk
   }
 
   function act() {
@@ -144,9 +168,10 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     if (off > BC.maxOffshore) auto = true; else if (auto && Math.abs(home) < 0.25) auto = false;
     const want = auto ? clamp(home * 2, -1, 1) : steerIn;
     wheelA += (want - wheelA) * Math.min(1, dt * 6);                               // springs back to the middle
-    const target = auto ? Math.max(throttle, 0.5) * BC.maxSpeed : throttle > 0 ? throttle * BC.maxSpeed : throttle * BC.reverse;
+    const w = wind(), top = BC.calmSpeed + (BC.maxSpeed - BC.calmSpeed) * w.k * w.drive;   // what the wind allows now; a crawl with none
+    const target = auto ? Math.max(throttle, 0.5) * top : throttle > 0 ? throttle * top : throttle * BC.reverse * (0.25 + 0.75 * w.k);
     b.speed += clamp(target - b.speed, -BC.decel * dt, BC.accel * dt);
-    const dh = wheelA * BC.turnRate * clamp(b.speed / BC.maxSpeed, -1, 1) * dt;   // turns only while it moves
+    const dh = wheelA * BC.turnRate * clamp(b.speed / BC.turnSpeed, -1, 1) * dt;   // turns only while it moves
     const nx = b.x + Math.cos(b.h + dh) * b.speed * dt, nz = b.z + Math.sin(b.h + dh) * b.speed * dt, nh = b.h + dh;
     const now = contact(b.x, b.z, b.h), next = contact(nx, nz, nh);
     if (next.jetty || (next.worst < -BC.draft * 0.55 && next.worst < now.worst)) { b.speed *= -0.15; }          // hit the jetty, or would drive further aground: stop
@@ -156,7 +181,7 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
   }
 
   function update(dt) {
-    T += dt; boomA += (boomTo - boomA) * Math.min(1, dt * 2.5);
+    T += dt; boomA += (boomTarget() - boomA) * Math.min(1, dt * (boomOverride !== null ? 2.5 : 1.2));   // the boom swings across, not snaps
     if (!mode) {
       st.aboard = false;
       if ((check -= dt) <= 0) { check = 0.15; const near = st.walk && st.playing && hullDist(st.pos.x, st.pos.z) < BC.reach && (jettyDeckY(st.pos.x, st.pos.z) > -1e9 || b.aground || H(st.pos.x, st.pos.z) > SEA_Y - CONFIG.island.wadeDepth); setButton(near ? 'board' : ''); }
