@@ -1,13 +1,20 @@
 import * as THREE from 'three';
 import { U } from '../../core/uniforms.js';
-import { lin } from '../../core/math.js';
-import { STREAM, LAKE, SEA_Y, H } from '../../world/layout.js';
+import { V, UPV, clamp, lin } from '../../core/math.js';
+import { vnoise2 } from '../../core/noise.js';
+import { addWorldSway, addFlutter } from '../../core/shaderPatches.js';
+import { fernTexture, fernGeometry } from '../rocks/rockOutcrop.js';
+import { CONFIG } from '../../config.js';
+import { STREAM, LAKE, SEA_Y, H, lakeD, houseRectDist, coastDist, bridgeDist, footpathDist } from '../../world/layout.js';
 
 /**
  * The stream from the pond to the sea (course, water level and carving: STREAM in world/layout.js): one water ribbon
  * that follows the course at the water level W(s), flowing faster and foaming over the rapids, clear and still in the
  * pools, fading in where it leaves the pond and out where it meets the sea; rocks in the rapids and pebbles along the
- * banks (one instanced mesh). Its own random numbers, so the seeded build is unchanged. Every number is in STREAM_LOOK.
+ * banks (one instanced mesh), and taller plants in patches along both banks that half hide them: sedge clumps from the
+ * water's edge up the bank, cattails at the edge of the calm pools, ferns on the bank tops (instanced, one mesh per
+ * kind and stretch of the stream so each stretch is culled on its own). Its own random numbers, so the seeded build is
+ * unchanged. Every number is in STREAM_LOOK.
  */
 export const STREAM_LOOK = {
   across: 8,                  // ribbon vertices across
@@ -18,6 +25,15 @@ export const STREAM_LOOK = {
   pebbles: { count: 320, size: [0.025, 0.07] },
   fadeIn: [0.25, 0.6],        // s (m) over which the stream takes over from the pond's water sheet (pond.js fades out there)
   pondLook: [0.6, 3.5],       // s (m) over which its colour turns from the pond's to its own
+  banks: {
+    step: 0.13,                 // m along each bank between candidate spots
+    patch: [-0.05, 0.45],       // patch noise: bare below .. fully planted above
+    sedge: { reach: [-0.1, 0.85], height: [0.6, 1.15], blades: 20 },   // reach: from the water's edge up the bank (m)
+    cattail: { chance: 0.12, maxSlope: 0.02, height: [0.8, 1.35] },
+    fern: { chance: 0.14, reach: [0.6, 1.5], length: [0.35, 0.6] },
+    clear: { bridge: 0.25, path: 0.6, house: 0.5, pond: 1.2 },   // keep off the bridge and path, the cabin, the pond
+    stretch: 8,                 // m of stream per mesh (culling)
+  },
 };
 
 export function createStream(ctx) {
@@ -102,5 +118,68 @@ export function createStream(ctx) {
   });
   stones.castShadow = stones.receiveShadow = true; scene.add(stones);
 
-  return { water, stones, stats: { length: +(P[k1].s - P[k0].s).toFixed(1), rapids: rapids.length, rocks: list.length } };
+  /* ---- bank plants ---- */
+  const BK = L.banks, sedges = [], cattails = [], heads = [], ferns = [], stretch = p => Math.floor(p.s / BK.stretch);
+  const bladeClump = (() => {   // one clump: blades arching out from the middle, dark at the base, pale at the tips, a few dry
+    const pos = [], col = [], nor = [], idx = [], base = lin(0x26401a), tip = lin(0x5f8a30), dry = lin(0x8f8650), c = new THREE.Color();
+    for (let b = 0; b < BK.sedge.blades; b++) {
+      const a = b / BK.sedge.blades * 6.28 + rr(-0.2, 0.2), lean = rr(0.08, 0.55), h = rr(0.55, 1), wid = rr(0.014, 0.024), droop = rr(0.1, 0.3) * lean * 2, isDry = rnd() < 0.07;
+      const ca = Math.cos(a), sa = Math.sin(a), i0 = pos.length / 3;
+      for (let k = 0; k <= 5; k++) {
+        const t = k / 5, out = Math.sin(lean) * t * h + droop * t * t, y = Math.cos(lean) * t * h - droop * 0.6 * t * t, w = wid * (1 - t * 0.9);
+        pos.push(ca * out - sa * w, y, sa * out + ca * w, ca * out + sa * w, y, sa * out - ca * w);
+        c.copy(base).lerp(isDry ? dry : tip, Math.pow(t, 0.8)); col.push(c.r, c.g, c.b, c.r, c.g, c.b);
+        nor.push(ca * 0.3, 1, sa * 0.3, ca * 0.3, 1, sa * 0.3);   // lit like the meadow's blades: mostly from above
+        if (k) { const j = i0 + (k - 1) * 2; idx.push(j, j + 1, j + 2, j + 1, j + 3, j + 2); }
+      }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setIndex(idx); return g;
+  })();
+  const clearOf = (x, z) => bridgeDist(x, z) > BK.clear.bridge && footpathDist(x, z) > BK.clear.path && houseRectDist(x, z) > BK.clear.house && lakeD(x, z) > 1 + BK.clear.pond / 2 && coastDist(x, z) > CONFIG.island.beachWidth * 0.5;
+  for (const side of [-1, 1]) for (let s = 0; s < S.len; s += BK.step * rr(0.7, 1.3)) {
+    const p = P[Math.min(P.length - 1, Math.round(s / (P[1].s - P[0].s)))], patch = clamp((vnoise2(s * 0.3, side * 7.3) * 0.5 + 0.5 - BK.patch[0]) / (BK.patch[1] - BK.patch[0]));
+    if (rnd() > patch) continue;
+    const reach = rr(...BK.sedge.reach), t = side * (p.w + reach), x = p.x - p.tz * t, z = p.z + p.tx * t;
+    if (!clearOf(x, z)) continue;
+    const near = 1 - clamp(reach / BK.sedge.reach[1]), h = rr(...BK.sedge.height) * (0.75 + 0.35 * near) * (0.8 + 0.4 * patch), wd = rr(0.7, 1.1) * h;
+    sedges.push([stretch(p), new THREE.Matrix4().compose(new V(x, H(x, z) - 0.03, z), new THREE.Quaternion().setFromAxisAngle(UPV, rr(0, 6.28)), new V(wd, h, wd)), new THREE.Color().setScalar(rr(0.75, 1.0)).lerp(new THREE.Color(1.0, 0.95, 0.7), rr(0, 0.15))]);
+    // cattails along the calm pools, at the water's edge
+    if (p.slope < BK.cattail.maxSlope && rnd() < BK.cattail.chance * patch) for (let i = 0, nn = 3 + Math.floor(rnd() * 5); i < nn; i++) {
+      const tt = side * (p.w + rr(-0.15, 0.1)), dx = rr(-0.25, 0.25), cx = p.x - p.tz * tt + p.tx * dx, cz = p.z + p.tx * tt + p.tz * dx;
+      if (!clearOf(cx, cz)) continue;
+      const len = rr(...BK.cattail.height), lean = rr(0, 0.12), la = rnd() * 6.28, q = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.cos(la) * lean, rnd() * 6.28, Math.sin(la) * lean));
+      const b = new V(cx, Math.min(H(cx, cz), p.W) - 0.03, cz), w = rr(0.006, 0.011);
+      cattails.push([stretch(p), new THREE.Matrix4().compose(b, q, new V(w, len, w))]);
+      if (rnd() < 0.5) heads.push([stretch(p), new THREE.Matrix4().compose(b.clone().addScaledVector(new V(0, 1, 0).applyQuaternion(q), len * 0.8), q, new V(0.02, rr(0.12, 0.17), 0.02))]);
+    }
+    // ferns on the bank tops
+    if (rnd() < BK.fern.chance * patch) {
+      const tf = side * (p.w + rr(...BK.fern.reach)), fx = p.x - p.tz * tf, fz = p.z + p.tx * tf;
+      if (clearOf(fx, fz)) for (let i = 0, nn = 7 + Math.floor(rnd() * 5), sc = rr(0.8, 1.15); i < nn; i++) {
+        const a = i / nn * 6.28 + rr(-0.25, 0.25), tilt = rr(0.45, 1.05), len = rr(...BK.fern.length) * sc, d = new V(Math.cos(a) * Math.sin(tilt), Math.cos(tilt), Math.sin(a) * Math.sin(tilt));
+        const q = new THREE.Quaternion().setFromUnitVectors(UPV, d).multiply(new THREE.Quaternion().setFromAxisAngle(UPV, rr(-0.3, 0.3) + Math.PI / 2));
+        ferns.push([stretch(p), new THREE.Matrix4().compose(new V(fx, H(fx, fz) - 0.01, fz), q, new V(len * 0.42, len, len)), new THREE.Color(rr(0.8, 1.05), rr(0.9, 1.1), rr(0.75, 0.95))]);
+      }
+    }
+  }
+  const sedgeMat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.8, metalness: 0, envMapIntensity: 0.6 }); addWorldSway(sedgeMat, 0.09);
+  const reedMat = new THREE.MeshStandardMaterial({ color: lin(0x5f7d34), roughness: 0.7 }); addWorldSway(reedMat, 0.07);
+  const headMat = new THREE.MeshStandardMaterial({ color: lin(0x5a3a22), roughness: 0.95 }); addWorldSway(headMat, 0.07);
+  const fernTex = fernTexture(rnd), fernMat = new THREE.MeshStandardMaterial({ map: fernTex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.75, envMapIntensity: 0.6 }); addFlutter(fernMat, 0.012);
+  const reedG = new THREE.CylinderGeometry(0.35, 1, 1, 5, 6); reedG.translate(0, 0.5, 0);
+  const headG = new THREE.CylinderGeometry(1, 1, 1, 8, 1); headG.translate(0, 0.5, 0);
+  const plants = [];
+  const plant = (list, geo, mat, shadow, depthMap) => {   // one instanced mesh per stretch of the stream
+    const by = new Map(); for (const e of list) (by.get(e[0]) || by.set(e[0], []).get(e[0])).push(e);
+    for (const group of by.values()) {
+      const im = new THREE.InstancedMesh(geo, mat, group.length); group.forEach(([, m, c], i) => { im.setMatrixAt(i, m); if (c) im.setColorAt(i, c); });
+      im.castShadow = shadow; im.receiveShadow = true;
+      if (depthMap) im.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: depthMap, alphaTest: 0.45 });
+      scene.add(im); plants.push(im);
+    }
+  };
+  plant(sedges, bladeClump, sedgeMat, false); plant(cattails, reedG, reedMat, true); plant(heads, headG, headMat, true); plant(ferns, fernGeometry(), fernMat, true, fernTex);
+
+  return { water, stones, plants, stats: { length: +(P[k1].s - P[k0].s).toFixed(1), rapids: rapids.length, rocks: list.length, sedges: sedges.length, cattails: cattails.length, ferns: ferns.length, plantMeshes: plants.length } };
 }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { rng, rr } from '../../core/random.js';
+import { rng, rr, rng as sharedRng } from '../../core/random.js';
 import { V, UPV, clamp, smooth, lin } from '../../core/math.js';
 import { hash2, vnoise2, hash3, vnoise3, fbm3 } from '../../core/noise.js';
 import { weld, blobGeo, mergeGeos } from '../../core/geometry.js';
@@ -40,7 +40,7 @@ export function boulder(seed, detail = 5) {
 }
 
 /** Fern frond texture (drawn with the shared random stream) and its curled card geometry, shared with the island's ferns. */
-export function fernTexture() {
+export function fernTexture(rng = sharedRng) {   // rng: the shared stream by default, or an asset's own
   const fernTex = canvasTex(128, 256, (g, w, h) => {
     g.lineCap = 'round'; g.strokeStyle = '#4a6b25'; g.lineWidth = 3; g.beginPath(); g.moveTo(64, 256); g.quadraticCurveTo(66, 128, 64, 4); g.stroke();
     for (let i = 0; i < 34; i++) { const t = i / 34, y = 250 - t * 244, L = 58 * Math.sin(Math.PI * (0.12 + 0.88 * (1 - t)) * 0.9) * (1 - t * 0.55);

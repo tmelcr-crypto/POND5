@@ -20,7 +20,7 @@ These are starting points, to be confirmed or corrected by the Phase 1 measureme
   slightly as density drops. Implemented on the GPU: a camera-following grid where the vertex
   shader scales a blade to zero when `hash(blade) > d(r) / full`. Never rebuild instance
   buffers on the CPU per frame.
-- **Pixel ratio** capped at 1.5. Grass never casts shadows. Shadow cascades, or one
+- **Pixel ratio** capped at 1.25. Grass never casts shadows. Shadow cascades, or one
   texel-snapped shadow box that follows the camera.
 - **Speed:** safe speed is roughly (hysteresis band width) / (cross-fade duration).
   A 10 m band with a 0.25 s fade allows ~40 m/s; scale LOD distances with speed.
