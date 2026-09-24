@@ -23,7 +23,7 @@ export const BENCH_LOOK = {
 };
 
 export function createBenches(ctx) {
-  const { scene, maxAniso, cabin } = ctx, BL = BENCH_LOOK, { softDot } = ctx.tex;
+  const { scene, maxAniso, cabin } = ctx, BL = BENCH_LOOK;
   let seed = 7310; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }, rr = (a, b) => a + (b - a) * rnd();
 
   const grainTex = (base, n) => {   // wood grain along the texture's v
@@ -61,36 +61,7 @@ export function createBenches(ctx) {
     g.setAttribute('color', new THREE.BufferAttribute(c, 3)); return g;
   };
 
-  const lamps = [], glows = [], meshes = [];
-  const ironMat = new THREE.MeshStandardMaterial({ color: 0x1d1b19, roughness: 0.55, metalness: 0.6 });
-  const paneMat = new THREE.MeshStandardMaterial({ color: 0xfff2d8, transparent: true, opacity: 0.3, emissive: new THREE.Color(1, 0.72, 0.4), emissiveIntensity: 0.6, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2, metalness: 0 });
-  paneMat.userData.ei = 0.6;
-  const poolTex = canvasTex(128, 128, g => { const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.3, 'rgba(255,255,255,.55)'); r.addColorStop(0.65, 'rgba(255,255,255,.15)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); });
-
-  /** A small iron lantern with its flame at (x, y, z) in the frame `frame` (a Matrix4); returns its lamp entry. */
-  function lantern(frame, x, y, z, pool) {
-    const g = new THREE.Group(); g.applyMatrix4(frame); scene.add(g);
-    const L = new THREE.Group(); L.position.set(x, y, z); g.add(L);
-    const iron = [];
-    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([a, b]) => iron.push(box(0.012, 0.19, 0.012, a * 0.058, 0, b * 0.058)));
-    iron.push(box(0.14, 0.014, 0.14, 0, -0.1, 0), box(0.1, 0.01, 0.1, 0, 0.1, 0));
-    const cap = new THREE.ConeGeometry(0.095, 0.09, 4); cap.rotateY(Math.PI / 4); cap.translate(0, 0.15, 0); iron.push(cap);
-    const ring = new THREE.TorusGeometry(0.025, 0.005, 5, 10); ring.translate(0, 0.21, 0); iron.push(ring);
-    const im = new THREE.Mesh(mergeGeos(iron.map(q => q.index ? q.toNonIndexed() : q), ['position', 'normal']), ironMat); im.castShadow = true; im.receiveShadow = true; L.add(im);
-    [[0, 0.056, 0], [0, -0.056, 0], [0.056, 0, Math.PI / 2], [-0.056, 0, Math.PI / 2]].forEach(([px, pz, r]) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(0.105, 0.18), paneMat); p.position.set(px, 0, pz); p.rotation.y = r; L.add(p); });
-    const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDot, color: 0xffc070, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
-    flame.scale.set(0.05, 0.08, 1); flame.position.set(0, -0.045, 0); flame.renderOrder = 5; L.add(flame);
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDot, color: 0xffa050, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
-    glow.scale.set(BL.lantern.glow, BL.lantern.glow, 1); glow.renderOrder = 5; L.add(glow);
-    glows.push({ s: glow, f: flame, size: BL.lantern.glow, ph: rnd() * 10 });
-    // a warm pool of light on the ground below, following the terrain
-    const P = BL.lantern.pool, wp = new V(x, y, z).applyMatrix4(frame), seg = 14, pg = new THREE.PlaneGeometry(P * 2, P * 2, seg, seg); pg.rotateX(-Math.PI / 2);
-    const pp = pg.attributes.position; for (let k = 0; k < pp.count; k++) { const px = wp.x + pp.getX(k), pz = wp.z + pp.getZ(k); pp.setXYZ(k, px, Math.max(H(px, pz), pool ? pool(px, pz) : -1e9) + 0.03, pz); }
-    const poolMesh = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ map: poolTex, color: new THREE.Color(...BL.lantern.poolColor).multiplyScalar(BL.lantern.poolOpacity), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-    poolMesh.renderOrder = 3; poolMesh.userData.noShadow = true; scene.add(poolMesh);
-    const lamp = { light: { intensity: 0 }, base: 0, flames: [flame, glow, poolMesh], mats: [paneMat] };
-    lamps.push(lamp); return lamp;
-  }
+  const kit = createLanternKit(ctx, rnd), { lantern, ironMat } = kit, meshes = [];
 
   for (const b of BENCHES) {
     const frame = new THREE.Matrix4().makeBasis(new V(b.fz, 0, -b.fx), new V(0, 1, 0), new V(b.fx, 0, b.fz)).setPosition(b.x, 0, b.z);
@@ -150,11 +121,57 @@ export function createBenches(ctx) {
   const cs = SEATS[SEATS.length - 1];
   for (const a of [-0.34, 0, 0.34]) obstacles.add(cs.x + a, cs.z, 0.17, cs.top + BL.collider.top);
 
-  lamps.forEach(l => cabin.lamps.push(l));
-  const on = cabin.lightsOn; lamps.forEach(L => { L.flames.forEach(f => f.visible = on); L.mats.forEach(m => m.emissiveIntensity = on ? m.userData.ei : 0); });
+  kit.register();
+  return { meshes, lamps: kit.lamps, update: kit.update };
+}
+
+/**
+ * Small iron lanterns lit with the cabin's lights (shared by the benches and the jetty): lantern(frame, x, y, z) puts one
+ * at (x, y, z) in `frame` (a Matrix4) with its glass, flame, glow and warm pool on the ground below; register() adds them
+ * to cabin.lamps (so the dusk switch and the Lights button drive them) and sets their state; update(t) flickers them.
+ * rnd: the caller's random numbers.
+ */
+export function createLanternKit(ctx, rnd) {
+  const { scene, cabin } = ctx, BL = BENCH_LOOK, { softDot } = ctx.tex;
+  const box = (w, h, d, x, y, z) => { const g = new THREE.BoxGeometry(w, h, d); rnd(); g.translate(x, y, z); return g; };   // (one draw each, as the benches' boxes)
+  const lamps = [], glows = [];
+  const ironMat = new THREE.MeshStandardMaterial({ color: 0x1d1b19, roughness: 0.55, metalness: 0.6 });
+  const paneMat = new THREE.MeshStandardMaterial({ color: 0xfff2d8, transparent: true, opacity: 0.3, emissive: new THREE.Color(1, 0.72, 0.4), emissiveIntensity: 0.6, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2, metalness: 0 });
+  paneMat.userData.ei = 0.6;
+  const poolTex = canvasTex(128, 128, g => { const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.3, 'rgba(255,255,255,.55)'); r.addColorStop(0.65, 'rgba(255,255,255,.15)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); });
+
+  /** A small iron lantern with its flame at (x, y, z) in the frame `frame` (a Matrix4); returns its lamp entry. */
+  function lantern(frame, x, y, z, pool) {
+    const g = new THREE.Group(); g.applyMatrix4(frame); scene.add(g);
+    const L = new THREE.Group(); L.position.set(x, y, z); g.add(L);
+    const iron = [];
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([a, b]) => iron.push(box(0.012, 0.19, 0.012, a * 0.058, 0, b * 0.058)));
+    iron.push(box(0.14, 0.014, 0.14, 0, -0.1, 0), box(0.1, 0.01, 0.1, 0, 0.1, 0));
+    const cap = new THREE.ConeGeometry(0.095, 0.09, 4); cap.rotateY(Math.PI / 4); cap.translate(0, 0.15, 0); iron.push(cap);
+    const ring = new THREE.TorusGeometry(0.025, 0.005, 5, 10); ring.translate(0, 0.21, 0); iron.push(ring);
+    const im = new THREE.Mesh(mergeGeos(iron.map(q => q.index ? q.toNonIndexed() : q), ['position', 'normal']), ironMat); im.castShadow = true; im.receiveShadow = true; L.add(im);
+    [[0, 0.056, 0], [0, -0.056, 0], [0.056, 0, Math.PI / 2], [-0.056, 0, Math.PI / 2]].forEach(([px, pz, r]) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(0.105, 0.18), paneMat); p.position.set(px, 0, pz); p.rotation.y = r; L.add(p); });
+    const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDot, color: 0xffc070, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    flame.scale.set(0.05, 0.08, 1); flame.position.set(0, -0.045, 0); flame.renderOrder = 5; L.add(flame);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDot, color: 0xffa050, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
+    glow.scale.set(BL.lantern.glow, BL.lantern.glow, 1); glow.renderOrder = 5; L.add(glow);
+    glows.push({ s: glow, f: flame, size: BL.lantern.glow, ph: rnd() * 10 });
+    // a warm pool of light on the ground below, following the terrain
+    const P = BL.lantern.pool, wp = new V(x, y, z).applyMatrix4(frame), seg = 14, pg = new THREE.PlaneGeometry(P * 2, P * 2, seg, seg); pg.rotateX(-Math.PI / 2);
+    const pp = pg.attributes.position; for (let k = 0; k < pp.count; k++) { const px = wp.x + pp.getX(k), pz = wp.z + pp.getZ(k); pp.setXYZ(k, px, Math.max(H(px, pz), pool ? pool(px, pz) : -1e9) + 0.03, pz); }
+    const poolMesh = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ map: poolTex, color: new THREE.Color(...BL.lantern.poolColor).multiplyScalar(BL.lantern.poolOpacity), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    poolMesh.renderOrder = 3; poolMesh.userData.noShadow = true; scene.add(poolMesh);
+    const lamp = { light: { intensity: 0 }, base: 0, flames: [flame, glow, poolMesh], mats: [paneMat] };
+    lamps.push(lamp); return lamp;
+  }
+
+  function register() {
+    lamps.forEach(l => cabin.lamps.push(l));
+    const on = cabin.lightsOn; lamps.forEach(L => { L.flames.forEach(f => f.visible = on); L.mats.forEach(m => m.emissiveIntensity = on ? m.userData.ei : 0); });
+  }
   function update(t) {
     if (!cabin.lightsOn) return;
     for (const g of glows) { const k = 0.9 + 0.1 * Math.sin(t * 9 + g.ph) + 0.05 * Math.sin(t * 21 + g.ph * 2); g.s.scale.set(g.size * k, g.size * k, 1); g.f.scale.set(0.05 * k, 0.08 * (0.9 + 0.2 * k), 1); }
   }
-  return { meshes, lamps, update };
+  return { lantern, register, update, lamps, ironMat };
 }

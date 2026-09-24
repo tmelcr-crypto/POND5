@@ -219,6 +219,17 @@ export function createRoseBush(ctx) {
   small lantern that lights with the cabin's lights (glow and a warm pool on the ground, no real light). The bridge deck
   is walkable; the benches (and the cabin's bench) are solid. Island trees, rocks and undergrowth that would stand on a
   path, the bridge or a bench are dropped after placement, so nothing else on the island moves.
+- **Jetty and sailboat** (`JETTY` in `world/layout.js`; `assets/water/jetty.js`, `assets/water/sailboat.js`): a wooden
+  jetty on the east beach below the sunrise bench, reached by a path that branches off the sunrise path. It has a
+  wider head with bollards, a crate with a fishing net and a coil of rope, side stairs down to the sand where the deck
+  stands high, and a lamp post whose lantern lights with the cabin's lights. The deck and stairs are walkable. A little
+  sailboat (white hull, burgundy and red trim, red jib, wooden ship's wheel) lies moored at the head.
+- **Sailing** (`app/boating.js`, `CONFIG.boat`): the boat button (B on desktop) boards the boat by the jetty (step down
+  to the wheel) or from the shore when it has run aground (a shaky climb). The on-screen wheel slides in as you reach
+  the helm. The left joystick or W / S sets the speed, and left / right turns the wheel, which only turns the boat while
+  it moves and springs back when released. Beyond `maxOffshore` from the shore the boat turns itself back. Near the
+  berth the button docks it (it brings itself in and ties up), then leaves it onto the jetty; elsewhere you can leave
+  only where land is within a jump.
 - **Sitting** (`app/controls.js`, `CONFIG.player.sit`): in front of a bench the seat button (R on desktop) turns you to
   it, walks you up, turns you round and sits you down; seated you can only look around; the stand button raises you and
   gives the controls back.

@@ -110,11 +110,13 @@ export function createFootbridge(ctx) {
     return g.toNonIndexed();
   }
   const slabs = Array.from({ length: FOOTPATH.routes }, () => []);   // one mesh per route, so each is culled on its own
-  FOOTPATH.stones.forEach(s => slabs[s.route].push(slab(s.x, s.z, s.r, s.sx, s.rot, s.sink)));
+  const pathSlab = s => slabs[s.route].push(slab(s.x, s.z, s.r, s.sx, s.rot, s.sink));
+  FOOTPATH.stones.filter(s => s.route <= 2).forEach(pathSlab);
   for (const end of [-1, 1]) for (const v of [-S.v, S.v]) {   // footing stones under the stringer ends
     const u = end * (B.half - 0.02), x = B.x + B.ax * u + B.az * v, z = B.z + B.az * u - B.ax * v;
     slabs[0].push(slab(x, z, rr(0.14, 0.18), rr(1.1, 1.4), rr(0, 6.28), -0.03));
   }
+  FOOTPATH.stones.filter(s => s.route > 2).forEach(pathSlab);   // later routes after the footings, so their random draws stay as they were
   const stoneMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, envMapIntensity: 0.5 });
   const stoneMeshes = slabs.map(list => new THREE.Mesh(mergeGeos(list, ['position', 'normal', 'color']), stoneMat));
 

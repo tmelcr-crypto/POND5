@@ -174,11 +174,46 @@ export const SEATS = [
 
 const BRIDGE_W = [BRIDGE.x - BRIDGE.ax * (BRIDGE.half + 0.35), BRIDGE.z - BRIDGE.az * (BRIDGE.half + 0.35)], BRIDGE_E = [BRIDGE.x + BRIDGE.ax * (BRIDGE.half + 0.35), BRIDGE.z + BRIDGE.az * (BRIDGE.half + 0.35)];
 const [SUNRISE, SUNSET] = BENCHES;
+/*
+ * The jetty on the east beach below the sunrise bench (meshes: assets/water/jetty.js; the boat: assets/water/sailboat.js,
+ * sailing: app/boating.js). It runs along +x at z from where the sand meets its deck (x0) out to x1 over ~2 m of water,
+ * with a wider head at the end; where the deck stands high over the sand, side stairs lead down to the beach. The boat's
+ * berth is along the south side of the head, bow to the sea.
+ */
+export const JETTY = (() => {
+  const z = -18, deckY = 0.35, halfW = 0.7, x1 = 44;
+  let x0 = 25; while (x0 < 32 && H(x0, z) > deckY - 0.02) x0 += 0.05;   // the root: where the beach has dropped to the deck
+  const head = { x0: 41.2, halfW: 1.3 };
+  const stair = { x0: 31.0, x1: 31.9, side: -1, rise: 0.17, run: 0.27 };   // down to the sand on the south side
+  stair.steps = Math.max(1, Math.round((deckY - H((stair.x0 + stair.x1) / 2, z - halfW - 1)) / stair.rise));
+  const berth = { x: 42.6, z: z - head.halfW - 1.15, heading: 0 };      // boat centre and heading (0: bow along +x)
+  const bollards = [[41.55, z - head.halfW + 0.13], [43.75, z - head.halfW + 0.13]];   // on the berth side of the head
+  const pole = [43.72, z + head.halfW - 0.14];                             // the lamp post, on the far corner of the head
+  return { z, deckY, halfW, x0, x1, head, stair, berth, bollards, pole };
+})();
+/** Half-width of the jetty's deck at x (0 off its length). */
+const jettyHalfW = x => x < JETTY.x0 - 0.05 || x > JETTY.x1 ? 0 : x >= JETTY.head.x0 ? JETTY.head.halfW : JETTY.halfW;
+/** The walkable top of the jetty (deck and side stairs) at (x, z), or -Infinity off it. */
+export function jettyDeckY(x, z) {
+  const J = JETTY, dz = z - J.z, hw = jettyHalfW(x);
+  if (hw && Math.abs(dz) <= hw) return J.deckY;
+  const S = J.stair, out = -dz * -S.side - J.halfW;   // metres out from the deck edge on the stair's side
+  if (x >= S.x0 && x <= S.x1 && out > 0 && out <= S.steps * S.run) return J.deckY - Math.ceil(out / S.run) * S.rise;
+  return -Infinity;
+}
+/** Distance to the jetty's footprint, stairs included (< 0 on it). */
+export function jettyDist(x, z) {
+  const J = JETTY, hw = Math.max(jettyHalfW(Math.min(Math.max(x, J.x0), J.x1)), 0.01), dx = Math.max(J.x0 - x, x - J.x1, 0), dz = Math.abs(z - J.z) - hw;
+  let d = dx > 0 || dz > 0 ? Math.hypot(dx, Math.max(dz, 0)) : Math.max(-dz, 0) * -1;
+  const S = J.stair, sz = J.z + S.side * (J.halfW + S.steps * S.run / 2), sx = Math.max(S.x0 - x, x - S.x1, 0), szd = Math.max(Math.abs(z - sz) - S.steps * S.run / 2, 0);
+  return Math.min(d, Math.hypot(sx, szd) - (sx === 0 && szd === 0 ? 0.01 : 0));
+}
 /** The stepping-stone routes: from the cabin to the bridge, and from the bridge to each bench (ending in front of it). */
 const FOOTPATH_ROUTES = [
   { course: FOOTPATH_COURSE, from: 0.05 },
   { course: [BRIDGE_E, [12.2, -12.4], [12.8, -14.6], [13.9, -17.3], [16.5, -18.9], [19.6, -19.1], [22.2, -18.7], benchPoint(SUNRISE, 1.75, 0.2), benchPoint(SUNRISE, 1.1, 0.95), benchPoint(SUNRISE, 0, 1.0)], from: 0.55, bench: SUNRISE },
   { course: [BRIDGE_W, [6.2, -11.4], [3.8, -13.2], [0, -14.4], [-5, -15.3], [-10, -16.0], [-15, -16.4], [-19.5, -16.4], benchPoint(SUNSET, 1.85, 0.25), benchPoint(SUNSET, 1.15, 1.0), benchPoint(SUNSET, 0, 1.05)], from: 0.6, bench: SUNSET },
+  { course: [[21.0, -19.05], [23.4, -19.9], [25.8, -19.5], [27.4, -18.4], [JETTY.x0 - 0.25, JETTY.z]], from: 0.62 },   // branches off the sunrise path down to the jetty
 ];
 export const FOOTPATH = (() => {
   let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }, rr = (a, b) => a + (b - a) * rnd();
@@ -217,8 +252,8 @@ export function benchDist(x, z) {
   }
   return d;
 }
-/** Distance to anything built to walk on or sit at (path stones, bridge, benches): the island's scatter is cleared off these. */
-export function walkwayDist(x, z) { return Math.min(footpathDist(x, z), bridgeDist(x, z), benchDist(x, z)); }
+/** Distance to anything built to walk on or sit at (path stones, bridge, benches, jetty): the island's scatter is cleared off these. */
+export function walkwayDist(x, z) { return Math.min(footpathDist(x, z), bridgeDist(x, z), benchDist(x, z), jettyDist(x, z)); }
 /** Distance to the bridge's footprint (< 0 under the deck). */
 export function bridgeDist(x, z) {
   const B = BRIDGE, dx = x - B.x, dz = z - B.z, u = Math.abs(dx * B.ax + dz * B.az) - B.half, v = Math.abs(dx * B.az - dz * B.ax) - B.width / 2;

@@ -154,4 +154,15 @@ export const CONFIG = {
     // sitting on a bench (app/controls.js): the button shows within `reach` m of a seat, at least `front` m in front of it
     sit: { reach: 2.4, front: 0.35, approach: 0.8, seatF: 0.02, eye: 0.74, walk: 1.1, turn: 2.6, lower: 1.1, rise: 0.9 },   // m, m/s, rad/s, s
   },
+
+  // The sailboat (app/boating.js)
+  boat: {
+    maxSpeed: 3.4, reverse: 0.9,   // m/s ahead, astern
+    accel: 0.9, decel: 1.3,        // m/s^2
+    turnRate: 0.7,                 // rad/s with the wheel hard over at full speed (less when slower, none when still)
+    draft: 0.62,                   // m of water the keel needs
+    maxOffshore: 90,               // m from the shore; beyond it the boat turns itself back towards the island (the fog hides the island much further out)
+    reach: 2.8,                    // m from the hull within which you can board
+    dockReach: 6, dockSpeed: 2.2,  // the dock button shows within this of the berth, slower than this
+  },
 };
