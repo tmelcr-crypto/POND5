@@ -33,6 +33,7 @@ import { createPollen } from './assets/fauna/pollen.js';
 import { createBirds } from './assets/fauna/birds.js';
 import { createAmbience } from './audio/ambience.js';
 import { createWaterLife } from './assets/water/waterLife.js';
+import { createAtmosphere } from './world/atmosphere.js';
 import { createControls } from './app/controls.js';
 import { createDebugOverlay } from './app/debugOverlay.js';
 
@@ -87,10 +88,10 @@ await step(75);
 const undergrowth = createUndergrowth(ctx, { scatter, pollen });
 const birds = createBirds({ ...ctx, skyUniforms });
 await step(88);
-const { setSun, scheduleEnv } = createTimeOfDay({ ...ctx, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin });
+const tod = createTimeOfDay({ ...ctx, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin, setLights }), { scheduleEnv, clock, setHours } = tod;
 
 // Controls + UI
-const { st, move, fmtTime, setSpeed, timeIn, timeV } = createControls({ ...ctx, cabin, toggleDoor, setLights, setSun, scheduleEnv });
+const { st, move, fmtTime, setSpeed, timeIn, timeV, showTime } = createControls({ ...ctx, cabin, toggleDoor, setLights, setHours, clock, scheduleEnv });
 
 // Loop
 const { renderer, scene, camera } = ctx;
@@ -98,7 +99,7 @@ const actEl = document.getElementById('act'), btnDoor = document.getElementById(
 btnDoor.addEventListener('pointerdown', e => { e.preventDefault(); toggleDoor(); });
 document.getElementById('lightsBtn').addEventListener('click', () => setLights(!cabin.lightsOn));
 const posV = document.getElementById('posV'), fpsV = document.getElementById('fpsV');
-let last = performance.now(), fAcc = 0, fN = 0;
+let last = performance.now(), fAcc = 0, fN = 0, tAcc = 0;
 function frame(now) {
   const dt = Math.min(Math.max((now - last) / 1000, 0), 0.05); last = now;
   const t = (U.uTime.value += dt);
@@ -117,6 +118,8 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
+  tod.update(dt); atmosphere.update(dt);
+  if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
   debug.frame(now);
@@ -131,13 +134,14 @@ const cabinMerge = mergeStatic(cabin.group, { ...cabin, group: null }); // ~360 
 const detail = createDetailManager(camera);
 const plotBands = registerPlotDetail(ctx, detail, { spruce: plotSpruce, apple: plotApple, rose: plotRose, reeds: plotReeds, flowers: plotFlowers, outcrop: plotOutcrop, pads, grass: plotGrass, pollen, cabin });
 const ambience = createAmbience({ ...ctx, detail, skyUniforms, cabin });   // sound starts on the Start tap
+const atmosphere = createAtmosphere({ ...ctx, detail, skyUniforms, clock, cabin, ground });   // haze, morning mist, shooting stars, moths
 const waterLife = createWaterLife({ ...ctx, detail, skyUniforms, ocean });   // fish rises, dragonflies, shore foam
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
-setSun(+timeIn.value); timeV.textContent = fmtTime(+timeIn.value); scheduleEnv(true); setSpeed(2.2);
+timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);
 await step(95, 'Preparing graphics');
 renderer.compile(scene, camera);   // every program now (everything is still visible), so nothing hitches when it first appears

@@ -124,7 +124,13 @@ export const CONFIG = {
     strength: 0.35,         // share of direct sunlight a full shadow takes away at midday (fades to 0 as the sun sets)
     speed: [1.5, 5],        // drift, m/s: speed[0] + speed[1] * the wind setting, along the wind direction
   },
-  fog: { density: 0.011 },  // FogExp2 density; colour follows the sky horizon
+  fog: { density: 0.011 },  // FogExp2 density at midday, the day's minimum (world/atmosphere.js thickens it at dawn / dusk); colour follows the sky horizon
+  time: {
+    dayMinutes: 18,         // real minutes for one 24 h day
+    start: 16.5,            // hour at load
+    sunEvery: 0.2,          // s between sun / sky updates
+    envEvery: [4, 15],      // s between rebuilds of the sky's environment map: around dawn and dusk, otherwise
+  },
   camera: { far: 150, fov: 72 },
 
   // Rendering
