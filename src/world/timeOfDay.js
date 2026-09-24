@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { V, clamp, smooth } from '../core/math.js';
 import { U } from '../core/uniforms.js';
+import { CLOUD } from '../core/shaderPatches.js';
 import { CONFIG } from '../config.js';
 
 /**
@@ -36,6 +37,7 @@ export function createTimeOfDay(ctx) {
     else { sun.color.setRGB(0.55, 0.68, 1.0); sun.intensity = moonI; sun.userData.dir.copy(moonDir); }
     sun.position.copy(sun.userData.dir).multiplyScalar(20).add(sun.target.position);
     U.uSunCol.value.copy(sc).multiplyScalar(vis); U.uSunI.value = sunI;
+    CLOUD.uCloudStrength.value = CONFIG.clouds.strength * k * vis;   // full at midday, gone by sunset (and for the moon)
     skyUniforms.uSunDir.value.copy(sunDir); skyUniforms.uSunCol.value.copy(sc).multiplyScalar(vis);
     const zD = new THREE.Color(0.12, 0.2, 0.42).lerp(new THREE.Color(0.17, 0.38, 0.8), k), hD = new THREE.Color(0.95, 0.56, 0.38).lerp(new THREE.Color(0.66, 0.79, 0.92), k);
     skyUniforms.uZenith.value.setRGB(0.004, 0.008, 0.026).lerp(zD, day);

@@ -68,7 +68,7 @@ src/
   config.js                 Every tunable of the 100 x 100 m world (size, seed, grass, trees, LOD, shadows, fog, player)
   engine/
     createEngine.js         Renderer (ACES, sRGB, soft shadows), scene with fog, camera, resize
-    finalizeScene.js        Post-build pass: point-light masking, program cache keys, instanced culling bounds
+    finalizeScene.js        Post-build pass: point-light masking, cloud shadows, program cache keys, instanced culling bounds
     mergeStatic.js          Merges static meshes sharing a material (the cabin: ~350 meshes -> ~95 draws)
     detailManager.js        Distance bands (checked 4x a second, 15% hysteresis) that switch visibility / per-frame work
   core/                     Reusable, scene-independent helpers
@@ -78,7 +78,7 @@ src/
     geometry.js             weld, blobGeo, paint, mergeGeos, limb, joint
     canvasTexture.js        canvasTex: draw a texture with the 2D canvas API
     uniforms.js             Shared shader uniforms (time, wind, sun)
-    shaderPatches.js        addFlutter / addWorldSway / addThinning / addDistanceFade material patches
+    shaderPatches.js        addFlutter / addWorldSway / addThinning / addDistanceFade / addCloudShadow material patches
     env.js                  isTouch (quality scaling)
   world/                    The site itself
     layout.js               Site plan: asset positions, H(x, z) (diorama inside the plot, hills, beach and
@@ -140,7 +140,7 @@ export function createRoseBush(ctx) {
    `assets/vegetation/grass.js` like `inRose` / `inRocks`).
 3. Import it in `src/main.js` and call it after the existing builders (to keep the current look intact).
 4. Outdoor `MeshStandardMaterial`s are picked up automatically by `finalizeScene`
-   (they ignore the cabin's interior point lights).
+   (they ignore the cabin's interior point lights and get the drifting cloud shadows).
 
 ## The world around the plot
 
@@ -204,6 +204,11 @@ export function createRoseBush(ctx) {
   the island's 4 m rule. Terrain, pond, cabin exterior, chimney smoke, the outcrop rock and stones always draw. The
   manager only switches things once they are fully faded, a few times a second with hysteresis; lights are never
   toggled (intensity only), and every shader is compiled once at load (`renderer.compile`).
+- **Cloud shadows** (`core/shaderPatches.js` `addCloudShadow`, `CONFIG.clouds`): one tileable canvas texture of soft
+  cloud footprints (`cloudField` in `core/noise.js`, roughly 20-60 m across) lies flat over the world and drifts with the
+  wind. `finalizeScene` puts it on every lit material except the cabin interior. It dims only the sun's direct light
+  (diffuse and specular) with one texture lookup per fragment, never the sky / ambient light or the cabin's lamps and
+  fire; its strength (35% at midday) follows the sun down to nothing at sunset.
 - **Build order:** the world is built after every diorama asset and reseeds the random stream with
   `CONFIG.world.seed`, so the plot looks exactly as before and the world can be re-rolled on its own.
 - **Tuning:** every number lives in `src/config.js`.

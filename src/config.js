@@ -114,6 +114,16 @@ export const CONFIG = {
     shadowDistance: 60,     // sun is placed this far from the player along the sun direction
     hemiIntensity: 1,       // multiplier on the time-of-day hemisphere fill
   },
+  // Soft cloud shadows drifting over the island (core/shaderPatches.js addCloudShadow): they dim only direct sunlight
+  clouds: {
+    tile: 320,              // metres one repeat of the cloud texture covers
+    sizes: [22, 64],        // nominal cloud size range, m: the shadows come out roughly 20-60 m across
+    coverage: 0.3,          // clouds are placed until they cover this share of the sky (shadows end up ~35% of the ground)
+    soft: 7,                // metres of soft edge (made ragged by noise)
+    seed: 17,               // the cloud layout (independent of the world seed)
+    strength: 0.35,         // share of direct sunlight a full shadow takes away at midday (fades to 0 as the sun sets)
+    speed: [1.5, 5],        // drift, m/s: speed[0] + speed[1] * the wind setting, along the wind direction
+  },
   fog: { density: 0.011 },  // FogExp2 density; colour follows the sky horizon
   camera: { far: 150, fov: 72 },
 
