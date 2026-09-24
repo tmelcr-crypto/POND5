@@ -69,10 +69,6 @@ body.touch .desk-only{display:none}
 #vbtns{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));display:none;flex-direction:column;gap:12px;z-index:4}
 body.touch.playing #vbtns{display:flex}
 body.playing:not(.touch) #vbtns{display:flex}body:not(.touch) #vbtns>:not(#btnSeat):not(#btnBoat){display:none!important}   /* desktop: only the seat and boat buttons */
-#helm{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:translate(-50%,110%);z-index:2;pointer-events:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,.45))}
-#helmWheel{display:block;transition:none}
-#helmWheel line{stroke:#6b4221;stroke-width:5;stroke-linecap:round}#helmWheel line.h{stroke:#8a5a2e;stroke-width:8}
-#helmWheel .rim{fill:none;stroke:#7a4a24;stroke-width:9}#helmWheel .rim2{fill:none;stroke:#5a3418;stroke-width:2}#helmWheel .hub{fill:#8a5a2e;stroke:#4a2c14;stroke-width:3}
 #btnSeat.busy{opacity:.45;pointer-events:none}
 .tbtn{width:62px;height:62px;border-radius:50%;color:var(--ink);font:inherit;font-size:.78rem;font-weight:600;display:grid;place-items:center;touch-action:none;cursor:pointer}
 .tbtn.on{background:rgba(240,196,105,.55)}

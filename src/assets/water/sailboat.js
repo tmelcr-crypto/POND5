@@ -16,7 +16,7 @@ export const BOAT_LOOK = {
   length: 4.6, beam: 1.9, sheer: [0.55, 0.7], bottom: -0.38, draft: 0.62,   // m; sheer at the stern and the bow; draft with the keel
   cockpit: { x0: -2.05, x1: 0.35, halfW: 0.6, floor: 0.24 },
   cabin: { x0: 0.35, x1: 1.35, halfW: 0.52, height: 0.3 },
-  mast: { x: 0.9, height: 5.3 }, boom: { y: 1.25, x1: -1.75 },
+  mast: { x: 0.9, height: 5.3 }, boom: { y: 1.25, x1: -0.95 },   // the boom ends well before the wheel
   wheel: { x: -1.42, y: 1.0, r: 0.34 },
   helm: new V(-1.95, 0.24 + 1.5, 0),        // eye of the helmsman, standing behind the wheel
   colors: { hull: 0xf4f2ec, stripe: 0x6e1423, boot: 0xb3202a, bottom: 0x7a1c22, teak: 0xa2764a, trim: 0xe8e4da, mast: 0xd8dadc, main: 0xf3efe6, band: 0x6e1423, jib: 0xc0242c, wood: 0x7a4a22 },
@@ -90,7 +90,7 @@ export function createSailboat(ctx) {
   const rod = (a, b, r0, r1 = r0, radial = 8) => { const d = b.clone().sub(a), g = new THREE.CylinderGeometry(r1, r0, d.length(), radial, 1); g.translate(0, d.length() / 2, 0); g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new V(0, 1, 0), d.normalize()))); g.translate(a.x, a.y, a.z); return g.toNonIndexed(); };
   const M = BL.mast, B = BL.boom, deckAt = x => sheer(x) + (x > BL.cabin.x0 && x < BL.cabin.x1 ? BL.cabin.height : 0);
   const mastTop = new V(M.x, M.height, 0), bow = new V(L - 0.08, sheer(L) + 0.02, 0), stern = new V(-L + 0.15, sheer(-L), 0);
-  const rig = [rod(new V(M.x, deckAt(M.x) - 0.2, 0), mastTop, 0.05, 0.035), rod(new V(M.x, B.y, 0), new V(B.x1, B.y + 0.05, 0), 0.035, 0.03)];
+  const rig = [rod(new V(M.x, deckAt(M.x) - 0.2, 0), mastTop, 0.05, 0.035)];
   const stays = [rod(mastTop, bow, 0.006), rod(mastTop, stern, 0.006), rod(new V(M.x, M.height * 0.8, 0), new V(M.x - 0.1, sheer(M.x), halfBeam(M.x) - 0.05), 0.005), rod(new V(M.x, M.height * 0.8, 0), new V(M.x - 0.1, sheer(M.x), -(halfBeam(M.x) - 0.05)), 0.005)];
   group.add(new THREE.Mesh(mergeGeos(rig, ['position', 'normal']), new THREE.MeshStandardMaterial({ color: lin(C.mast), roughness: 0.3, metalness: 0.6 })));
   group.add(new THREE.Mesh(mergeGeos(stays, ['position', 'normal']), new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.5, metalness: 0.4 })));
@@ -109,7 +109,11 @@ export function createSailboat(ctx) {
   const sailMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
   const main = sail(new V(M.x - 0.05, B.y + 0.04, 0), new V(M.x - 0.05, M.height - 0.25, 0), new V(B.x1 + 0.05, B.y + 0.08, 0), 0.14, (u, v, p) => p.y > 2.25 && p.y < 2.55 ? C.band : C.main);
   const jib = sail(new V(L - 0.12, sheer(L) + 0.08, 0), new V(M.x + 0.06, M.height * 0.78, 0), new V(M.x + 0.15, 0.95, -0.35), -0.1, () => C.jib);
-  const sails = new THREE.Mesh(mergeGeos([main.toNonIndexed(), jib.toNonIndexed()], ['position', 'normal', 'color']), sailMat); group.add(sails);
+  const sails = new THREE.Mesh(mergeGeos([jib.toNonIndexed()], ['position', 'normal', 'color']), sailMat); group.add(sails);
+  // the boom and the mainsail swing together about the mast (boom.rotation.y), e.g. out of the way when leaving the boat
+  const boom = new THREE.Group(); boom.position.set(M.x, 0, 0); group.add(boom);
+  main.translate(-M.x, 0, 0); boom.add(new THREE.Mesh(main, sailMat));
+  const boomRod = rod(new V(0, B.y, 0), new V(B.x1 - M.x, B.y + 0.05, 0), 0.035, 0.03); boom.add(new THREE.Mesh(boomRod, new THREE.MeshStandardMaterial({ color: lin(C.mast), roughness: 0.3, metalness: 0.6 })));
 
   /* ---- the ship's wheel: pedestal, rim, eight spokes with handles, hub ---- */
   const W = BL.wheel, wheelMat = new THREE.MeshStandardMaterial({ color: lin(C.wood), roughness: 0.35, metalness: 0, envMapIntensity: 0.7 });
@@ -141,5 +145,5 @@ export function createSailboat(ctx) {
   function setPose(x, z, heading, roll = 0, pitch = 0, bob = 0) { group.position.set(x, SEA_Y + bob, z); group.rotation.set(roll, -heading, pitch); }
   setPose(JETTY.berth.x, JETTY.berth.z, JETTY.berth.heading);
   mooringLines(true);
-  return { group, wheel, setPose, mooringLines, sheer, halfBeam, keelY, helm: BL.helm };
+  return { group, wheel, boom, setPose, mooringLines, sheer, halfBeam, keelY, helm: BL.helm };
 }

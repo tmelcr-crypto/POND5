@@ -16,9 +16,9 @@ import { H, SEA_Y, JETTY, coastDist, jettyDeckY, jettyDist } from '../world/layo
  *  - exit elsewhere: only where there is land within a jump of the boat; you walk forward and jump ashore.
  * While an animation plays nothing else moves you. update(dt) returns true while the boat has the camera.
  */
-export function createBoating({ camera, st, boat }) {
+export function createBoating({ camera, st, boat, resetInput = () => {} }) {
   const BC = CONFIG.boat, PC = CONFIG.player, J = JETTY;
-  const btn = document.getElementById('btnBoat'), helmEl = document.getElementById('helm'), helmWheel = document.getElementById('helmWheel');
+  const btn = document.getElementById('btnBoat');
   const svg = p => `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
   const ICONS = {
     board: svg('<path d="M3 16h18l-3 4H6z"/><path d="M12 4v12"/><path d="M12 5l6 9h-6"/><path d="M6 3v6M3.5 6.5L6 9l2.5-2.5"/>'),
@@ -26,7 +26,8 @@ export function createBoating({ camera, st, boat }) {
     exit: svg('<path d="M3 17h13l-2.5 3.5H5.5z"/><path d="M9 6v11"/><path d="M9 7l4.5 7H9"/><path d="M17 13V4M14.5 6.5L17 4l2.5 2.5"/>'),
   };
   const b = { x: J.berth.x, z: J.berth.z, h: J.berth.heading, speed: 0, docked: true, aground: false };
-  let mode = null, anim = null, wheelA = 0, hud = 0, auto = false, T = 0, check = 0, action = '';
+  let mode = null, anim = null, wheelA = 0, boomA = 0, boomTo = 0, auto = false, T = 0, check = 0, action = '';
+  const boom = () => boat.boom;
   const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a)), yawTo = (dx, dz) => Math.atan2(-dx, -dz), ease = t => t * t * (3 - 2 * t);
   const bowYaw = h => -Math.PI / 2 - h;   // the camera yaw that looks along the bow
   const toWorld = (lx, ly, lz) => { boat.group.updateMatrixWorld(); return new V(lx, ly, lz).applyMatrix4(boat.group.matrixWorld); };
@@ -36,6 +37,7 @@ export function createBoating({ camera, st, boat }) {
     const calm = b.docked || b.aground ? 0.35 : 1, heel = -wheelA * clamp(b.speed / BC.maxSpeed, -1, 1) * 0.1;
     boat.setPose(b.x, b.z, b.h, (0.025 * Math.sin(T * 0.9) + 0.012 * Math.sin(T * 1.7)) * calm + heel, (0.014 * Math.sin(T * 1.1 + 1)) * calm, (0.03 * Math.sin(T * 1.3) + 0.012 * Math.sin(T * 2.3)) * calm);
     boat.wheel.rotation.x = -wheelA * 2.2;
+    boom().rotation.y = boomA;
   }
   pose();
 
@@ -66,7 +68,6 @@ export function createBoating({ camera, st, boat }) {
     btn.style.display = a && a !== 'busy' ? '' : 'none';
     if (a && a !== 'busy') { btn.innerHTML = ICONS[a]; btn.setAttribute('aria-label', { board: 'Board the boat', dock: 'Dock at the jetty', exit: 'Leave the boat' }[a]); }
   }
-  function setHud(k) { hud = k; if (!helmEl) return; helmEl.style.display = k > 0.001 ? '' : 'none'; helmEl.style.transform = `translate(-50%, ${(1 - k) * 110}%)`; helmEl.style.opacity = String(Math.min(1, k * 1.5)); }
   const step = (dur, f) => ({ dur: Math.max(dur, 0.05), f });
   function play(steps, then) { anim = { steps, i: 0, t: 0, then }; setButton('busy'); }
 
@@ -76,13 +77,13 @@ export function createBoating({ camera, st, boat }) {
     const helm = () => toWorld(boat.helm.x, boat.helm.y, boat.helm.z);
     const yawB = yawTo(b.x - p0.x, b.z - p0.z), d1 = wrapA(yawB - y0);
     const turn = step(Math.abs(d1) / 2.6 + 0.25, k => { st.yaw = y0 + d1 * k; st.pitch = pi0 + (-0.25 - pi0) * k; });
-    mode = 'boarding'; st.vel.set(0, 0, 0);
+    mode = 'boarding'; st.vel.set(0, 0, 0); resetInput();
     if (fromJetty) {   // step down into the cockpit, turning to the wheel; the wheel slides up with the step
       let e = null, yS = 0, dS = 0;
       const dur = Math.max(1.8, p0.distanceTo(helm()) / 1.1);
       play([turn, step(0.01, () => { e = helm(); yS = st.yaw; dS = wrapA(bowYaw(b.h) - yS); }),
-        step(dur, k => { e = helm(); st.pos.set(p0.x + (e.x - p0.x) * k, p0.y + (e.y - p0.y) * k + Math.sin(k * Math.PI) * 0.12, p0.z + (e.z - p0.z) * k); st.yaw = yS + dS * ease(Math.min(1, k * 1.3)); st.pitch = -0.25 + 0.2 * k; setHud(k); })],
-      () => { mode = b.docked ? 'moored' : 'sailing'; setHud(1); });
+        step(dur, k => { e = helm(); st.pos.set(p0.x + (e.x - p0.x) * k, p0.y + (e.y - p0.y) * k + Math.sin(k * Math.PI) * 0.12, p0.z + (e.z - p0.z) * k); st.yaw = yS + dS * ease(Math.min(1, k * 1.3)); st.pitch = -0.25 + 0.2 * k; })],
+      () => { mode = b.docked ? 'moored' : 'sailing'; });
     } else {           // from the shore: walk to its side, then clamber over the gunwale (shaky)
       const c = Math.cos(b.h), s = Math.sin(b.h), dx = p0.x - b.x, dz = p0.z - b.z, lx = clamp(c * dx + s * dz, -1.6, 1.8), side = -s * dx + c * dz > 0 ? 1 : -1;
       const lz = side * (boat.halfBeam(lx) + 0.45), sx = b.x + c * lx - s * lz, sz = b.z + s * lx + c * lz, sy = eyeAt(sx, sz), walk = Math.hypot(sx - p0.x, sz - p0.z);
@@ -92,8 +93,8 @@ export function createBoating({ camera, st, boat }) {
         step(walk / 1.1, k => { st.pos.set(p0.x + (sx - p0.x) * k, 0, p0.z + (sz - p0.z) * k); st.pos.y = eyeAt(st.pos.x, st.pos.z) + (p0.y - eyeAt(p0.x, p0.z)) * (1 - k); }),
         step(0.9, k => { st.pos.set(sx + (g.x - sx) * k * 0.6, sy + (g.y + 0.9 - sy) * k + shake(k * 3), sz + (g.z - sz) * k * 0.6); st.pitch = -0.25 - 0.3 * Math.sin(k * Math.PI) + shake(k * 2.1) * 2; st.yaw += shake(k * 1.7) * 0.05; }),   // haul up
         step(0.01, () => { e = helm(); yS = st.yaw; dS = wrapA(bowYaw(b.h) - yS); }),
-        step(1.3, k => { e = helm(); const a = new V(sx + (g.x - sx) * 0.6, g.y + 0.9, sz + (g.z - sz) * 0.6); st.pos.set(a.x + (e.x - a.x) * k, a.y + (e.y - a.y) * k + shake(k * 2.5 + 3) * (1 - k), a.z + (e.z - a.z) * k); st.yaw = yS + dS * ease(k); st.pitch = -0.4 + 0.35 * k + shake(k * 3 + 1) * (1 - k); setHud(k); })],   // over the gunwale, to the wheel
-      () => { mode = 'sailing'; setHud(1); });
+        step(1.3, k => { e = helm(); const a = new V(sx + (g.x - sx) * 0.6, g.y + 0.9, sz + (g.z - sz) * 0.6); st.pos.set(a.x + (e.x - a.x) * k, a.y + (e.y - a.y) * k + shake(k * 2.5 + 3) * (1 - k), a.z + (e.z - a.z) * k); st.yaw = yS + dS * ease(k); st.pitch = -0.4 + 0.35 * k + shake(k * 3 + 1) * (1 - k); })],   // over the gunwale, to the wheel
+      () => { mode = 'sailing'; });
     }
   }
   /* ---- dock ---- */
@@ -112,15 +113,17 @@ export function createBoating({ camera, st, boat }) {
     land.y = eyeAt(land.x, land.z);
     const yawL = yawTo(land.x - p0.x, land.z - p0.z), d1 = wrapA(yawL - y0);
     mode = 'leaving';
-    const steps = [step(Math.abs(d1) / 2.6 + 0.3, k => { st.yaw = y0 + d1 * k; st.pitch = pi0 + (-0.2 - pi0) * k; setHud(1 - k); })];
+    const steps = [step(Math.abs(d1) / 2.6 + 0.3, k => { st.yaw = y0 + d1 * k; st.pitch = pi0 + (-0.2 - pi0) * k; })];
     let from = p0;
-    if (!b.docked && land.distanceTo(p0) > 3) {   // walk forward along the deck first, then jump
-      const c = Math.cos(b.h), s = Math.sin(b.h), fl = 1.6, mid = new V(b.x + c * fl, SEA_Y + boat.sheer(fl) + PC.eyeHeight, b.z + s * fl); from = mid;
+    if (!b.docked) {   // along the side deck on the landing's side (the boom swings out the other way), then jump
+      const c = Math.cos(b.h), s = Math.sin(b.h), dx = land.x - b.x, dz = land.z - b.z, lx = clamp(c * dx + s * dz, -0.6, 1.9), side = -s * dx + c * dz >= 0 ? 1 : -1;
+      const lz = side * (boat.halfBeam(lx) - 0.28), mid = new V(b.x + c * lx - s * lz, SEA_Y + boat.sheer(lx) + PC.eyeHeight, b.z + s * lx + c * lz); from = mid;
+      boomTo = -side * 0.9;
       steps.push(step(p0.distanceTo(mid) / 1.0, k => { st.pos.lerpVectors(p0, mid, k); st.pos.y += Math.sin(k * Math.PI) * 0.15; st.yaw = yawTo(land.x - st.pos.x, land.z - st.pos.z); }));
     }
     const f0 = () => from;
     steps.push(step(Math.max(0.9, land.distanceTo(f0()) / 2.2), k => { const a = f0(); st.pos.lerpVectors(a, land, k); st.pos.y += Math.sin(k * Math.PI) * arc + (k > 0.85 ? -Math.sin((k - 0.85) / 0.15 * Math.PI) * 0.08 : 0); st.pitch = -0.2 + 0.1 * k; }));
-    play(steps, () => { mode = null; st.vel.set(0, 0, 0); st.grounded = true; setHud(0); });
+    play(steps, () => { mode = null; st.vel.set(0, 0, 0); st.grounded = true; boomTo = 0; resetInput(); });   // a fresh touch is needed to walk
   }
 
   function act() {
@@ -153,7 +156,7 @@ export function createBoating({ camera, st, boat }) {
   }
 
   function update(dt) {
-    T += dt;
+    T += dt; boomA += (boomTo - boomA) * Math.min(1, dt * 2.5);
     if (!mode) {
       st.aboard = false;
       if ((check -= dt) <= 0) { check = 0.15; const near = st.walk && st.playing && hullDist(st.pos.x, st.pos.z) < BC.reach && (jettyDeckY(st.pos.x, st.pos.z) > -1e9 || b.aground || H(st.pos.x, st.pos.z) > SEA_Y - CONFIG.island.wadeDepth); setButton(near ? 'board' : ''); }
@@ -167,7 +170,6 @@ export function createBoating({ camera, st, boat }) {
       else { anim = null; action = ''; A.then(); }
     } else if (mode === 'sailing' || mode === 'moored') sail(dt);
     pose();
-    if (helmWheel) helmWheel.style.transform = `rotate(${wheelA * 120}deg)`;
     if (mode === 'sailing' || mode === 'moored' || mode === 'docking') st.pos.copy(toWorld(boat.helm.x, boat.helm.y, boat.helm.z));   // standing at the wheel
     if (mode === 'sailing' || mode === 'moored') {
       if ((check -= dt) <= 0) { check = 0.15; setButton(mode === 'moored' ? 'exit' : nearBerth() ? 'dock' : Math.abs(b.speed) < 0.4 && landing() ? 'exit' : ''); }   // ashore only once it has (nearly) stopped

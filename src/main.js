@@ -99,7 +99,7 @@ await step(88);
 const tod = createTimeOfDay({ ...ctx, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin, setLights }), { scheduleEnv, clock, setHours } = tod;
 
 // Controls + UI
-const { st, move, fmtTime, setSpeed, timeIn, timeV, showTime, setVehicle } = createControls({ ...ctx, cabin, toggleDoor, setLights, setHours, clock, scheduleEnv });
+const { st, move, fmtTime, setSpeed, timeIn, timeV, showTime, setVehicle, resetInput } = createControls({ ...ctx, cabin, toggleDoor, setLights, setHours, clock, scheduleEnv });
 
 // Loop
 const { renderer, scene, camera } = ctx;
@@ -148,7 +148,7 @@ const footbridge = createFootbridge(ctx);   // the footbridge over the stream an
 const benches = createBenches({ ...ctx, cabin });   // the sunrise and sunset benches with their lanterns
 const jetty = createJetty({ ...ctx, cabin });   // the jetty on the east beach with its lamp post
 const boat = createSailboat(ctx);   // the sailboat at the jetty
-const boating = createBoating({ camera: ctx.camera, st, boat }); setVehicle(boating.update);   // boarding, sailing, docking
+const boating = createBoating({ camera: ctx.camera, st, boat, resetInput }); setVehicle(boating.update);   // boarding, sailing, docking
 const horizon = createHorizon({ ...ctx, skyUniforms });   // distant sailboat, lighthouse
 const moments = createSmallMoments({ ...ctx, detail, plot: { apple: plotApple, spruce: plotSpruce, rose: plotRose } });   // falling leaves, apples, cones, rose petals
 const waterLife = createWaterLife({ ...ctx, detail, skyUniforms, ocean });   // fish rises, dragonflies, shore foam
