@@ -220,6 +220,12 @@ export function createRoseBush(ctx) {
   by 10:00) and a little at dusk and night, never below the midday density; morning mist (05:00-09:00) in soft layers
   over the pond and the sea near the shore, drifting with the wind and burning off as the sun climbs; a faint shooting
   star every 40-90 s at night; moths at the lit windows at night while the cabin lights are on.
+- **Small moments** (`assets/fauna/smallMoments.js`, numbers in `MOMENTS`): around the plot's apple tree, spruce and rose
+  bush, within their 15 m full-detail band. A leaf detaches from the apple crown every 6-20 s, flutters down with the
+  wind, lies ~20 s and fades (at most 6); every 3-6 minutes an apple (or a spruce cone) drops, bounces, rolls downhill
+  and rests (at most 8 of each on the ground, oldest removed first); in windy gusts 2-4 rose petals skip along the
+  ground and fade. Uses the plot's own leaf cards, apples, cones and fallen-petal geometry; everything rests on H(x, z)
+  (or on the pond's surface).
 - **Cloud shadows** (`core/shaderPatches.js` `addCloudShadow`, `CONFIG.clouds`): one tileable canvas texture of soft
   cloud footprints (`cloudField` in `core/noise.js`, roughly 20-60 m across) lies flat over the world and drifts with the
   wind. `finalizeScene` puts it on every lit material except the cabin interior. It dims only the sun's direct light
