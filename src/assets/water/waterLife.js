@@ -6,9 +6,10 @@ import { lin } from '../../core/math.js';
 
 /**
  * Small life on and around the water: fish rises (a ring spreading on the surface and fading) on the pond and on the
- * sea near the shore, and dragonflies darting and hovering over the pond by day. Each part runs only while its
- * detail-manager band is on (no updates, nothing drawn otherwise); day and night come from the sky's night value
- * (skyUniforms.uNight). Every number is in WATER.
+ * sea near the shore, dragonflies darting and hovering over the pond by day, and soft shore foam breaking and fading
+ * in slow pulses where the sea meets the island (added to the sea's shader at its shore-foam marker). Each part runs
+ * only while its detail-manager band is on (no updates, nothing drawn otherwise); day and night come from the sky's
+ * night value (skyUniforms.uNight). Every number is in WATER.
  */
 export const WATER = {
   rise: {
@@ -34,10 +35,19 @@ export const WATER = {
     flap: 27,                      // wing beats per second (reads as a shimmer at 60 fps)
     body: 0.075,                   // m, head to tail
   },
+  foam: {
+    depth: 0.6,                    // m of water: the band runs from the waterline out to this depth (~2.5 m of sea)
+    period: 8,                     // s between waves (it wobbles by +-`wobble` of a wave, so 7-9 s)
+    wobble: 0.12,
+    stagger: 1.7,                  // waves along the coast break this many periods apart at most (so the shore never pulses as one)
+    lace: 2.2,                     // foam bubbles per metre (roughly)
+    strength: 0.85,                // at the breaking line
+    color: 0xe7ede9,
+  },
 };
 const rr = (a, b) => a + (b - a) * Math.random();
 
-/** createWaterLife(ctx): ctx needs scene, camera, detail and skyUniforms. Returns update(dt) and stats. */
+/** createWaterLife(ctx): ctx needs scene, camera, detail and skyUniforms; ctx.ocean (createOcean) gets the shore foam. Returns update(dt) and stats. */
 export function createWaterLife(ctx) {
   const { scene, camera, detail, skyUniforms } = ctx, W = WATER, V3 = THREE.Vector3;
   const stats = { rings: 0, dragonflies: 0, updateMs: 0 };
@@ -97,6 +107,39 @@ export function createWaterLife(ctx) {
     { spawn: pondRise, next: rr(1, 4), band: null },
     { spawn: seaRise, next: rr(1, 4), band: null },
   ];
+
+  /* ---- shore foam, in the sea's own shader: a breaking line that runs in to the waterline and slows, leaving lace
+     that fades until the next wave; each stretch of coast breaks at its own moment; a faint wet edge always ---- */
+  const F = W.foam, foamU = { uFoam: { value: new THREE.Vector4(F.depth, F.period, F.strength, F.lace) }, uFoamMix: { value: new THREE.Vector2(F.wobble, F.stagger) }, uFoamCol: { value: lin(F.color) } };
+  if (ctx.ocean) {
+    const mat = ctx.ocean.sea.material, prev = mat.onBeforeCompile;
+    mat.onBeforeCompile = (sh, r) => {
+      prev.call(mat, sh, r);
+      Object.assign(sh.uniforms, foamU);
+      sh.fragmentShader = `uniform vec4 uFoam; uniform vec2 uFoamMix; uniform vec3 uFoamCol;
+        float foamHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float foamNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(foamHash(i), foamHash(i + vec2(1.0, 0.0)), f.x), mix(foamHash(i + vec2(0.0, 1.0)), foamHash(i + vec2(1.0, 1.0)), f.x), f.y); }
+        ` + sh.fragmentShader.replace('/* shore-foam */', `
+        float shoreFoam = 0.0;
+        if (depth > -0.3 && depth < uFoam.x) {                  // only the thin strip of sea at the shore (not under the beach)
+          vec2 fp = vWP.xz;
+          float dn = max(depth, 0.0) / uFoam.x;                  // 0 at the waterline .. 1 at the band's outer edge
+          float ph = uTime / uFoam.y + uFoamMix.x * sin(uTime * 0.05) + (foamNoise(fp * 0.07) + 0.25 * foamNoise(fp * 0.19 + 7.3)) * uFoamMix.y;
+          float sw = fract(ph);                                  // 0: the wave breaks at the outer edge .. 1: washed out
+          float front = pow(1.0 - sw, 1.6);                      // the breaking line runs in and slows up the beach
+          float lace = smoothstep(0.3, 0.75, 0.62 * foamNoise(fp * uFoam.w + vec2(uTime * 0.13, -uTime * 0.09)) + 0.38 * foamNoise(fp * uFoam.w * 2.7 - uTime * 0.2));
+          float q = (dn - front) / 0.08;
+          float line = exp(-q * q) * (0.65 + 0.35 * lace) * (1.0 - 0.5 * sw);
+          float trail = smoothstep(front + 0.06, front - 0.1, dn) * pow(1.0 - sw, 1.3) * lace * 0.8;
+          float edge = (1.0 - smoothstep(0.0, 0.1, dn)) * (0.3 + 0.35 * lace);
+          shoreFoam = clamp(max(line, trail) + edge, 0.0, 1.0) * (1.0 - smoothstep(0.7, 1.0, dn)) * uFoam.z;
+          diffuseColor.rgb = mix(diffuseColor.rgb, uFoamCol, shoreFoam);
+        }
+        `).replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.85, shoreFoam);   // foam is matte');
+    };
+    mat.needsUpdate = true;
+  }
 
   /* ---- dragonflies: an instanced body (head, thorax, tapering abdomen) and four instanced translucent wings each ---- */
   const D = W.dragonflies, s = D.body / 0.075;
@@ -190,7 +233,7 @@ export function createWaterLife(ctx) {
   if (detail) {
     waters[0].band = detail.band('pond rises', pondBox, W.pond.band, () => {});
     const R = 50;   // the island and its shore
-    waters[1].band = detail.band('sea rises', { min: new V(-R, SEA_Y - 1, -R), max: new V(R, SEA_Y + 20, R) }, W.sea.band, () => {});
+    waters[1].band = detail.band('sea rises', { min: new V(-R, SEA_Y - 1, -R), max: new V(R, SEA_Y + 20, R) }, W.sea.band, on => { foamU.uFoam.value.x = on ? F.depth : -1; });   // off: the foam code is skipped
     detail.band('dragonflies', pondBox, D.band, on => { fliesOn = on; if (!on) { bodies.visible = wings.visible = false; stats.dragonflies = 0; } });
   } else { waters.forEach(w => { w.band = { on: true }; }); fliesOn = true; }
 

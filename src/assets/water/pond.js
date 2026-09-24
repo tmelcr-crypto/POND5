@@ -50,7 +50,7 @@ export function createPond(ctx) {
 /**
  * The sea around the island: one opaque plane at CONFIG.island.seaLevel that follows the camera (waves are in
  * world space, so it never slides). Colour comes from the water depth, read from the world ground texture
- * (height in .r): sandy turquoise in the shallows, dark teal offshore, a foam line at the shore. Distance fog
+ * (height in .r): sandy turquoise in the shallows, dark teal offshore (the shore foam comes from waterLife.js). Distance fog
  * fades it into the sky's horizon colour.
  */
 export function createOcean(ctx, ground, seaY) {
@@ -77,8 +77,7 @@ export function createOcean(ctx, ground, seaY) {
         float depth = uSea - texture2D(uGround, (vWP.xz + uGroundST.y) * uGroundST.x).r;
         vec3 shallow = vec3(0.16, 0.34, 0.30), deep = vec3(0.012, 0.055, 0.07);
         diffuseColor.rgb = mix(shallow, deep, smoothstep(0.0, 2.8, depth));
-        float foam = (1.0 - smoothstep(0.0, 0.12, depth)) * (0.55 + 0.45 * sin(vWP.x * 3.1 + vWP.z * 2.3 + uTime * 1.3));
-        diffuseColor.rgb += vec3(0.32, 0.34, 0.32) * foam * 0.6;`)
+        /* shore-foam */   // assets/water/waterLife.js adds the shore foam here (depth, vWP and uTime are in scope)`)
       .replace('#include <normal_fragment_maps>', `
         vec2 wg = seaGrad(vWP.xz, uTime);
         normal = normalize((viewMatrix * vec4(normalize(vec3(-wg.x, 1.0, -wg.y)), 0.0)).xyz);`);
