@@ -226,6 +226,11 @@ export function createRoseBush(ctx) {
   and rests (at most 8 of each on the ground, oldest removed first); in windy gusts 2-4 rose petals skip along the
   ground and fade. Uses the plot's own leaf cards, apples, cones and fallen-petal geometry; everything rests on H(x, z)
   (or on the pond's surface).
+- **Horizon** (`world/horizon.js`, numbers in `HORIZON`, positions in `CONFIG.horizon`): a lighthouse on a small rock
+  ~450 m out (white and red by day; lit lamp room and a slowly turning beam at night) and, every 4-8 minutes, a sailboat
+  crossing in 3-4 minutes on a course at least 400 m from any island (hidden at night). Both are far beyond the camera's
+  150 m far plane, so each keeps its true position but is drawn scaled down at 100 m on the same line of sight, fogged
+  by its true distance at a fifth of the scene fog (like the birds).
 - **Cloud shadows** (`core/shaderPatches.js` `addCloudShadow`, `CONFIG.clouds`): one tileable canvas texture of soft
   cloud footprints (`cloudField` in `core/noise.js`, roughly 20-60 m across) lies flat over the world and drifts with the
   wind. `finalizeScene` puts it on every lit material except the cabin interior. It dims only the sun's direct light

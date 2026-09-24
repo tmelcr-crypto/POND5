@@ -125,6 +125,12 @@ export const CONFIG = {
     speed: [1.5, 5],        // drift, m/s: speed[0] + speed[1] * the wind setting, along the wind direction
   },
   fog: { density: 0.011 },  // FogExp2 density at midday, the day's minimum (world/atmosphere.js thickens it at dawn / dusk); colour follows the sky horizon
+  // The wider world on the horizon (world/horizon.js). No other island exists yet, so the lighthouse stands on a small
+  // rock at sea; move `lighthouse` to the next island's position when there is one.
+  horizon: {
+    lighthouse: { x: 330, z: -300, rock: 16 },   // m; rock: its radius
+    islands: [{ x: 0, z: 0, r: 45 }],           // islands the sailboats keep clear of (the home island's coast is ~37-49 m out)
+  },
   time: {
     dayMinutes: 18,         // real minutes for one 24 h day
     start: 16.5,            // hour at load
