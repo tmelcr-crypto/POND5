@@ -182,6 +182,9 @@ export const CONFIG = {
     rosePetals: 3,                 // petals a rose bush gives a day
   },
 
+  // Storage chests (app/chestUI.js)
+  chest: { reach: 2, cone: 0.6, lidOpen: 1.9, longPress: 450 },   // m, rad (in view), rad (lid open), ms (a press that picks how many)
+
   // The sailboat (app/boating.js)
   boat: {
     maxSpeed: 4.5, reverse: 0.9,   // m/s ahead in a full wind on the best point of sail, astern

@@ -244,6 +244,13 @@ export function createRoseBush(ctx) {
   - Use (the button above Jump, right click or F) eats apples and berries, throws pebbles, cones and sticks (they
     splash into water or lie where they land), and lets petals drift off on the wind.
   - What you take comes back after an in-game day. The inventory and what is taken are saved in the browser.
+- **Chest** (`CHESTS` in `world/layout.js`, `assets/cabin/chest.js`, `app/chestUI.js`, `CONFIG.chest`):
+  - A wooden sea chest by the woodpile on the cabin's west wall.
+  - Near it and looking at it, its lid creaks open and an open-chest icon floats over it; tap it (click or E on
+    desktop) to open the storage.
+  - The storage screen has 10 tiles and your 4 quick slots. Tap a stack to lift it and tap where it goes: the same
+    kind fills up to 10, another kind swaps. A long press picks how many to lift and shows the item's name.
+  - Close it with the cross, a tap on the scene, or by walking away. Each chest keeps its own contents in the browser.
 - **Sleeping** (`app/sleeping.js`, `BED` in `world/layout.js`, `CONFIG.sleep`): inside the cabin, near the bed and with it
   in view, the bed button lets you sleep once 14 in-game hours have passed since you last did. You sit on the edge, turn
   and lie back looking up, tilted to one side. The screen fades to black and the clock moves on 7-9 hours, and you wake

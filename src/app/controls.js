@@ -46,7 +46,7 @@ export function createControls(app) {
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     if (!st.playing && (e.code === 'Enter')) start();
     if (e.code === 'KeyF' && !e.repeat) { if (st.nearDoor) toggleDoor(); else dispatchEvent(new Event('meadow-use')); }   // the door when at it, otherwise use the selected item
-    if (e.code === 'KeyE' && !e.repeat && st.walk) dispatchEvent(new Event('meadow-tap'));   // pick up what you look at
+    if (e.code === 'KeyE' && !e.repeat && st.walk) dispatchEvent(new CustomEvent('meadow-tap', { detail: 'key' }));   // pick up what you look at
     if (e.code === 'KeyL' && !e.repeat) setLights(!cabin.lightsOn);
     if (e.code === 'KeyG' && !e.repeat) setWalk(!st.walk);
     if (e.code === 'KeyR' && !e.repeat) toggleSeat();
@@ -57,10 +57,10 @@ export function createControls(app) {
     if (e.pointerType === 'mouse') {
       if (e.button === 2) { if (st.playing) dispatchEvent(new Event('meadow-use')); return; }   // right click: use the selected item
       if (e.button !== 0) return;
-      if (st.playing && st.locked) dispatchEvent(new Event('meadow-tap'));   // click: pick up what you look at
+      if (st.playing && st.locked) dispatchEvent(new CustomEvent('meadow-tap', { detail: 'mouse' }));   // click: pick up what you look at
       if (!st.playing) start();
       st.drag = true; canvas.style.cursor = 'grabbing';
-      if (!st.locked && canvas.requestPointerLock) { try { canvas.requestPointerLock(); } catch (err) {} }
+      if (!st.locked && !st.chestOpen && canvas.requestPointerLock) { try { canvas.requestPointerLock(); } catch (err) {} }   // not while a chest is open (its tiles need the pointer)
       return;
     }
     e.preventDefault();
@@ -103,7 +103,7 @@ export function createControls(app) {
   });
   function touchUp(e) {
     const t = touches.get(e.pointerId); if (!t) return;
-    if (e.type === 'pointerup' && Math.hypot(e.clientX - t.sx, e.clientY - t.sy) < 10 && performance.now() - t.t0 < 300) dispatchEvent(new Event('meadow-tap'));   // a tap: pick up what you look at
+    if (e.type === 'pointerup' && Math.hypot(e.clientX - t.sx, e.clientY - t.sy) < 10 && performance.now() - t.t0 < 300) dispatchEvent(new CustomEvent('meadow-tap', { detail: 'touch' }));   // a tap: pick up what you look at
     if (t.kind === 'joy') { joyId = null; st.joy.x = st.joy.y = 0; joyEl.style.display = 'none'; } touches.delete(e.pointerId); }
   canvas.addEventListener('pointerup', touchUp); canvas.addEventListener('pointercancel', touchUp);
   /** Forget every held key and touch (the joystick included), so nothing keeps you moving after an animation took over;
@@ -143,7 +143,7 @@ export function createControls(app) {
   /* walk / fly */
   const modeBtn = document.getElementById('modeBtn');
   function setWalk(on) {
-    if (st.seat || st.aboard || st.inBed) return;   // stand up / leave the boat / get out of bed first
+    if (st.seat || st.aboard || st.inBed || st.chestOpen) return;   // stand up / leave the boat / get out of bed / close the chest first
     st.walk = on; st.vel.y = 0;
     if (modeBtn) { modeBtn.textContent = on ? 'Walk' : 'Fly'; modeBtn.setAttribute('aria-pressed', String(on)); }
     document.getElementById('btnUp').textContent = on ? 'Jump' : 'Up';
@@ -199,7 +199,7 @@ export function createControls(app) {
   }
   const takeovers = [];   // things that take the camera for a while: the boat (app/boating.js), the bed (app/sleeping.js)
   function move(dt) {
-    const busy = st.aboard || st.inBed || !!st.seat;   // no jumping in the boat, in bed or on a bench
+    const busy = st.aboard || st.inBed || !!st.seat || st.chestOpen;   // no jumping in the boat, in bed or on a bench
     if (busy !== st.busyUI) { st.busyUI = busy; document.getElementById('btnUp').style.visibility = busy ? 'hidden' : ''; }
     for (const f of takeovers) if (f(dt)) { seatButton(''); return; }
     if (seatUpdate(dt)) return;

@@ -27,9 +27,10 @@ export function createInventory({ st }) {
   useBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); use(); });
   useBtn.addEventListener('contextmenu', e => e.preventDefault());
 
+  let near = false;   // by a chest the bar always shows (app/chestUI.js)
   function render() {
     const any = slots.some(Boolean);
-    bar.classList.toggle('hide', !any);
+    bar.classList.toggle('hide', !any && !near);
     cells.forEach((b, i) => {
       const s = slots[i]; b.classList.toggle('sel', i === sel); b.classList.toggle('empty', !s);
       b.innerHTML = s ? `${iconSvg(s.kind, 30)}<span class="n">${s.n}</span>` : '';
@@ -50,7 +51,7 @@ export function createInventory({ st }) {
   function flash(i) { const b = cells[i]; if (!b) return; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
   let onUse = () => false;
   function use() {
-    const s = slots[sel]; if (!s) return;
+    const s = slots[sel]; if (!s || st.chestOpen) return;
     if (!onUse(s.kind)) return;
     if (--s.n <= 0) slots[sel] = null;   // the slot empties, the selection stays on it
     render(); save();
@@ -59,5 +60,7 @@ export function createInventory({ st }) {
   addEventListener('meadow-wheel', e => select(sel + (e.detail > 0 ? 1 : -1)));
   addEventListener('meadow-use', use);
   render();
-  return { canAdd, add, use, select, get slots() { return slots; }, get selected() { return slots[sel]; }, set onUse(f) { onUse = f; } };
+  /** After the chest has moved things in or out of the slots. */
+  function refresh() { if (!slots[sel] && slots.some(Boolean)) sel = slots.findIndex(Boolean); render(); save(); }
+  return { canAdd, add, use, select, refresh, get slots() { return slots; }, get selected() { return slots[sel]; }, set onUse(f) { onUse = f; }, set nearChest(v) { if (v !== near) { near = v; render(); } } };
 }

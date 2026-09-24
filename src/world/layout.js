@@ -33,6 +33,14 @@ export const BED = (() => {
     edge: { x: x0 + 0.14, z: HOUSE.z - 0.2, fx: -1, fz: 0, top },          // sitting on the side, facing the room
     pillow: { x: (x0 + x1) / 2, z: z0 + 0.36, y: top + 0.14 } };          // the lying eye, head on the pillow
 })();
+/**
+ * Storage chests (meshes: assets/cabin/chest.js; using them: app/chestUI.js). Each keeps its own contents. (x, z): the
+ * middle of its base; rot: the turn about y that points its front (the lid's open side, local +z) where it faces;
+ * length along its front, depth, height.
+ */
+export const CHESTS = [
+  { id: 'cabin', x: HOUSE.x - 2.1, z: HOUSE.z - 1.35, rot: -Math.PI / 2, length: 0.86, depth: 0.5, height: 0.52 },   // by the woodpile on the west wall, facing west
+];
 export const CON = { x: -3.0, z: -2.55 };
 export const APP = { x: -2.35, z: 2.45 };
 export function lakeR(a) { return 1.85 + 0.3 * Math.sin(3 * a + 1.0) + 0.17 * Math.sin(5 * a + 2.3) + 0.09 * Math.sin(7 * a + 0.4); }

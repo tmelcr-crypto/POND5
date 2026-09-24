@@ -86,6 +86,8 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       splash: () => { noise(0.45, 900, 0.7, 0.28, 'lowpass'); noise(0.2, 2400, 1, 0.08, 'bandpass', 0.05); },
       thud: () => { tone(160, 90, 0.08, 0.18); noise(0.05, 700, 1, 0.08); },
       full: () => tone(260, 200, 0.12, 0.08),
+      creak: () => { const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(140, t); o.frequency.linearRampToValueAtTime(95, t + 0.35); const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 6; o.connect(f); env(f, 0.4, 0.05); o.start(t); o.stop(t + 0.45); noise(0.3, 1200, 4, 0.04); },
+      clunk: () => { tone(120, 70, 0.12, 0.2); noise(0.06, 500, 1, 0.1); },
     }[type] || (() => {}))();
   }
 
@@ -96,7 +98,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   const thrown = [], flying = [], drifting = [];
   const dir = new V(), v = new V();
   let aimed = null, hintKind = '';
-  const canAim = () => st.playing && st.walk && st.grounded && !st.aboard && !st.seat && !st.inBed && !pick;
+  const canAim = () => st.playing && st.walk && st.grounded && !st.aboard && !st.seat && !st.inBed && !st.chestOpen && !pick;
   function test(p, r, eye, feet, best) {
     const dx = p.x - eye.x, dz = p.z - eye.z;
     if (dx * dx + dz * dz > IC.reach * IC.reach || p.y < feet - 0.3 || p.y > eye.y + IC.above) return best;
@@ -226,5 +228,5 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       if (dirty) { dirty = false; try { localStorage.setItem(KEY, JSON.stringify({ total, taken })); } catch (err) { void err; } }
     }
   }
-  return { update, pickUpdate, use, get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
+  return { update, pickUpdate, use, sfx, get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
 }
