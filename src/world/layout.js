@@ -128,13 +128,13 @@ export function streamAt(x, z) {
 export function streamDist(x, z) { const q = streamAt(x, z); return q ? q.d - q.w : Infinity; }
 
 /*
- * The footbridge over the stream east of the cabin, and the stepping-stone path from the cabin steps to it (the
+ * The footbridge over the stream just below its first rapid, and the stepping-stone path from the cabin steps to it (the
  * meshes: assets/cabin/footbridge.js). The bridge crosses square to the stream at BRIDGE.s; its deck arches from the
  * banks (deckY is walkable, see app/controls.js). The path's flat stones follow a curve through FOOTPATH_COURSE;
  * the grass and flowers keep off them (footpathDist). Both use their own random numbers.
  */
 export const BRIDGE = (() => {
-  const s = 8.8, p = STREAM.pts.reduce((b, q) => Math.abs(q.s - s) < Math.abs(b.s - s) ? q : b, STREAM.pts[0]);
+  const s = 16.3, p = STREAM.pts.reduce((b, q) => Math.abs(q.s - s) < Math.abs(b.s - s) ? q : b, STREAM.pts[0]);
   const ax = -p.tz, az = p.tx, half = 1.55, width = 1.0, arch = 0.1;   // across the stream (u), along it (v)
   const endY = Math.max(H(p.x - ax * half, p.z - az * half), H(p.x + ax * half, p.z + az * half)) + 0.16;   // the stringers rest on the banks
   return { x: p.x, z: p.z, ax, az, half, width, arch, endY, W: p.W, deckY: u => endY + arch * (1 - (u / half) ** 2) };
@@ -144,7 +144,11 @@ export function bridgeDeckY(x, z) {
   const B = BRIDGE, dx = x - B.x, dz = z - B.z, u = dx * B.ax + dz * B.az, v = dx * B.az - dz * B.ax;
   return Math.abs(u) <= B.half + 0.05 && Math.abs(v) <= B.width / 2 ? B.deckY(Math.max(-B.half, Math.min(B.half, u))) : -Infinity;
 }
-const FOOTPATH_COURSE = [[4.02, -1.02], [4.75, -1.12], [5.4, -1.62], [5.62, -2.45], [BRIDGE.x - BRIDGE.ax * (BRIDGE.half + 0.35), BRIDGE.z - BRIDGE.az * (BRIDGE.half + 0.35)]];
+const streamPt = s => STREAM.pts.reduce((b, q) => Math.abs(q.s - s) < Math.abs(b.s - s) ? q : b, STREAM.pts[0]);
+const westBank = (s, off) => { const p = streamPt(s), t = -(p.w + off); return [p.x - p.tz * t, p.z + p.tx * t]; };   // a point on the stream's west bank
+// from the cabin steps round the cabin, then down the west bank (inside the stream's scatter exclusion) to the bridge
+const FOOTPATH_COURSE = [[4.02, -1.02], [4.75, -1.12], [5.4, -1.62], [5.62, -2.45], westBank(10, 1.15), westBank(12, 1.1), westBank(13.8, 1.1),
+  [BRIDGE.x - BRIDGE.ax * (BRIDGE.half + 0.35), BRIDGE.z - BRIDGE.az * (BRIDGE.half + 0.35)]];
 export const FOOTPATH = (() => {
   let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }, rr = (a, b) => a + (b - a) * rnd();
   const curve = new THREE.CatmullRomCurve3(FOOTPATH_COURSE.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal'), len = curve.getLength();
