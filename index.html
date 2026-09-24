@@ -27,12 +27,14 @@
       <dt><kbd>Shift</kbd></dt><dd>Hold to go faster; scroll wheel sets speed</dd>
       <dt><kbd>Mouse</kbd></dt><dd>Look around; <kbd>Esc</kbd> frees the cursor</dd>
       <dt><kbd>F</kbd><kbd>L</kbd></dt><dd>Cabin door, cabin lights</dd>
+      <dt><kbd>R</kbd></dt><dd>Sit on a bench, stand up again</dd>
     </dl>
     <dl class="keys touch-only">
       <dt><kbd>Left</kbd></dt><dd>Drag on the left half to move</dd>
       <dt><kbd>Right</kbd></dt><dd>Drag on the right half to look</dd>
       <dt><kbd>Jump</kbd></dt><dd>Jump; when flying, hold Up and Down to rise and sink</dd>
       <dt><kbd>Door</kbd></dt><dd>Appears near the cabin to open or close it</dd>
+      <dt><kbd>Seat</kbd></dt><dd>Appears in front of a bench to sit down or stand up</dd>
     </dl>
     <button id="start">Start exploring</button>
   </div>
@@ -59,6 +61,7 @@
 
 <div id="joy"><div id="knob"></div></div>
 <div id="vbtns">
+  <button class="tbtn glass" id="btnSeat" aria-label="Sit down" style="display:none"></button>
   <button class="tbtn glass" id="btnDoor" aria-label="Open or close the door" style="display:none">Door</button>
   <button class="tbtn glass" id="btnUp" aria-label="Rise">Up</button>
   <button class="tbtn glass" id="btnDown" aria-label="Sink">Down</button>

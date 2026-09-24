@@ -130,8 +130,8 @@ export function streamDist(x, z) { const q = streamAt(x, z); return q ? q.d - q.
 /*
  * The footbridge over the stream just below its first rapid, and the stepping-stone path from the cabin steps to it (the
  * meshes: assets/cabin/footbridge.js). The bridge crosses square to the stream at BRIDGE.s; its deck arches from the
- * banks (deckY is walkable, see app/controls.js). The path's flat stones follow a curve through FOOTPATH_COURSE;
- * the grass and flowers keep off them (footpathDist). Both use their own random numbers.
+ * banks (deckY is walkable, see app/controls.js). The path's flat stones follow curves (FOOTPATH_ROUTES below); the
+ * grass and flowers keep off them (footpathDist). Both use their own random numbers.
  */
 export const BRIDGE = (() => {
   const s = 16.3, p = STREAM.pts.reduce((b, q) => Math.abs(q.s - s) < Math.abs(b.s - s) ? q : b, STREAM.pts[0]);
@@ -149,24 +149,76 @@ const westBank = (s, off) => { const p = streamPt(s), t = -(p.w + off); return [
 // from the cabin steps round the cabin, then down the west bank (inside the stream's scatter exclusion) to the bridge
 const FOOTPATH_COURSE = [[4.02, -1.02], [4.75, -1.12], [5.4, -1.62], [5.62, -2.45], westBank(10, 1.15), westBank(12, 1.1), westBank(13.8, 1.1),
   [BRIDGE.x - BRIDGE.ax * (BRIDGE.half + 0.35), BRIDGE.z - BRIDGE.az * (BRIDGE.half + 0.35)]];
+/*
+ * Two benches for the sunrise and the sunset (meshes: assets/cabin/benches.js), on the crests above the east and west
+ * beaches. (x, z): the middle of the seat; face: the way a seated person looks; length / depth: the footprint the player
+ * cannot walk through; seatH: the seat's height above the ground there. The paths to them start at the bridge and
+ * curve round one end of the bench to stop in front of it.
+ */
+const faceOf = deg => [Math.cos(deg * Math.PI / 180), Math.sin(deg * Math.PI / 180)];
+export const BENCHES = [
+  { name: 'sunrise', x: 24.3, z: -16.6, face: faceOf(-11), length: 1.5, depth: 0.62, seatH: 0.46 },   // east, the sun rising over the sea
+  { name: 'sunset', x: -25.4, z: -17.6, face: faceOf(190), length: 1.6, depth: 0.66, seatH: 0.44 },  // west-south-west, the sun setting over the sea
+].map(b => {
+  const [fx, fz] = b.face, g = [];   // y: the mean ground under the footprint (the legs reach down to it wherever it is lower)
+  for (const a of [-0.8, 0, 0.8]) for (const f of [-0.35, 0.35]) g.push(H(b.x - fz * a * b.length / 1.6 + fx * f, b.z + fx * a * b.length / 1.6 + fz * f));
+  return { ...b, fx, fz, y: g.reduce((s, v) => s + v, 0) / g.length, lantern: -1 };   // lantern: the end it stands at (the path comes round the other)
+});
+/** A point in a bench's frame: a along the seat (to the bench's right as you sit), f towards where it faces. */
+export function benchPoint(b, a, f) { return [b.x - b.fz * a + b.fx * f, b.z + b.fx * a + b.fz * f]; }
+/** Everywhere you can sit (the sit button in app/controls.js): the two benches and the cabin's bench under the front window. */
+export const SEATS = [
+  ...BENCHES.map(b => ({ x: b.x, z: b.z, fx: b.fx, fz: b.fz, top: b.y + b.seatH, half: b.length / 2, back: -0.1 })),
+  { x: HOUSE.x - 0.2, z: HOUSE.z + CB.ZW + 0.51, fx: 0, fz: 1, top: PAD_H + 0.45, half: 0.52, back: -0.05 },
+];
+
+const BRIDGE_W = [BRIDGE.x - BRIDGE.ax * (BRIDGE.half + 0.35), BRIDGE.z - BRIDGE.az * (BRIDGE.half + 0.35)], BRIDGE_E = [BRIDGE.x + BRIDGE.ax * (BRIDGE.half + 0.35), BRIDGE.z + BRIDGE.az * (BRIDGE.half + 0.35)];
+const [SUNRISE, SUNSET] = BENCHES;
+/** The stepping-stone routes: from the cabin to the bridge, and from the bridge to each bench (ending in front of it). */
+const FOOTPATH_ROUTES = [
+  { course: FOOTPATH_COURSE, from: 0.05 },
+  { course: [BRIDGE_E, [12.2, -12.4], [12.8, -14.6], [13.9, -17.3], [16.5, -18.9], [19.6, -19.1], [22.2, -18.7], benchPoint(SUNRISE, 1.75, 0.2), benchPoint(SUNRISE, 1.1, 0.95), benchPoint(SUNRISE, 0, 1.0)], from: 0.55, bench: SUNRISE },
+  { course: [BRIDGE_W, [6.2, -11.4], [3.8, -13.2], [0, -14.4], [-5, -15.3], [-10, -16.0], [-15, -16.4], [-19.5, -16.4], benchPoint(SUNSET, 1.85, 0.25), benchPoint(SUNSET, 1.15, 1.0), benchPoint(SUNSET, 0, 1.05)], from: 0.6, bench: SUNSET },
+];
 export const FOOTPATH = (() => {
   let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }, rr = (a, b) => a + (b - a) * rnd();
-  const curve = new THREE.CatmullRomCurve3(FOOTPATH_COURSE.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal'), len = curve.getLength();
-  const stones = [], place = (x, z, tx, tz, sink) => {
-    const r = rr(0.2, 0.27), side = rr(-0.07, 0.07);
-    stones.push({ x: x - tz * side, z: z + tx * side, r, sx: rr(1.0, 1.25), rot: Math.atan2(tz, tx) + rr(-0.5, 0.5), sink, seed: Math.floor(rnd() * 1e6) });
+  const stones = [], place = (x, z, tx, tz, sink, route, big = 1) => {
+    const r = rr(0.2, 0.27) * big, side = rr(-0.07, 0.07);
+    stones.push({ x: x - tz * side, z: z + tx * side, r, sx: rr(1.0, 1.25), rot: Math.atan2(tz, tx) + rr(-0.5, 0.5), sink, seed: Math.floor(rnd() * 1e6), route });
   };
-  for (let d = 0.05; d <= len; d += rr(0.58, 0.66)) { const u = d / len, p = curve.getPointAt(u), t = curve.getTangentAt(u); place(p.x, p.z, t.x, t.z, 0); }
-  // two more beyond the bridge, sinking into the meadow
-  for (let k = 1; k <= 2; k++) { const d = BRIDGE.half + 0.1 + k * 0.62; place(BRIDGE.x + BRIDGE.ax * d, BRIDGE.z + BRIDGE.az * d, BRIDGE.ax, BRIDGE.az, k * 0.012); }
-  return { stones, len };
+  let len = 0;
+  FOOTPATH_ROUTES.forEach((R, route) => {
+    const curve = new THREE.CatmullRomCurve3(R.course.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal'), L = curve.getLength();
+    const end = R.bench ? L - 0.62 : L;   // a bench route leaves room for the wide stone in front of the seat
+    for (let d = R.from; d <= end; d += rr(0.58, 0.66)) { const u = d / L, p = curve.getPointAt(u), t = curve.getTangentAt(u); place(p.x, p.z, t.x, t.z, 0, route); }
+    if (R.bench) { const b = R.bench, [x, z] = benchPoint(b, 0, 0.78); place(x, z, -b.fz, b.fx, 0, route, 1.45); }
+    len += L;
+  });
+  // a 1 m grid of the stones within reach of each cell, for fast lookups (footpathDist)
+  const reach = 2.2, x0 = Math.min(...stones.map(s => s.x)) - reach, z0 = Math.min(...stones.map(s => s.z)) - reach;
+  const nx = Math.ceil(Math.max(...stones.map(s => s.x)) + reach - x0) + 1, nz = Math.ceil(Math.max(...stones.map(s => s.z)) + reach - z0) + 1, cells = Array.from({ length: nx * nz }, () => []);
+  stones.forEach(st => { for (let j = Math.floor(st.z - reach - z0); j <= Math.floor(st.z + reach - z0); j++) for (let i = Math.floor(st.x - reach - x0); i <= Math.floor(st.x + reach - x0); i++) if (i >= 0 && j >= 0 && i < nx && j < nz) cells[j * nx + i].push(st); });
+  return { stones, len, routes: FOOTPATH_ROUTES.length, grid: { x0, z0, nx, nz, cells, reach } };
 })();
-/** Distance to the nearest path stone's rim (< 0 on a stone). */
+/** Distance to the nearest path stone's rim (< 0 on a stone); FOOTPATH.grid.reach (2.2 m) when none is that close. */
 export function footpathDist(x, z) {
-  let d = Infinity;
-  for (const s of FOOTPATH.stones) { const dx = x - s.x, dz = z - s.z; if (Math.abs(dx) < d + s.r * 1.3 && Math.abs(dz) < d + s.r * 1.3) d = Math.min(d, Math.hypot(dx, dz) - s.r * (1 + 0.5 * (s.sx - 1))); }
+  const G = FOOTPATH.grid, i = Math.floor(x - G.x0), j = Math.floor(z - G.z0);
+  if (i < 0 || j < 0 || i >= G.nx || j >= G.nz) return G.reach;
+  let d = G.reach;
+  for (const s of G.cells[j * G.nx + i]) d = Math.min(d, Math.hypot(x - s.x, z - s.z) - s.r * (1 + 0.5 * (s.sx - 1)));
   return d;
 }
+/** Distance to a bench's footprint, its lantern's end included (< 0 inside). */
+export function benchDist(x, z) {
+  let d = Infinity;
+  for (const b of BENCHES) {
+    const dx = x - b.x, dz = z - b.z, ab = (-dx * b.fz + dz * b.fx) * -b.lantern, a = Math.max(-ab - (b.length / 2 + 0.45), ab - (b.length / 2 + 0.05)), f = Math.abs(dx * b.fx + dz * b.fz) - b.depth / 2;
+    d = Math.min(d, Math.max(a, f) < 0 ? Math.max(a, f) : Math.hypot(Math.max(a, 0), Math.max(f, 0)));
+  }
+  return d;
+}
+/** Distance to anything built to walk on or sit at (path stones, bridge, benches): the island's scatter is cleared off these. */
+export function walkwayDist(x, z) { return Math.min(footpathDist(x, z), bridgeDist(x, z), benchDist(x, z)); }
 /** Distance to the bridge's footprint (< 0 under the deck). */
 export function bridgeDist(x, z) {
   const B = BRIDGE, dx = x - B.x, dz = z - B.z, u = Math.abs(dx * B.ax + dz * B.az) - B.half, v = Math.abs(dx * B.az - dz * B.ax) - B.width / 2;

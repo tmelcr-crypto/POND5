@@ -211,6 +211,17 @@ export function createRoseBush(ctx) {
   builders use for their placement decisions so their random draws, and so the reference trees, are unchanged). One
   flowing water ribbon (faster, foaming over the rapids), rocks in the rapids, pebbles on the banks; trees, bushes and
   grass keep clear; a babbling sound from its nearest point, a rush by the rapids.
+  Sedge clumps, cattails and ferns grow in patches along both banks.
+- **Footbridge, paths and benches** (`BRIDGE`, `FOOTPATH`, `BENCHES`, `SEATS` in `world/layout.js`; meshes in
+  `assets/cabin/footbridge.js` and `assets/cabin/benches.js`): a wooden footbridge crosses the pool below the first
+  rapid. Stepping stones lead from the cabin steps to it, and from it to two viewing benches on the crests above the
+  beaches: a split-log bench facing the sunrise (east) and a plank garden bench facing the sunset (west). Each has a
+  small lantern that lights with the cabin's lights (glow and a warm pool on the ground, no real light). The bridge deck
+  is walkable; the benches (and the cabin's bench) are solid. Island trees, rocks and undergrowth that would stand on a
+  path, the bridge or a bench are dropped after placement, so nothing else on the island moves.
+- **Sitting** (`app/controls.js`, `CONFIG.player.sit`): in front of a bench the seat button (R on desktop) turns you to
+  it, walks you up, turns you round and sits you down; seated you can only look around; the stand button raises you and
+  gives the controls back.
 - **Water life** (`assets/water/waterLife.js`, numbers in its `WATER` object): fish rises, a ring spreading about 1 m
   on the sea (0.45 m on the pond) and fading in 2 s, every 4-10 s on each water (sometimes two in a row); on the sea
   they appear 2.5-14 m out from the shore, 5-30 m in front of the camera. Three dragonflies dart and hover over the pond

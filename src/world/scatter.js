@@ -3,7 +3,7 @@ import { setSeed, rng, rr } from '../core/random.js';
 import { smooth } from '../core/math.js';
 import { THIN } from '../core/shaderPatches.js';
 import { CONFIG } from '../config.js';
-import { H, WORLD_HALF, forest, excluded, coastDist } from './layout.js';
+import { H, WORLD_HALF, forest, excluded, coastDist, walkwayDist } from './layout.js';
 import { obstacles, rockBodies } from './bounds.js';
 import { createSpruceVariants } from '../assets/trees/spruce.js';
 import { createAppleVariants } from '../assets/trees/appleTree.js';
@@ -193,13 +193,14 @@ export function createScatter(ctx) {
     return inst;
   }
   // spruces: groves between the meadow and the beach, a few loners in the meadow
-  const spruce = scatterTrees(SC.spruceCount, (x, z) => 0.03 + 0.97 * forest(x, z), TC.spruceScale, SC.minSpacing);
+  // (anything that would stand on a path, the bridge or a bench is dropped afterwards, so nothing else moves)
+  const spruceAll = scatterTrees(SC.spruceCount, (x, z) => 0.03 + 0.97 * forest(x, z), TC.spruceScale, SC.minSpacing), spruce = spruceAll.filter(t => walkwayDist(t.x, t.z) > 1.1);
   // apple trees: open meadow ring around the clearing, away from the forest
-  const apple = scatterTrees(SC.appleCount, (x, z) => { const r = Math.hypot(x, z); return (1 - forest(x, z)) * smooth(SC.clearingRadius - 4, SC.clearingRadius + 2, r) * (1 - smooth(30, 42, r)); }, TC.appleScale, 5);
+  const appleAll = scatterTrees(SC.appleCount, (x, z) => { const r = Math.hypot(x, z); return (1 - forest(x, z)) * smooth(SC.clearingRadius - 4, SC.clearingRadius + 2, r) * (1 - smooth(30, 42, r)); }, TC.appleScale, 5), apple = appleAll.filter(t => walkwayDist(t.x, t.z) > 1.1);
 
   /* ---- rocks ---- */
   const RC = CONFIG.rocks, rockSet = createRockVariants(RC.variants, RC.nearDetail, RC.farDetail);
-  const rocks = rockSet.variants.map(() => []);
+  const rocks = rockSet.variants.map(() => []), rocksAll = [];
   { const rp = placer(1.2); let n = 0, tries = 0;
     while (n < SC.rockCount && tries < SC.rockCount * 60) {
       tries++;
@@ -213,6 +214,7 @@ export function createScatter(ctx) {
       rocks[k].push({ x, y: H(x, z) - s * 0.12, z, s, rot: rng() * 6.28, tilt: rr(-0.15, 0.15) });
       n++;
     }
+    rocksAll.push(...rocks.map(l => l.slice())); rocks.forEach((l, k) => { rocks[k] = l.filter(r => walkwayDist(r.x, r.z) > r.s * 1.1 + 0.2); });   // none on the walkways
   }
 
   /* ---- full-detail tree variants (each built from its own seed, after all placement draws) ---- */
@@ -269,5 +271,6 @@ export function createScatter(ctx) {
       if (d < TC.fade[1]) { stats.near++; stats.cards += survivors(tr.v.cardRanks, keepAt(d)); } else stats.far++;
     }
   }
-  return { update, stats, spruce, apple, rocks, trees };
+  // placed: everything as placed, before the walkways were cleared (the undergrowth avoids these, so its own draws are unchanged)
+  return { update, stats, spruce, apple, rocks, trees, placed: { spruce: spruceAll, apple: appleAll, rocks: rocksAll } };
 }
