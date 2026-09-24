@@ -5,7 +5,7 @@ import { V, lin } from '../../core/math.js';
 import { fbm2 } from '../../core/noise.js';
 import { paint, mergeGeos } from '../../core/geometry.js';
 import { addWorldSway } from '../../core/shaderPatches.js';
-import { WATER_Y, houseRectDist, inRocks, inRose, CON, APP, H, H0, streamDist, footpathDist } from '../../world/layout.js';
+import { WATER_Y, houseRectDist, inRocks, inRose, CON, APP, H, H0, streamDist, footpathDist, chestDist } from '../../world/layout.js';
 
 /** Flower head (white petals + yellow centre, tinted per instance) and stem, shared with the island's flowers. */
 export function flowerGeometries() {
@@ -36,7 +36,7 @@ export function createMeadowFlowers(ctx) {
       if (h - WATER_Y < 0.1 || houseRectDist(x, z) < 0.6 || inRocks(x, z, 0.35) || inRose(x, z, 0.75) || Math.hypot(x - CON.x, z - CON.z) < 1.7 || Math.hypot(x - APP.x, z - APP.z) < 0.5) continue;
       if (fbm2(x * 0.7 + 20, z * 0.7) < -0.05) continue;
       const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rr(-0.15, 0.15), rng() * 6.28, rr(-0.15, 0.15)));
-      mats.push(new THREE.Matrix4().compose(new V(x, H(x, z) - 0.02, z), q, new V(1, rr(0.75, 1.25), 1).multiplyScalar(rr(0.85, 1.15) * (streamDist(x, z) < 0.35 || footpathDist(x, z) < 0.08 ? 1e-4 : 1))));   // none in the stream or on the path
+      mats.push(new THREE.Matrix4().compose(new V(x, H(x, z) - 0.02, z), q, new V(1, rr(0.75, 1.25), 1).multiplyScalar(rr(0.85, 1.15) * (streamDist(x, z) < 0.35 || footpathDist(x, z) < 0.08 || chestDist(x, z) < 0.08 ? 1e-4 : 1))));   // none in the stream or on the path
       tints.push(flowerTint(rng()));
     }
     const hMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, side: THREE.DoubleSide }); addWorldSway(hMat, 0.7);

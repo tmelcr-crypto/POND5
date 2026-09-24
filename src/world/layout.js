@@ -41,6 +41,15 @@ export const BED = (() => {
 export const CHESTS = [
   { id: 'cabin', x: HOUSE.x - 2.58, z: HOUSE.z - 1.38, rot: -Math.PI / 2, length: 0.86, depth: 0.5, height: 0.52 },   // behind the woodpile's back end, clear of the wall's log ends, facing west
 ];
+/** Distance to the nearest chest's footprint (< 0 under it): the grass and flowers keep out of it. */
+export function chestDist(x, z) {
+  let d = Infinity;
+  for (const C of CHESTS) {
+    const dx = x - C.x, dz = z - C.z, c = Math.cos(C.rot), s = Math.sin(C.rot), a = Math.abs(dx * c - dz * s) - C.length / 2, f = Math.abs(dx * s + dz * c) - C.depth / 2;
+    d = Math.min(d, Math.max(a, f) < 0 ? Math.max(a, f) : Math.hypot(Math.max(a, 0), Math.max(f, 0)));
+  }
+  return d;
+}
 export const CON = { x: -3.0, z: -2.55 };
 export const APP = { x: -2.35, z: 2.45 };
 export function lakeR(a) { return 1.85 + 0.3 * Math.sin(3 * a + 1.0) + 0.17 * Math.sin(5 * a + 2.3) + 0.09 * Math.sin(7 * a + 0.4); }
