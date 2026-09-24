@@ -105,6 +105,7 @@ export function createStream(ctx) {
     const x = p.x - p.tz * t, z = p.z + p.tx * t, y = H(x, z) + r * 0.35;
     list.push([x, y, z, r, rr(0.35, 0.5)]);
   }
+  const pebbleFrom = list.length;   // the pebbles follow the rapids' rocks in the instance list
   for (let i = 0; i < L.pebbles.count; i++) {
     const p = P[Math.floor(rr(0, P.length))], side = rnd() < 0.5 ? -1 : 1, t = side * (p.w + rr(-0.15, 0.6)), r = rr(...L.pebbles.size);
     const x = p.x - p.tz * t, z = p.z + p.tx * t;
@@ -181,5 +182,5 @@ export function createStream(ctx) {
   };
   plant(sedges, bladeClump, sedgeMat, false); plant(cattails, reedG, reedMat, true); plant(heads, headG, headMat, true); plant(ferns, fernGeometry(), fernMat, true, fernTex);
 
-  return { water, stones, plants, stats: { length: +(P[k1].s - P[k0].s).toFixed(1), rapids: rapids.length, rocks: list.length, sedges: sedges.length, cattails: cattails.length, ferns: ferns.length, plantMeshes: plants.length } };
+  return { water, stones, pebbleFrom, plants, stats: { length: +(P[k1].s - P[k0].s).toFixed(1), rapids: rapids.length, rocks: list.length, sedges: sedges.length, cattails: cattails.length, ferns: ferns.length, plantMeshes: plants.length } };
 }

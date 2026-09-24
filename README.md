@@ -234,6 +234,16 @@ export function createRoseBush(ctx) {
 - **Wind** (`world/wind.js`, `CONFIG.wind`): the wind holds a random strength (leaning strong) and direction for 30-60
   in-game minutes, then shifts to the next over 10 minutes. Grass, trees, clouds and the boat all follow it. The panel's
   Wind slider follows it too, and dragging it overrides the strength; the wind carries on changing from there.
+- **Items** (`app/items.js`, `app/inventory.js`, `app/itemKinds.js`, `assets/vegetation/forage.js`, `CONFIG.items`):
+  - What you can pick up: apples (off the reference tree, under it, and windfalls under the island's apple trees),
+    spruce cones, sticks, berries (on some island bushes), rose petals (fallen, or a few a day off any rose bush) and
+    pebbles (in the stream, on the beaches and the meadow).
+  - Aim at one with the middle of the screen, within reach (crouching or reaching up), and tap, click or press E.
+    It glows while aimed, flies to you and lands in one of four quick slots at the top (up to 10 each; keys 1-4 or the
+    wheel select).
+  - Use (the button above Jump, right click or F) eats apples and berries, throws pebbles, cones and sticks (they
+    splash into water or lie where they land), and lets petals drift off on the wind.
+  - What you take comes back after an in-game day. The inventory and what is taken are saved in the browser.
 - **Sleeping** (`app/sleeping.js`, `BED` in `world/layout.js`, `CONFIG.sleep`): inside the cabin, near the bed and with it
   in view, the bed button lets you sleep once 14 in-game hours have passed since you last did. You sit on the edge, turn
   and lie back looking up, tilted to one side. The screen fades to black and the clock moves on 7-9 hours, and you wake

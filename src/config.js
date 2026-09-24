@@ -171,6 +171,17 @@ export const CONFIG = {
     lie: 1.7, lookUp: 1.3, tilt: 0.785,   // s to lie back; pitch looking up and the sideways tilt lying (rad)
   },
 
+  // Picking things up and carrying them (app/items.js, app/inventory.js)
+  items: {
+    stack: 10,                     // pieces of one kind in a quick slot
+    reach: 0.95, above: 0.8,       // m around you, and above your eyes, that your hand gets to (crouching / reaching up)
+    pickTime: 0.7,                 // s of the crouch / reach and the item flying to you
+    throwSpeed: 7,                 // m/s
+    maxThrown: 16,                 // thrown things lying about (the oldest goes)
+    respawn: 24,                   // in-game hours before what you took is back
+    rosePetals: 3,                 // petals a rose bush gives a day
+  },
+
   // The sailboat (app/boating.js)
   boat: {
     maxSpeed: 4.5, reverse: 0.9,   // m/s ahead in a full wind on the best point of sail, astern

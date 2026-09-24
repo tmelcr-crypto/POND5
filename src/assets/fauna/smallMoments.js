@@ -179,10 +179,22 @@ export function createSmallMoments(ctx) {
     pl.m.count = k; pl.m.visible = k > 0; pl.m.instanceMatrix.needsUpdate = true; if (pl.m.instanceColor) pl.m.instanceColor.needsUpdate = true; pl.fade.needsUpdate = true;
   }
   const rollerMatrix = a => m4.compose(a.p, a.q, a.s);
+  const KIND = { apples: 'apple', cones: 'cone', petals: 'petal' };
   return {
     stats, log, items,
     /** Drop an apple or a cone now (for testing). */
     drop: kind => spawnRoller(kind, t),
+    /** What lies on the ground and can be picked up (app/items.js): apples and cones at rest, landed petals. */
+    loose() {
+      const out = [];
+      for (const k of ['apples', 'cones']) for (const a of items[k]) if (a.rest && !a.gone) out.push({ kind: KIND[k], p: a.p, obj: a, list: k });
+      for (const pt of items.petals) if (pt.landed) out.push({ kind: 'petal', p: pt.p, obj: pt, list: 'petals' });
+      return out;
+    },
+    /** Take one of them away (picked up). */
+    take(it) { items[it.list] = items[it.list].filter(x => x !== it.obj); },
+    /** The plot's own instanced parts, for picking straight off the tree / from under it. */
+    parts: { appleIM, coneIM, groundPetals },
     update(dt) {
       if (!on.apple && !on.spruce && !on.rose) { for (const k in P) if (P[k]) P[k].m.visible = false; return; }
       t += dt;

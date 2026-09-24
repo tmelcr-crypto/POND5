@@ -45,7 +45,8 @@ export function createControls(app) {
     st.keys[e.code] = true;
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     if (!st.playing && (e.code === 'Enter')) start();
-    if (e.code === 'KeyF' && !e.repeat) toggleDoor();
+    if (e.code === 'KeyF' && !e.repeat) { if (st.nearDoor) toggleDoor(); else dispatchEvent(new Event('meadow-use')); }   // the door when at it, otherwise use the selected item
+    if (e.code === 'KeyE' && !e.repeat && st.walk) dispatchEvent(new Event('meadow-tap'));   // pick up what you look at
     if (e.code === 'KeyL' && !e.repeat) setLights(!cabin.lightsOn);
     if (e.code === 'KeyG' && !e.repeat) setWalk(!st.walk);
     if (e.code === 'KeyR' && !e.repeat) toggleSeat();
@@ -54,7 +55,9 @@ export function createControls(app) {
   addEventListener('blur', () => { st.keys = {}; });
   canvas.addEventListener('pointerdown', e => {
     if (e.pointerType === 'mouse') {
+      if (e.button === 2) { if (st.playing) dispatchEvent(new Event('meadow-use')); return; }   // right click: use the selected item
       if (e.button !== 0) return;
+      if (st.playing && st.locked) dispatchEvent(new Event('meadow-tap'));   // click: pick up what you look at
       if (!st.playing) start();
       st.drag = true; canvas.style.cursor = 'grabbing';
       if (!st.locked && canvas.requestPointerLock) { try { canvas.requestPointerLock(); } catch (err) {} }
@@ -76,7 +79,8 @@ export function createControls(app) {
     updateHint();
   });
   document.addEventListener('pointerlockerror', () => { st.locked = false; updateHint(); });
-  canvas.addEventListener('wheel', e => { e.preventDefault(); setSpeed(st.speed * Math.exp(-e.deltaY * 0.0012)); }, { passive: false });
+  canvas.addEventListener('wheel', e => { e.preventDefault(); if (st.wheelSelect) dispatchEvent(new CustomEvent('meadow-wheel', { detail: Math.sign(e.deltaY) })); else setSpeed(st.speed * Math.exp(-e.deltaY * 0.0012)); }, { passive: false });   // with something carried it picks a slot (app/inventory.js)
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
 
   /* touch */
   const joyEl = document.getElementById('joy'), knob = document.getElementById('knob');
@@ -84,9 +88,9 @@ export function createControls(app) {
   function touchDown(e) {
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
     if (e.clientX < innerWidth * 0.45 && joyId === null) {
-      joyId = e.pointerId; touches.set(e.pointerId, { kind: 'joy', x0: e.clientX, y0: e.clientY });
+      joyId = e.pointerId; touches.set(e.pointerId, { kind: 'joy', x0: e.clientX, y0: e.clientY, sx: e.clientX, sy: e.clientY, t0: performance.now() });
       joyEl.style.left = e.clientX + 'px'; joyEl.style.top = e.clientY + 'px'; joyEl.style.display = 'block'; knob.style.transform = '';
-    } else touches.set(e.pointerId, { kind: 'look', x: e.clientX, y: e.clientY });
+    } else touches.set(e.pointerId, { kind: 'look', x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t0: performance.now() });
   }
   canvas.addEventListener('pointermove', e => {
     const t = touches.get(e.pointerId); if (!t) return;
@@ -97,7 +101,10 @@ export function createControls(app) {
       st.yaw -= (e.clientX - t.x) * 0.0048; st.pitch = clamp(st.pitch - (e.clientY - t.y) * 0.0048, -1.5, 1.5); t.x = e.clientX; t.y = e.clientY;
     }
   });
-  function touchUp(e) { const t = touches.get(e.pointerId); if (!t) return; if (t.kind === 'joy') { joyId = null; st.joy.x = st.joy.y = 0; joyEl.style.display = 'none'; } touches.delete(e.pointerId); }
+  function touchUp(e) {
+    const t = touches.get(e.pointerId); if (!t) return;
+    if (e.type === 'pointerup' && Math.hypot(e.clientX - t.sx, e.clientY - t.sy) < 10 && performance.now() - t.t0 < 300) dispatchEvent(new Event('meadow-tap'));   // a tap: pick up what you look at
+    if (t.kind === 'joy') { joyId = null; st.joy.x = st.joy.y = 0; joyEl.style.display = 'none'; } touches.delete(e.pointerId); }
   canvas.addEventListener('pointerup', touchUp); canvas.addEventListener('pointercancel', touchUp);
   /** Forget every held key and touch (the joystick included), so nothing keeps you moving after an animation took over;
    *  a finger still down must be lifted and put down again. */
@@ -202,7 +209,7 @@ export function createControls(app) {
     right.set(Math.cos(st.yaw), 0, -Math.sin(st.yaw));
     const mf = (K.KeyW || K.ArrowUp ? 1 : 0) - (K.KeyS || K.ArrowDown ? 1 : 0) - st.joy.y;
     const mr = (K.KeyD || K.ArrowRight ? 1 : 0) - (K.KeyA || K.ArrowLeft ? 1 : 0) + st.joy.x;
-    const mu = (K.Space || K.KeyE ? 1 : 0) - (K.KeyQ || K.KeyC || K.ControlLeft ? 1 : 0) + st.up - st.down;
+    const mu = (K.Space || (!st.walk && K.KeyE) ? 1 : 0) - (K.KeyQ || K.KeyC || K.ControlLeft ? 1 : 0) + st.up - st.down;
     wish.set(0, 0, 0).addScaledVector(fwd, mf).addScaledVector(right, mr);
     if (!st.walk) wish.addScaledVector(UPV, mu);
     if (wish.lengthSq() > 1) wish.normalize();
