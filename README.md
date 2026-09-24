@@ -227,7 +227,9 @@ export function createRoseBush(ctx) {
 - **Sailing** (`app/boating.js`, `CONFIG.boat`): the boat button (B on desktop) boards the boat by the jetty (step down
   to the wheel) or from the shore when it has run aground (a shaky climb). The on-screen wheel slides in as you reach
   the helm. The left joystick or W / S sets the speed, and left / right turns the wheel, which only turns the boat while
-  it moves and springs back when released. Beyond `maxOffshore` from the shore the boat turns itself back. Near the
+  it moves and springs back when released. The top speed follows the wind setting and the angle to the wind (a crawl
+  in a calm); the boom and mainsail swing out away from the wind and across in a turn, and the boat heels. Beyond
+  `maxOffshore` from the shore the boat turns itself back. Near the
   berth the button docks it (it brings itself in and ties up), then leaves it onto the jetty; elsewhere you can leave
   only where land is within a jump.
 - **Sitting** (`app/controls.js`, `CONFIG.player.sit`): in front of a bench the seat button (R on desktop) turns you to

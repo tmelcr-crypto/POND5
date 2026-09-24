@@ -95,6 +95,9 @@ export function createControls(app) {
   });
   function touchUp(e) { const t = touches.get(e.pointerId); if (!t) return; if (t.kind === 'joy') { joyId = null; st.joy.x = st.joy.y = 0; joyEl.style.display = 'none'; } touches.delete(e.pointerId); }
   canvas.addEventListener('pointerup', touchUp); canvas.addEventListener('pointercancel', touchUp);
+  /** Forget every held key and touch (the joystick included), so nothing keeps you moving after an animation took over;
+   *  a finger still down must be lifted and put down again. */
+  function resetInput() { st.keys = {}; st.joy.x = st.joy.y = 0; st.up = st.down = 0; touches.clear(); joyId = null; joyEl.style.display = 'none'; st.vel.set(0, 0, 0); }
   function holdBtn(id, key) {
     const b = document.getElementById(id);
     const on = e => { e.preventDefault(); st[key] = 1; b.classList.add('on'); }, off = () => { st[key] = 0; b.classList.remove('on'); };
@@ -314,5 +317,5 @@ export function createControls(app) {
     camera.rotation.set(st.pitch, st.yaw, 0);
     return true;
   }
-  return { st, move, fmtTime, setSpeed, setWalk, timeIn, timeV, showTime, toggleSeat, setVehicle: f => { vehicle = f; } };
+  return { st, move, fmtTime, setSpeed, setWalk, timeIn, timeV, showTime, toggleSeat, resetInput, setVehicle: f => { vehicle = f; } };
 }

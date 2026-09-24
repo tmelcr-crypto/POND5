@@ -157,7 +157,11 @@ export const CONFIG = {
 
   // The sailboat (app/boating.js)
   boat: {
-    maxSpeed: 3.4, reverse: 0.9,   // m/s ahead, astern
+    maxSpeed: 3.4, reverse: 0.9,   // m/s ahead in a full wind on the best point of sail, astern
+    calmSpeed: 0.15,               // m/s with no wind at all
+    windFull: 1.0,                 // wind setting (0 still .. 1.6 gusty) at which the boat reaches maxSpeed
+    polar: [0.3, 0.75],            // drive head to wind and dead downwind (1 on a beam reach)
+    turnSpeed: 1.2,                // m/s from which the wheel turns the boat fully (slower, less)
     accel: 0.9, decel: 1.3,        // m/s^2
     turnRate: 0.7,                 // rad/s with the wheel hard over at full speed (less when slower, none when still)
     draft: 0.62,                   // m of water the keel needs
