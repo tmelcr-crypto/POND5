@@ -39,7 +39,7 @@ export const BED = (() => {
  * length along its front, depth, height.
  */
 export const CHESTS = [
-  { id: 'cabin', x: HOUSE.x - 2.58, z: HOUSE.z - 1.38, rot: -Math.PI / 2, length: 0.86, depth: 0.5, height: 0.52 },   // behind the woodpile's back end, clear of the wall's log ends, facing west
+  { id: 'cabin', x: HOUSE.x - 0.45, z: HOUSE.z - CB.ZW - 0.11 - 0.3, rot: Math.PI, length: 0.86, depth: 0.5, height: 0.52 },   // under the back window (house x -0.9..0), facing away from the wall
 ];
 /** Distance to the nearest chest's footprint (< 0 under it): the grass and flowers keep out of it. */
 export function chestDist(x, z) {
