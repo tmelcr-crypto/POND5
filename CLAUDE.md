@@ -98,6 +98,6 @@ the scene gets tested on the iPad.
 - Reference apple tree: 20.7k leaf cards (14.7k touch). Reference spruce: 10.6k needle sprays (5.7k touch).
   The island trees use the same generators (4 variants each) and thin with distance (`CONFIG.trees`); the
   densest view measured 137k foliage cards on touch. The Stats overlay shows the cards drawn.
-- Pixel ratio capped at 1.5 on touch devices; shadow map 2048 there, 4096 on desktop.
+- Pixel ratio capped at 1.25 (`CONFIG.render.maxPixelRatio`); shadow map 2048 there, 4096 on desktop.
 - The fireplace point light casts shadows on desktop only.
 - Quality scaling keys off `isTouch` in `src/core/env.js`.

@@ -126,6 +126,48 @@ export function streamAt(x, z) {
 }
 /** Signed distance to the stream's water edge (< 0 in the water); Infinity far from it. */
 export function streamDist(x, z) { const q = streamAt(x, z); return q ? q.d - q.w : Infinity; }
+
+/*
+ * The footbridge over the stream east of the cabin, and the stepping-stone path from the cabin steps to it (the
+ * meshes: assets/cabin/footbridge.js). The bridge crosses square to the stream at BRIDGE.s; its deck arches from the
+ * banks (deckY is walkable, see app/controls.js). The path's flat stones follow a curve through FOOTPATH_COURSE;
+ * the grass and flowers keep off them (footpathDist). Both use their own random numbers.
+ */
+export const BRIDGE = (() => {
+  const s = 8.8, p = STREAM.pts.reduce((b, q) => Math.abs(q.s - s) < Math.abs(b.s - s) ? q : b, STREAM.pts[0]);
+  const ax = -p.tz, az = p.tx, half = 1.55, width = 1.0, arch = 0.1;   // across the stream (u), along it (v)
+  const endY = Math.max(H(p.x - ax * half, p.z - az * half), H(p.x + ax * half, p.z + az * half)) + 0.16;   // the stringers rest on the banks
+  return { x: p.x, z: p.z, ax, az, half, width, arch, endY, W: p.W, deckY: u => endY + arch * (1 - (u / half) ** 2) };
+})();
+/** Top of the bridge deck at (x, z), or -Infinity off the deck. */
+export function bridgeDeckY(x, z) {
+  const B = BRIDGE, dx = x - B.x, dz = z - B.z, u = dx * B.ax + dz * B.az, v = dx * B.az - dz * B.ax;
+  return Math.abs(u) <= B.half + 0.05 && Math.abs(v) <= B.width / 2 ? B.deckY(Math.max(-B.half, Math.min(B.half, u))) : -Infinity;
+}
+const FOOTPATH_COURSE = [[4.02, -1.02], [4.75, -1.12], [5.4, -1.62], [5.62, -2.45], [BRIDGE.x - BRIDGE.ax * (BRIDGE.half + 0.35), BRIDGE.z - BRIDGE.az * (BRIDGE.half + 0.35)]];
+export const FOOTPATH = (() => {
+  let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }, rr = (a, b) => a + (b - a) * rnd();
+  const curve = new THREE.CatmullRomCurve3(FOOTPATH_COURSE.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal'), len = curve.getLength();
+  const stones = [], place = (x, z, tx, tz, sink) => {
+    const r = rr(0.2, 0.27), side = rr(-0.07, 0.07);
+    stones.push({ x: x - tz * side, z: z + tx * side, r, sx: rr(1.0, 1.25), rot: Math.atan2(tz, tx) + rr(-0.5, 0.5), sink, seed: Math.floor(rnd() * 1e6) });
+  };
+  for (let d = 0.05; d <= len; d += rr(0.58, 0.66)) { const u = d / len, p = curve.getPointAt(u), t = curve.getTangentAt(u); place(p.x, p.z, t.x, t.z, 0); }
+  // two more beyond the bridge, sinking into the meadow
+  for (let k = 1; k <= 2; k++) { const d = BRIDGE.half + 0.1 + k * 0.62; place(BRIDGE.x + BRIDGE.ax * d, BRIDGE.z + BRIDGE.az * d, BRIDGE.ax, BRIDGE.az, k * 0.012); }
+  return { stones, len };
+})();
+/** Distance to the nearest path stone's rim (< 0 on a stone). */
+export function footpathDist(x, z) {
+  let d = Infinity;
+  for (const s of FOOTPATH.stones) { const dx = x - s.x, dz = z - s.z; if (Math.abs(dx) < d + s.r * 1.3 && Math.abs(dz) < d + s.r * 1.3) d = Math.min(d, Math.hypot(dx, dz) - s.r * (1 + 0.5 * (s.sx - 1))); }
+  return d;
+}
+/** Distance to the bridge's footprint (< 0 under the deck). */
+export function bridgeDist(x, z) {
+  const B = BRIDGE, dx = x - B.x, dz = z - B.z, u = Math.abs(dx * B.ax + dz * B.az) - B.half, v = Math.abs(dx * B.az - dz * B.ax) - B.width / 2;
+  return Math.max(u, v) < 0 ? Math.max(u, v) : Math.hypot(Math.max(u, 0), Math.max(v, 0));
+}
 /** Spruce forest density 0..1: noise-driven groves between the meadow around the plot and the beach. */
 export function forest(x, z) {
   const groves = smooth(0.1, 0.32, fbm2(x * 0.045 + SZ, z * 0.045 + SX, 3));

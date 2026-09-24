@@ -2,7 +2,7 @@ import { isTouch } from '../core/env.js';
 import { V, UPV, clamp } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H } from '../world/layout.js';
+import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY } from '../world/layout.js';
 import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
 
 /**
@@ -150,12 +150,13 @@ export function createControls(app) {
     const ix = np.x - HOUSE.x, iz = np.z - HOUSE.z;
     if (!st.walk && Math.abs(ix) < 1.58 && Math.abs(iz) < 1.23) { const fy = PAD_H + CB.FL + 0.28; if (np.y < fy && np.y > PAD_H - 0.4) { np.y = fy; st.vel.y = Math.max(0, st.vel.y); } }
   }
-  /** Walkable surface under (x, z) for feet at height `feet`: terrain, cabin floor, or the top of a low rock (outcrop or
-   *  island boulder). Also pushes out of rocks too tall to step onto, judged by the feet, not the eye. */
+  /** Walkable surface under (x, z) for feet at height `feet`: terrain, cabin floor, the footbridge's deck, or the top of a
+   *  low rock (outcrop or island boulder). Also pushes out of rocks too tall to step onto, judged by the feet, not the eye. */
   function groundAt(p, feet) {
     let g = H(p.x, p.z);
     const ix = p.x - HOUSE.x, iz = p.z - HOUSE.z;
     if (Math.abs(ix) < 1.58 && Math.abs(iz) < 1.23) g = Math.max(g, PAD_H + CB.FL);
+    const deck = bridgeDeckY(p.x, p.z); if (deck - feet <= PC.stepHeight) g = Math.max(g, deck);   // the footbridge (not from under it)
     const standOn = c => {
       // in the collider's own (rotated) frame; radii are padded by 0.2, body is the player's radius
       const cr = Math.cos(c.rot || 0), sr = Math.sin(c.rot || 0), wx = p.x - c.x, wz = p.z - c.z;

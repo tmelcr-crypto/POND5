@@ -140,7 +140,7 @@ export const CONFIG = {
   camera: { far: 150, fov: 72 },
 
   // Rendering
-  render: { maxPixelRatio: 1.5 },
+  render: { maxPixelRatio: 1.25 },
 
   // Player
   player: {
