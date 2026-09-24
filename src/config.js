@@ -161,7 +161,7 @@ export const CONFIG = {
     accel: 0.9, decel: 1.3,        // m/s^2
     turnRate: 0.7,                 // rad/s with the wheel hard over at full speed (less when slower, none when still)
     draft: 0.62,                   // m of water the keel needs
-    maxOffshore: 200,              // m from the shore; beyond it the boat turns itself back towards the island
+    maxOffshore: 90,               // m from the shore; beyond it the boat turns itself back towards the island (the fog hides the island much further out)
     reach: 2.8,                    // m from the hull within which you can board
     dockReach: 6, dockSpeed: 2.2,  // the dock button shows within this of the berth, slower than this
   },
