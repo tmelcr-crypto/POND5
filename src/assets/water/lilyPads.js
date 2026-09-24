@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { rng, rr } from '../../core/random.js';
 import { lin } from '../../core/math.js';
-import { WATER_Y, LAKE, lakeR, H } from '../../world/layout.js';
+import { WATER_Y, LAKE, lakeR, H0 } from '../../world/layout.js';
 
 /**
  * Floating lily pads (one with a water-lily flower). Returns the pads so the loop can bob them.
@@ -16,7 +16,7 @@ export function createLilyPads(ctx) {
     while (pads.length < 11 && tries < 500) {
       tries++;
       const a = rr(-0.6, 2.6), r = lakeR(a) * rr(0.35, 0.8), x = LAKE.x + Math.cos(a) * r, z = LAKE.z + Math.sin(a) * r;
-      if (WATER_Y - H(x, z) < 0.12) continue;
+      if (WATER_Y - H0(x, z) < 0.12) continue;   // uncarved: the same pads as before the stream
       if (pads.some(p => Math.hypot(p.position.x - x, p.position.z - z) < 0.35)) continue;
       const pr = rr(0.1, 0.19), g = new THREE.CircleGeometry(pr, 28, 0.35, Math.PI * 2 - 0.35); g.rotateX(-Math.PI / 2);
       const mesh = new THREE.Mesh(g, rng() < 0.3 ? pm2 : pm); mesh.position.set(x, WATER_Y + 0.006, z); mesh.rotation.y = rng() * 6.28;

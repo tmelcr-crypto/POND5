@@ -5,7 +5,7 @@ import { fbm2, hash2 } from '../core/noise.js';
 import { U } from '../core/uniforms.js';
 import { canvasTex } from '../core/canvasTexture.js';
 import { CONFIG } from '../config.js';
-import { WATER_Y, HALF, houseRectDist, ROCK, ROSE, CON, H, coreDist, forest, coastDist, SEA_Y } from './layout.js';
+import { WATER_Y, HALF, houseRectDist, ROCK, ROSE, CON, H, coreDist, forest, coastDist, SEA_Y, streamDist } from './layout.js';
 
 const gA = lin(0x33501b), gB = lin(0x4f6d27), needles = lin(0x4d3c28), shore = lin(0x6b5d43), mud = lin(0x57492f), deep = lin(0x2a2a1c), dry = lin(0x6d7a34);
 const cabinDirt = lin(0x4a3d2a), rockMoss = lin(0x3a4a20), rockSoil = lin(0x51483a), roseSoil = lin(0x3b2a1c);
@@ -81,7 +81,7 @@ export function createWorldTerrain(ctx) {
   const { scene, maxAniso } = ctx;
   const { detailTex } = ctx.tex;
   const TC = CONFIG.terrain, WC = CONFIG.world;
-  const pos = [], nor = [], uv = [], col = [], soil = [], idx = [];
+  const pos = [], nor = [], uv = [], col = [], soil = [], streamV = [], idx = [];
   const c = new THREE.Color(), cw = new THREE.Color(), dryW = lin(0x6d7a34);
   const e = 0.25; // finite-difference step for normals
   function vertex(x, z, sink) {
@@ -96,7 +96,10 @@ export function createWorldTerrain(ctx) {
     if (w > 0) { cw.copy(gA).lerp(gB, clamp(fbm2(x * 0.6 + 11, z * 0.6 - 3) * 0.9 + 0.5)).lerp(dryW, clamp(fbm2(x * 0.11 - 7, z * 0.11 + 2) * 1.6 + 0.2) * 0.45); c.lerp(cw, w); }
     col.push(c.r, c.g, c.b);
     // soil mask: forest floor under the spruces, the path, bare patches; 0 on the plot
-    soil.push(w * smooth(CONFIG.island.beachWidth, CONFIG.island.beachWidth + 4, coastDist(x, z)) * clamp(forest(x, z) * 0.95 + smooth(0.2, 0.45, fbm2(x * 0.09 + 40, z * 0.09 - 13, 3)) * 0.5));
+    // the stream: its bed and wet edges are soil; its valley (aStream) is kept out of the beach sand
+    const sd = streamDist(x, z), bed = 1 - smooth(-0.1, 0.7 + 0.4 * fbm2(x * 0.8, z * 0.8, 2), sd), valley = (1 - smooth(1.5, 3.2, sd)) * smooth(CONFIG.island.beachWidth - 3, CONFIG.island.beachWidth + 1, coastDist(x, z));   // not on the beach itself
+    soil.push(Math.max(w * smooth(CONFIG.island.beachWidth, CONFIG.island.beachWidth + 4, coastDist(x, z)) * clamp(forest(x, z) * 0.95 + smooth(0.2, 0.45, fbm2(x * 0.09 + 40, z * 0.09 - 13, 3)) * 0.5), bed));
+    streamV.push(valley);
   }
   function grid(size, seg, keepCell, sinkAt) {
     const base = pos.length / 3, st = size / seg, h0 = -size / 2;
@@ -114,7 +117,7 @@ export function createWorldTerrain(ctx) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  g.setAttribute('aSoil', new THREE.Float32BufferAttribute(soil, 1)); g.setIndex(idx);
+  g.setAttribute('aSoil', new THREE.Float32BufferAttribute(soil, 1)); g.setAttribute('aStream', new THREE.Float32BufferAttribute(streamV, 1)); g.setIndex(idx);
   g.computeBoundingSphere();
 
   const dirtTex = noiseTex(256, (x, y) => { const n = 0.55 * tnoise(x / 16, y / 16, 16) + 0.3 * tnoise(x / 5, y / 5, 51.2) + 0.15 * tnoise(x / 1.7, y / 1.7, 150.6); return (0.35 + 0.8 * n) * (hash2(x, y) > 0.93 ? 0.7 : 1); });
@@ -129,11 +132,12 @@ export function createWorldTerrain(ctx) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, map: detailTex, roughness: 0.95, metalness: 0, envMapIntensity: 0.6 });
   m.onBeforeCompile = s => {
     Object.assign(s.uniforms, uni);
-    s.vertexShader = 'attribute float aSoil; varying float vSoil; varying vec3 vWP; varying vec3 vNW;\n' + s.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vNW = normal; vSoil = aSoil;');
-    s.fragmentShader = 'uniform sampler2D uDirtTex; uniform sampler2D uRockTex; uniform vec3 uDirtCol; uniform vec3 uRockCol; uniform float uRockSlope; uniform float uSea; uniform vec3 uSand; uniform vec3 uWetSand; varying float vSoil; varying vec3 vWP; varying vec3 vNW;\n' +
+    s.vertexShader = 'attribute float aSoil; attribute float aStream; varying float vSoil; varying float vStream; varying vec3 vWP; varying vec3 vNW;\n' + s.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vNW = normal; vSoil = aSoil; vStream = aStream;');
+    s.fragmentShader = 'uniform sampler2D uDirtTex; uniform sampler2D uRockTex; uniform vec3 uDirtCol; uniform vec3 uRockCol; uniform float uRockSlope; uniform float uSea; uniform vec3 uSand; uniform vec3 uWetSand; varying float vSoil; varying float vStream; varying vec3 vWP; varying vec3 vNW;\n' +
       s.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
         vec3 nW = normalize(vNW);
         float big = texture2D(uDirtTex, vWP.xz * 0.021).r;
+        float streamBed = vStream;
         float soilW = clamp(vSoil * (0.75 + 0.6 * big) - 0.08, 0.0, 1.0);
         soilW = smoothstep(0.15, 0.75, soilW + (texture2D(uDirtTex, vWP.xz * 0.27).r - 0.5) * 0.35);
         vec3 dirt = uDirtCol * (0.55 + 0.6 * texture2D(uDirtTex, vWP.xz * 0.43).r);
@@ -146,7 +150,8 @@ export function createWorldTerrain(ctx) {
         // beach: dry sand above the waterline, darker wet sand at and below it
         float above = vWP.y - uSea + (big - 0.5) * 0.25;
         vec3 sand = mix(uWetSand, uSand, smoothstep(-0.05, 0.25, above)) * (0.8 + 0.35 * texture2D(uDirtTex, vWP.xz * 0.9).r);
-        diffuseColor.rgb = mix(diffuseColor.rgb, sand, 1.0 - smoothstep(0.55, 0.95, above));`)
+        diffuseColor.rgb = mix(diffuseColor.rgb, sand, (1.0 - smoothstep(0.55, 0.95, above)) * (1.0 - streamBed));
+        diffuseColor.rgb *= 1.0 - 0.3 * soilW * streamBed;             // wet bed`)
       .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n reflectedLight.directSpecular *= 0.2; reflectedLight.indirectSpecular *= 0.2;');
   };
   const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh);

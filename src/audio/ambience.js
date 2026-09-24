@@ -1,5 +1,5 @@
 import { U } from '../core/uniforms.js';
-import { coastDist, forest, houseRectDist, LAKE, lakeR, lakeD } from '../world/layout.js';
+import { coastDist, forest, houseRectDist, LAKE, lakeR, lakeD, STREAM } from '../world/layout.js';
 
 /**
  * Ambient sound, all synthesised with the Web Audio API (no audio files): wind with gusts, ocean swell, fire crackle and
@@ -7,7 +7,8 @@ import { coastDist, forest, houseRectDist, LAKE, lakeR, lakeD } from '../world/l
  * boat creak for when there is a boat. The pond layer exists but is off (AMB.pond.enabled). Each layer's level comes
  * from mixAt(): the player's position (distance to the shore, the pond, the fire; inside the cabin or not) and the
  * sky's night value (skyUniforms.uNight, the scene's time of day). Fire and pond are positioned in 3D; the rest is
- * plain stereo. Pond and fire only run while their detail-manager band is on. Every number is in AMB.
+ * plain stereo; the stream is heard from its nearest point, louder by its rapids. Pond, fire and stream only run while
+ * their detail-manager band is on. Every number is in AMB.
  * A layer can use a looping recording instead of the synthesis: put the file in audio/ and set the layer's `file`
  * (m4a or mp3, CC0 or CC-BY, listed in audio/CREDITS.md).
  */
@@ -18,6 +19,7 @@ export const AMB = {
   // soft pink-noise whoosh with the low rumble cut (lowCut, Hz) so gusts never thump; gust: how much gusts swell it
   wind: { level: 0.2, lowCut: 160, cutoff: [420, 950], gust: 0.3, gustPeriod: [9, 23], leaves: 0.35, whistle: 0.03, shoreBoost: 0.3 },
   ocean: { level: 0.75, waveEvery: [6.5, 11], near: -4, far: 26, inland: 0.1, file: null },
+  stream: { level: 0.9, range: [0.5, 12], rush: 0.5, babbleEvery: [0.04, 0.13], band: 16 },   // the stream: babble, and a rush by the rapids
   pond: { enabled: false, level: 1.5, range: [1, 13], lapEvery: [0.35, 1.3], plipEvery: [1.5, 5], band: 16, file: null },
   fire: { level: 1.3, range: [0.8, 7], outside: [1.2, 4.5], outsideLevel: 0.15, wallCutoff: 1500, crackles: 9, band: 18 },
   birds: {
@@ -131,6 +133,14 @@ const SONGS = {
   },
 };
 
+/** The stream's nearest point to p: its level (by distance to the water's edge) and how much of it is rapids. */
+function streamMix(p) {
+  let best = null, bd = Infinity;
+  for (const q of STREAM.pts) { const d = (p.x - q.x) ** 2 + (p.z - q.z) ** 2; if (d < bd) { bd = d; best = q; } }
+  const edge = Math.max(0, Math.sqrt(bd) - best.w), A = AMB.stream;
+  return { stream: 1 - smooth(A.range[0], A.range[1], edge), streamRapid: smooth(0.02, 0.08, best.slope), streamAt: best };
+}
+
 /**
  * Levels of every layer (0..1 before each layer's own level) for a listener at p = { x, y, z }. night: sky night value
  * (0 day .. 1 night); wind: the wind setting (U.uWind); fire: { x, y, z } of the fireplace; onBoat: on the boat.
@@ -148,6 +158,7 @@ export function mixAt(p, night, wind, fire, onBoat = false) {
     leaves: forest(p.x, p.z),                                     // rustle of leaves among the island's trees
     ocean: onBoat ? 1 : A.ocean.inland + (1 - A.ocean.inland) * (1 - smooth(A.ocean.near, A.ocean.far, c)),
     pond: A.pond.enabled ? 1 - smooth(A.pond.range[0], A.pond.range[1], pondD) : 0,
+    ...streamMix(p),
     fire: inside ? 1 - smooth(A.fire.range[0], A.fire.range[1], fireD) * 0.4 : A.fire.outsideLevel * (1 - smooth(A.fire.outside[0], A.fire.outside[1], fireD)),
     birds: day * land * (0.55 + 0.45 * forest(p.x, p.z)),
     crickets: dark * land * (0.6 + 0.4 * (1 - forest(p.x, p.z))),
@@ -212,6 +223,17 @@ export function createAmbienceGraph(ac) {
     pond = { pan, g, env, src };
   }
   function stopPond() { if (!pond) return; pond.src.stop(); pond.pan.disconnect(); pond = null; }
+
+  /* ---- stream: babbling water (bandpassed noise, quickly modulated) and a rush of white water by the rapids ---- */
+  let stream = null, nextBabble = 0;
+  function startStream() {
+    if (stream) return;
+    const pan = panner(), g = gain(0), env = gain(0.6), rush = gain(0), b1 = loop(white, 1.0), b2 = loop(brown, 1.2), r1 = loop(white, 0.93);
+    chain(b1, filt('bandpass', 1400, 0.9), env); chain(b2, filt('bandpass', 520, 1.2), gain(0.8), env); chain(env, g);
+    chain(r1, filt('highpass', 1600, 0.6), rush, g); chain(g, pan, outdoor);
+    stream = { pan, g, env, rush, src: [b1, b2, r1] };
+  }
+  function stopStream() { if (!stream) return; stream.src.forEach(x => x.stop()); stream.pan.disconnect(); stream = null; }
 
   /* ---- fire: low rumble plus short noise crackles; muffled by the walls from outside ---- */
   let fire = null, nextCrackle = 0;
@@ -301,6 +323,7 @@ export function createAmbienceGraph(ac) {
       glide(whistleG.gain, W.level * W.whistle * m.wind * gst * gst * Math.max(0, w - 0.4), t, 1); glide(whistleBP.frequency, 650 + 600 * gst, t, 1);
       glide(oceanG.gain, A.ocean.level * m.ocean, t, 0.5);
       if (pond) glide(pond.g.gain, A.pond.level * m.pond, t, 0.3);
+      if (stream) { glide(stream.g.gain, A.stream.level * (m.stream || 0), t, 0.3); glide(stream.rush.gain, A.stream.rush * (m.streamRapid || 0), t, 0.5); }
       if (fire) { glide(fire.g.gain, A.fire.level * m.fire, t, 0.3); glide(fire.wall.frequency, m.inside ? OPEN : A.fire.wallCutoff, t, 0.2); }
       glide(birdBus.gain, A.birds.level * m.birds, t, 1); glide(cricketBus.gain, A.crickets.level * m.crickets, t, 1);
       glide(boatBus.gain, A.boat.level * m.boat, t, 0.3);
@@ -316,6 +339,10 @@ export function createAmbienceGraph(ac) {
         glide(bodyG.gain, rr(0.35, 0.5), t, 1.2); glide(bodyG.gain, rr(0.85, 1.1), brk, 0.12); glide(bodyG.gain, 0.28, brk + 0.5, 1.6);
         glide(hissG.gain, 0.08, t, 1); glide(hissG.gain, rr(0.45, 0.7), brk + 0.05, 0.08); glide(hissG.gain, 0.12, brk + 0.4, 1.1);
         nextWave += P;
+      }
+      if (stream) {   // babble: the level jumps a little every few hundredths of a second
+        if (nextBabble < t0) nextBabble = t0;
+        while (nextBabble < t1) { glide(stream.env.gain, rr(0.35, 1), nextBabble, 0.025); nextBabble += rr(...A.stream.babbleEvery); }
       }
       if (pond) {
         if (nextLap < t0) nextLap = t0; if (nextPlip < t0) nextPlip = t0 + rr(...A.pond.plipEvery);
@@ -356,7 +383,9 @@ export function createAmbienceGraph(ac) {
     /** Place the pond sound at the shore point nearest the listener, the fire at the fireplace. */
     setPond(p, t) { if (!pond) return; const a = Math.atan2(p.z - LAKE.z, p.x - LAKE.x), r = lakeR(a); setPos(pond.pan, LAKE.x + Math.cos(a) * r, 0.05, LAKE.z + Math.sin(a) * r, t); },
     setFire(f, t) { if (fire) setPos(fire.pan, f.x, f.y, f.z, t); },
-    startPond, stopPond, startFire, stopFire,
+    /** Place the stream sound at its point nearest the listener (from mixAt). */
+    setStream(m, t) { if (stream && m.streamAt) setPos(stream.pan, m.streamAt.x, m.streamAt.W + 0.05, m.streamAt.z, t); },
+    startPond, stopPond, startFire, stopFire, startStream, stopStream,
     get active() { return { pond: !!pond, fire: !!fire, crickets: !!crickets }; },
   };
 }
@@ -372,21 +401,22 @@ export function createAmbience(ctx) {
   try { const v = parseFloat(localStorage.getItem('meadow.soundVolume')); if (v >= 0 && v <= 1) volume = v; muted = localStorage.getItem('meadow.muted') === '1'; } catch (err) { void err; /* private mode */ }
   const fireAt = { x: 0, y: 0, z: 0 };
   if (cabin && cabin.fireLight) { cabin.fireLight.updateWorldMatrix(true, false); const e = cabin.fireLight.matrixWorld.elements; fireAt.x = e[12]; fireAt.y = e[13]; fireAt.z = e[14]; }
-  const want = { pond: false, fire: false };
+  const want = { pond: false, fire: false, stream: false };
 
   // detail-manager bands: the pond and fire layers only exist near the pond / cabin
   if (detail) {
     const V3 = camera.position.constructor;
     if (A.pond.enabled) detail.band('pond sound', { min: new V3(LAKE.x - 2.4, -1, LAKE.z - 2.4), max: new V3(LAKE.x + 2.4, 1, LAKE.z + 2.4) }, A.pond.band, on => { want.pond = on; if (g) { if (on) g.startPond(); else g.stopPond(); } });
+    { const xs = STREAM.pts.map(q => q.x), zs = STREAM.pts.map(q => q.z); detail.band('stream sound', { min: new V3(Math.min(...xs), -2, Math.min(...zs)), max: new V3(Math.max(...xs), 2, Math.max(...zs)) }, A.stream.band, on => { want.stream = on; if (g) { if (on) g.startStream(); else g.stopStream(); } }); }
     detail.band('fire sound', { min: new V3(fireAt.x, fireAt.y, fireAt.z) }, A.fire.band, on => { want.fire = on; if (g) { if (on) g.startFire(); else g.stopFire(); } });
-  } else { want.pond = A.pond.enabled; want.fire = true; }
+  } else { want.pond = A.pond.enabled; want.fire = want.stream = true; }
 
   function applyVolume() { if (g) g.master.gain.setTargetAtTime(muted ? 0 : volume, ac.currentTime, 0.05); }
   function start() {
     if (ac) { if (ac.state !== 'running') ac.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     ac = new AC(); g = createAmbienceGraph(ac);
-    if (want.pond) g.startPond(); if (want.fire) g.startFire();
+    if (want.pond) g.startPond(); if (want.fire) g.startFire(); if (want.stream) g.startStream();
     applyVolume(); if (ac.state !== 'running') ac.resume();
     // optional recordings (audio/<file>); a layer keeps its synthesis if its file is missing or cannot be decoded
     for (const name of ['ocean', 'pond', 'birds', 'crickets', 'boat']) {
@@ -419,7 +449,7 @@ export function createAmbience(ctx) {
       const t0 = performance.now(), t = ac.currentTime, p = camera.position, onBoat = !!(ctx.boat && ctx.boat.onBoard);
       const m = mixAt(p, skyUniforms.uNight.value, U.uWind.value, fireAt, onBoat);
       g.setMix(m, t); g.schedule(t, t + A.lookahead);
-      camera.getWorldDirection(fwd); g.setListener(p, fwd, t); g.setPond(p, t); g.setFire(fireAt, t);
+      camera.getWorldDirection(fwd); g.setListener(p, fwd, t); g.setPond(p, t); g.setFire(fireAt, t); g.setStream(m, t);
       stats.updateMs = performance.now() - t0;
     },
   };
