@@ -33,11 +33,12 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
   /* ---- DOM: two buttons, the black fade, the album ---- */
   const vb = document.getElementById('vbtns');
   const mkBtn = id => { const b = document.createElement('button'); b.className = 'tbtn glass'; b.id = id; b.style.display = 'none'; vb.prepend(b); return b; };
-  const btn2 = mkBtn('btnBed2'), btn1 = mkBtn('btnBed1');
+  const btn3 = mkBtn('btnBed3'), btn2 = mkBtn('btnBed2'), btn1 = mkBtn('btnBed1');
   const black = document.createElement('div'); black.id = 'sleepFade'; document.body.appendChild(black);
   const album = document.createElement('div'); album.id = 'album'; album.className = 'hide';
   album.innerHTML = '<div class="book"><div class="page left"></div><div class="page right"></div><div class="leaf"><div class="face front"></div><div class="face back"></div></div></div>'
-    + '<button class="turn prev glass" aria-label="Previous page">&#8249;</button><button class="turn next glass" aria-label="Next page">&#8250;</button>';
+    + '<button class="turn prev glass" aria-label="Previous page">&#8249;</button><button class="turn next glass" aria-label="Next page">&#8250;</button>'
+    + '<button class="close glass" aria-label="Close the album">&#10005;</button><button class="standUp glass" aria-label="Get up">' + ICON_STAND + '</button>';
   document.body.appendChild(album);
   const pageHtml = i => i < 0 || i >= SYMBOLS.length ? '' : `<span class="sym">${SYMBOLS[i]}</span><span class="num">${i + 1}</span>`;
   const $ = q => album.querySelector(q), left = $('.left'), right = $('.right'), leaf = $('.leaf'), front = $('.front'), back = $('.back');
@@ -59,18 +60,23 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
   album.addEventListener('pointerup', e => { if (sx !== null && Math.abs(e.clientX - sx) > 40) turn(e.clientX < sx ? 1 : -1); sx = null; });
   addEventListener('keydown', e => { if (album.classList.contains('hide')) return; if (e.code === 'ArrowRight') turn(1); if (e.code === 'ArrowLeft') turn(-1); });
   const openAlbum = on => { album.classList.toggle('hide', !on); if (on) { spread = 0; showSpread(); } };
+  const albumOpen = () => !album.classList.contains('hide');
+  $('.close').addEventListener('click', () => openAlbum(false));                                   // close the album, stay sitting
+  $('.standUp').addEventListener('click', () => { if (mode === 'sitting' && !anim && !fade) act('stand'); });
+  addEventListener('keydown', e => { if (e.code === 'Escape' && albumOpen()) openAlbum(false); });
 
   let acts = [];
-  function setButtons(list) {   // list: up to two of 'sleep', 'sit', 'stand'
+  const ICON_BOOK = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5.5c3-1.3 6-1.3 9 .8 3-2.1 6-2.1 9-.8V19c-3-1.3-6-1.3-9 .8-3-2.1-6-2.1-9-.8z"/><path d="M12 6.3v13.5"/></svg>';
+  function setButtons(list) {   // list: up to three of 'sleep', 'sit', 'stand', 'album'
     const key = list.join(); if (key === acts.join()) return; acts = list;
-    [btn1, btn2].forEach((b, i) => {
+    [btn1, btn2, btn3].forEach((b, i) => {
       const a = list[i]; b.style.display = a ? '' : 'none'; if (!a) return;
-      b.innerHTML = a === 'sleep' ? ICON_SLEEP : a === 'sit' ? ICON_SIT : ICON_STAND;
-      b.setAttribute('aria-label', { sleep: 'Sleep', sit: 'Sit on the bed', stand: 'Get up' }[a]);
+      b.innerHTML = a === 'sleep' ? ICON_SLEEP : a === 'sit' ? ICON_SIT : a === 'album' ? ICON_BOOK : ICON_STAND;
+      b.setAttribute('aria-label', { sleep: 'Sleep', sit: 'Sit on the bed', stand: 'Get up', album: 'Open the album' }[a]);
     });
   }
   const press = i => { const a = acts[i]; if (a && !anim && !fade) act(a); };
-  [btn1, btn2].forEach((b, i) => { b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); press(i); }); b.addEventListener('contextmenu', e => e.preventDefault()); });
+  [btn1, btn2, btn3].forEach((b, i) => { b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); press(i); }); b.addEventListener('contextmenu', e => e.preventDefault()); });
   addEventListener('keydown', e => { if (e.repeat || !st.playing) return; if (e.code === 'KeyR' && (mode || acts.length)) press(0); if (e.code === 'KeyT') press(1); });
 
   /* ---- in reach and in view ---- */
@@ -134,6 +140,7 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
       mode = 'anim'; st.vel.set(0, 0, 0); resetInput();
       if (a === 'sleep') play([...sitSteps(), ...lieSteps()], sleep); else play(sitSteps(), toSitting);
     } else if (mode === 'sitting') {
+      if (a === 'album') { openAlbum(true); return; }
       openAlbum(false);
       if (a === 'stand') play(riseSteps(), free); else if (a === 'sleep') play(lieSteps(), sleep);
     } else if (mode === 'lying') {
@@ -161,7 +168,7 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
         setHours(clock.hours + hrs); prevH = clock.hours; total += hrs; scheduleEnv(true); afterTimeJump();
       }
       if (t >= 2 * F + SL.black) { fade = null; black.style.opacity = '0'; mode = 'lying'; }
-    } else if (mode === 'sitting') setButtons(allowed() ? ['stand', 'sleep'] : ['stand']);
+    } else if (mode === 'sitting') setButtons(['stand', allowed() && 'sleep', !albumOpen() && 'album'].filter(Boolean));
     else if (mode === 'lying') setButtons(['stand', 'sit']);
     if (mode === 'sitting' && !anim) st.pos.copy(S); else if (mode === 'lying' && !anim) st.pos.copy(P);
     camera.position.copy(st.pos); camera.rotation.set(st.pitch, st.yaw, roll);
