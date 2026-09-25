@@ -22,8 +22,10 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Carry the lantern (#22): take it from the porch bench (icon beside it, or T), walk outside at dusk: it swings in
       your hand and lights the grass and ground round you; put it back on the bench. Reload while carrying: still carried.
 - [ ] Hunger meter (#1): note where it is; it slowly drains; it never reaches empty.
-- [ ] Well (#12): draw a bucket of water.
-- [ ] Garden (#8): sow a row behind the cabin (seeding only); come back in step 6 to see it grown.
+- [ ] Well (#12, behind the cabin): the icon (or T) draws a bucket: crank, splash, the bucket comes up full; a cup of
+      water in your slots, Use says Drink.
+- [ ] Garden (#8): sow every plot of the three beds behind the cabin; come back in step 6 to harvest (carrots raw,
+      potatoes and a pumpkin cooked at a fire).
 - [ ] Signposts (#19): at the three forks (bridge, jetty path, forest path) every board points along its path and the
       distances look right; walk round a post (it is solid); read a board from both sides.
 - [ ] The treasure map (#16) is found in the cabin; keep it for step 5.
@@ -32,7 +34,8 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Rabbits (#38) hop in the meadow and dart into bushes when you come close.
 - [ ] Squirrels (#39) run up the spruces and sometimes drop a cone you can pick up.
 - [ ] Mushrooms (#10) in the forest: pick brown boletes (fly agarics cannot be picked); none in winter.
-- [ ] Planting (#7): plant an apple core and a cone somewhere open; note the places.
+- [ ] Planting (#7): with an apple, then a cone selected, look down at open meadow: Use says Plant (not on a path, the
+      beach or next to a tree); note the places; they grow over the next days.
 - [ ] Take 10 sticks from the forest woodpile; the 11th is refused. Light the forest firepit with 3 sticks.
 - [ ] Sit on a log, cook an apple and a mushroom (#4); stand up during a third cook: the raw one comes back.
 - [ ] God rays (#92) through the trees; sun-ray look again in the morning mist in step 7.

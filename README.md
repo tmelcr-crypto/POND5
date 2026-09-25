@@ -58,7 +58,7 @@ A workflow is included in `.github/workflows/pages.yml`. Push to `main`, then en
 | `1`-`4`, wheel | Tap a slot | Select a quick slot |
 | `R` | Seat button | Sit down / stand up (benches, logs, the porch bench) |
 | `X` | Fire icon beside it | Light / put out a fire, lamp, candle or lantern |
-| `T` | Lantern icon beside it | Take the hand lantern from the porch bench / put it back |
+| `T` | The icon beside it | Take / put back the hand lantern, draw water at the well, sow or harvest a garden plot |
 | `V` | Curtain button | Open / close the curtains of the window you look at |
 | `B` | Boat button | Board, anchor, weigh anchor, leave the boat |
 | `H` | Fish button | Cast, reel in; tap to strike |
@@ -318,6 +318,20 @@ export function createRoseBush(ctx) {
   hand, swinging as you walk, and at night it lights the ground, grass, trees and rocks round you (one shader light,
   `U.uHandLight`, added to every outdoor material in `engine/finalizeScene.js`; nothing by day). Back at the bench the
   same icon puts it down. Whether you carry it is saved.
+- **Well** (`WELL` in `world/layout.js`, `assets/cabin/well.js`, `app/drawWater.js`, `CONFIG.well`): behind the cabin, a
+  stone well with a little roof and a windlass. Looking at it, the icon beside it (T) lowers the bucket (the crank
+  turns and creaks, a splash far down), winds it back up full, and a cup of fresh water goes into your quick slots
+  (Use says Drink).
+- **Vegetable garden** (`GARDEN` in `world/layout.js`, `assets/cabin/garden.js`, `app/gardening.js`, `CONFIG.garden`):
+  three raised beds behind the cabin, carrots, potatoes and pumpkins, three plots each. Looking at a bare plot, the
+  icon sows it (no seeds to carry); it grows by itself over 2 / 3 / 4 in-game days (sleeping counts; nothing grows or
+  is sown in winter, when the beds are under snow), then the icon harvests it: 3 carrots (eaten raw), 3 potatoes or a
+  pumpkin (both cooked on the stick into baked potatoes and roasted pumpkin). Saved in the browser.
+- **Planting** (`app/planting.js`, `assets/trees/sapling.js`, `CONFIG.planting`): with an apple or a spruce cone
+  selected, look down at open ground close by (off paths, beaches, water, the plot, and clear of trees, rocks and other
+  saplings) and Use says Plant. A seedling comes up and grows over 8 in-game days into a young apple tree or spruce
+  (leaves by season, a little snow in winter). Up to 12, saved in the browser. What grows counts in-game hours with
+  sleep (`world/gameHours.js`).
 - **Curtains** (`app/curtains.js`): inside, looking at a window, the curtain button (V) draws or opens its curtains.
 - **Hunger and frost** (`app/body.js`, `CONFIG.body`): a thin bar under the quick slots empties slowly (never below a
   quarter) and eating fills it, cooked food more. In winter, a minute or more outdoors away from a fire frosts the
