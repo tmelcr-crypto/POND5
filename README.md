@@ -269,6 +269,12 @@ export function createRoseBush(ctx) {
   (`CONFIG.items.pileSticks`). They start cold; lighting one takes 3 sticks or cones from what you carry (the button
   shows the cost, and a note says so when you lack them). You can light or put out a fire while sitting on a log.
   No real lights: flames, a glow, a warm pool on the ground, sparks and smoke, and the crackle of the nearest lit fire.
+  A stepping-stone path leads from the bridge's east end to the forest firepit.
+- **Cooking** (`app/cooking.js`, `CONFIG.cook`): sitting on a log at a burning firepit with a food that cooks selected
+  (`cook` in `app/itemKinds.js`: the apple becomes a baked apple; berries do not cook), the Use button says Cook. A
+  roasting stick reaches out from your hand to the fire with the food on its end (2 s), a ring round it fills over 30 s
+  as it browns, the stick comes back (2 s) and the baked apple is in your inventory. One piece at a time; standing up
+  or the fire going out stops it and you keep the raw piece. The stick is only shown, you need not carry one.
 - **Water life** (`assets/water/waterLife.js`, numbers in its `WATER` object): fish rises, a ring spreading about 1 m
   on the sea (0.45 m on the pond) and fading in 2 s, every 4-10 s on each water (sometimes two in a row); on the sea
   they appear 2.5-14 m out from the shore, 5-30 m in front of the camera. Three dragonflies dart and hover over the pond

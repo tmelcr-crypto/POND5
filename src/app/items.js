@@ -285,5 +285,5 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       if (dirty) { dirty = false; try { localStorage.setItem(KEY, JSON.stringify({ total, taken })); } catch (err) { void err; } }
     }
   }
-  return { update, pickUpdate, use, sfx, get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
+  return { update, pickUpdate, use, sfx, model: kind => model(kind), get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
 }

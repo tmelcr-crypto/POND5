@@ -79,7 +79,8 @@ export function createFirepits(ctx) {
     for (let i = 0; i < F.stones; i++) {
       const a = i / F.stones * Math.PI * 2 + rr(-0.12, 0.12), r = P.ring + rr(-0.03, 0.04), s = rr(...F.stoneSize);
       const x = P.x + Math.cos(a) * r, z = P.z + Math.sin(a) * r, g = new THREE.IcosahedronGeometry(1, 1);
-      const p = g.attributes.position; for (let k = 0; k < p.count; k++) p.setXYZ(k, p.getX(k) * rr(0.85, 1.15), p.getY(k) * rr(0.85, 1.15), p.getZ(k) * rr(0.85, 1.15));
+      const p = g.attributes.position, ph = rr(0, 50);   // a lumpy stone: each corner moved by where it is, so faces sharing it stay joined
+      for (let k = 0; k < p.count; k++) { const x = p.getX(k), y = p.getY(k), z = p.getZ(k), f = 1 + 0.14 * Math.sin(x * 5.3 + y * 7.1 + z * 3.7 + ph) + 0.06 * Math.sin(x * 11.7 - z * 9.3 + ph * 2); p.setXYZ(k, x * f, y * f, z * f); }
       g.scale(s * 1.2, s * 0.7, s); g.rotateY(-a + rr(-0.3, 0.3)); g.translate(x, H(x, z) + s * 0.25, z);
       parts.push(prep(g, tone([0x57524c, 0x645d55, 0x4a4641][i % 3], 0.75, 1.05), WHITE));
     }
