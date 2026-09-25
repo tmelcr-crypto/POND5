@@ -225,6 +225,7 @@ export function addCloudShadow(mat) {
  *  veg:  green vegetation colours turn fresher in spring, golden-brown in autumn, dry straw in winter (the less green a
  *        colour, the less it changes, so dirt, rock and sand stay as they are)
  *  leaf: tree leaves (instanced cards): white-pink blossom on some cards in spring, yellow / orange / red in autumn
+ *  ice:  { lo, hi } a glaze of ice in winter on what faces up (pale, blue, glossy)
  *  snow: [lo, hi] how much a surface must face up to take snow in winter (1 flat), amount 0..1, minY: none below this
  *        height (the waterline); patchy at the edges
  * Applied just before the lighting, after textures and vertex colours.
@@ -246,8 +247,9 @@ export function addSeason(mat, o = {}) {
   mat.onBeforeCompile = (s, r) => {
     prev.call(mat, s, r);
     Object.assign(s.uniforms, { uSpring: U.uSpring, uAutumn: U.uAutumn, uWinter: U.uWinter, uSnow: U.uSnow });
+    if (o.foldInWinter) s.vertexShader = `attribute vec3 ${o.foldInWinter};\n` + s.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n if (uWinter > 0.5 && ${o.foldInWinter}.x > 0.5) transformed = vec3(0.0);`);
     const at = s.vertexShader.includes('#include <project_vertex>') ? '#include <project_vertex>' : '#include <fog_vertex>';
-    s.vertexShader = 'varying vec3 vSeasonW; varying float vSeasonH;\n' + s.vertexShader.replace(at, `${at}
+    s.vertexShader = 'uniform float uWinter; varying vec3 vSeasonW; varying float vSeasonH;\n' + s.vertexShader.replace(at, `${at}
       #ifdef USE_INSTANCING
         vSeasonW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
         vec3 sip = (modelMatrix * instanceMatrix[3]).xyz; vSeasonH = fract(sin(dot(sip, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
@@ -269,6 +271,12 @@ export function addSeason(mat, o = {}) {
         float sn = uSnow * ${(snow.amount ?? 1).toFixed(3)} * smoothstep(${snow.lo.toFixed(3)}, ${snow.hi.toFixed(3)}, up) * smoothstep(${(snow.minY ?? -1e4).toFixed(3)}, ${((snow.minY ?? -1e4) + 0.12).toFixed(3)}, vSeasonW.y);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.8, 0.84, 0.9) * (0.92 + 0.12 * sNoise(vSeasonW.xz * 9.0)), sn);
         roughnessFactor = mix(roughnessFactor, 0.75, sn);
+      }\n`;
+    if (o.ice) frag += `{   // a glaze of ice on what faces up: pale, blue, glossy
+        vec3 upI = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+        float ic = uWinter * smoothstep(${o.ice.lo.toFixed(3)}, ${o.ice.hi.toFixed(3)}, dot(normalize(normal), upI) + (sNoise(vSeasonW.xz * 3.1) - 0.5) * 0.3);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.6, 0.7, 0.8) * (0.85 + 0.25 * sNoise(vSeasonW.xz * 11.0)), ic * 0.72);
+        roughnessFactor = mix(roughnessFactor, 0.16, ic);
       }\n`;
     s.fragmentShader = SEASON_GLSL + '\n' + s.fragmentShader.replace('#include <lights_physical_fragment>', frag + '#include <lights_physical_fragment>');
   };

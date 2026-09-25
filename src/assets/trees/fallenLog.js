@@ -67,8 +67,8 @@ function barkColour(textured, p, n, y, mossAmt, out) {
  */
 export function createLogVariants(ctx, count, seed) {
   const barkMat = new THREE.MeshStandardMaterial({ map: ctx.tex.barkTex, vertexColors: true, roughness: 0.95, envMapIntensity: 0.5 });
-  const woodMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.5, side: THREE.DoubleSide });
-  const farMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, envMapIntensity: 0.5, side: THREE.DoubleSide });
+  const woodMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, envMapIntensity: 0.5, side: THREE.DoubleSide }); woodMat.userData.season = 'fungi';
+  const farMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, envMapIntensity: 0.5, side: THREE.DoubleSide }); farMat.userData.season = 'fungi';
   const nearDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), farDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
   addDistanceFade(barkMat, false); addDistanceFade(woodMat, false); addDistanceFade(nearDepth, false); addDistanceFade(farMat, true); addDistanceFade(farDepth, true);
   const fungi = [bracketGeo(), boleteGeo(), agaricGeo()];
@@ -127,7 +127,7 @@ export function createLogVariants(ctx, count, seed) {
         }
         // fungi: bracket shelves up one side of the stump, shelves and small mushrooms along the trunk, a few at the foot
         const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new V(), P = new V();
-        const put = (geo, pos, yawA, s) => { const g = geo.clone(); g.applyMatrix4(M.compose(pos, Q.setFromAxisAngle(UP, yawA), S.setScalar(s))); wood.push(g); };
+        const put = (geo, pos, yawA, s) => { const g = geo.clone(); g.applyMatrix4(M.compose(pos, Q.setFromAxisAngle(UP, yawA), S.setScalar(s))); g.userData.fungus = true; wood.push(g); };
         for (const sh of shelves) { const r = stumpR(sh.a, sh.y); put(fungi[0], P.set(Math.cos(sh.a) * r * 0.97, sh.y, Math.sin(sh.a) * r * 0.97), Math.PI - sh.a, sh.s); }
         for (const f of fungusSpots) {
           if (f.where < 0.55) {   // on the trunk's flank
@@ -144,10 +144,12 @@ export function createLogVariants(ctx, count, seed) {
       return { bark, wood };
     };
     const n = build(true), f = build(false);
-    const bark = mergeGeos(n.bark, ['position', 'normal', 'uv', 'color']), woodG = mergeGeos(n.wood, ['position', 'normal', 'color']);
+    // 'fungus' (x: 1 on the mushrooms and shelf fungi) lets winter fold them away (world/seasonLooks.js)
+    const flag = list => list.map(g => { g = g.index ? g.toNonIndexed() : g; const c = g.attributes.position.count, a = new Float32Array(c * 3); if (g.userData.fungus) for (let i = 0; i < c; i++) a[i * 3] = 1; g.setAttribute('fungus', new THREE.BufferAttribute(a, 3)); return g; });
+    const bark = mergeGeos(n.bark, ['position', 'normal', 'uv', 'color']), woodG = mergeGeos(flag(n.wood), ['position', 'normal', 'color', 'fungus']);
     // far mesh: bark albedo in the vertex colours (no texture)
-    const farBark = mergeGeos(f.bark, ['position', 'normal', 'color']);
-    const far = mergeGeos([farBark, mergeGeos(f.wood, ['position', 'normal', 'color'])], ['position', 'normal', 'color']);
+    const farBark = mergeGeos(flag(f.bark), ['position', 'normal', 'color', 'fungus']);
+    const far = mergeGeos([farBark, mergeGeos(flag(f.wood), ['position', 'normal', 'color', 'fungus'])], ['position', 'normal', 'color', 'fungus']);
     bark.computeBoundingSphere(); const bounds = bark.boundingSphere.clone(); bounds.radius += 0.2;
     woodG.boundingSphere = bounds.clone(); far.boundingSphere = bounds.clone(); bark.boundingSphere = bounds.clone();
     // colliders: the stump as a trunk circle, the trunk as a chain of ellipsoids (local frame, see undergrowth.js)

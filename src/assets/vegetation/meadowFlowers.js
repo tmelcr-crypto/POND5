@@ -39,8 +39,8 @@ export function createMeadowFlowers(ctx) {
       mats.push(new THREE.Matrix4().compose(new V(x, H(x, z) - 0.02, z), q, new V(1, rr(0.75, 1.25), 1).multiplyScalar(rr(0.85, 1.15) * (streamDist(x, z) < 0.35 || footpathDist(x, z) < 0.08 || chestDist(x, z) < 0.08 ? 1e-4 : 1))));   // none in the stream or on the path
       tints.push(flowerTint(rng()));
     }
-    const hMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, side: THREE.DoubleSide }); addWorldSway(hMat, 0.7);
-    const sMat = new THREE.MeshStandardMaterial({ color: lin(0x4d7328), roughness: 0.8 }); addWorldSway(sMat, 0.7);
+    const hMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, side: THREE.DoubleSide, userData: { season: 'flower' } }); addWorldSway(hMat, 0.7);   // gone in winter (world/seasonLooks.js)
+    const sMat = new THREE.MeshStandardMaterial({ color: lin(0x4d7328), roughness: 0.8, userData: { season: 'flower' } }); addWorldSway(sMat, 0.7);
     const hm = new THREE.InstancedMesh(headGeo, hMat, mats.length), sm = new THREE.InstancedMesh(stemGeo, sMat, mats.length);
     mats.forEach((m, i) => { hm.setMatrixAt(i, m); sm.setMatrixAt(i, m); hm.setColorAt(i, tints[i]); });
     if (hm.instanceColor) hm.instanceColor.needsUpdate = true;

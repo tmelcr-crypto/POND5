@@ -263,9 +263,9 @@ const FOOTPATH_ROUTES = [
   { course: [BRIDGE_E, [12.2, -12.4], [12.8, -14.6], [13.9, -17.3], [16.5, -18.9], [19.6, -19.1], [22.2, -18.7], benchPoint(SUNRISE, 1.75, 0.2), benchPoint(SUNRISE, 1.1, 0.95), benchPoint(SUNRISE, 0, 1.0)], from: 0.55, bench: SUNRISE },
   { course: [BRIDGE_W, [6.2, -11.4], [3.8, -13.2], [0, -14.4], [-5, -15.3], [-10, -16.0], [-15, -16.4], [-19.5, -16.4], benchPoint(SUNSET, 1.85, 0.25), benchPoint(SUNSET, 1.15, 1.0), benchPoint(SUNSET, 0, 1.05)], from: 0.6, bench: SUNSET },
   { course: [[21.0, -19.05], [23.4, -19.9], [25.8, -19.5], [27.4, -18.4], [JETTY.x0 - 0.25, JETTY.z]], from: 0.62 },   // branches off the sunrise path down to the jetty
-  // from the bridge's east end north through the open ground to the forest firepit (route picked offline round every tree,
-  // rock and bush; it ends between two of the logs)
-  { course: [[12.0, -11.9], [11.5, -10.5], [11.3, -8], [10.6, -5.5], [10.5, -3], [10.4, -0.5], [10.2, 2], [10.9, 4.6], [13.3, 6.7], [16, 6.4], [18.5, 6.8], [20.4, 8.6], [21.4, 9.1]], from: 0.6 },
+  // off the sunset path north through the open strip west of the plot to the forest firepit (route picked offline round
+  // every tree and rock; it ends between two of the logs)
+  { course: [[-9, -15.5], [-9.5, -13], [-9.5, -10.5], [-11, -8], [-12, -5.5], [-12, -3], [-12, -0.5], [-12, 2], [-12, 4.5], [-12.5, 7], [-13, 9.5], [-14.5, 12], [-16.5, 14], [-18.5, 16.5], [-19.7, 17.0]], from: 0.6 },
 ];
 export const FOOTPATH = (() => {
   let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }, rr = (a, b) => a + (b - a) * rnd();
@@ -305,15 +305,15 @@ export function benchDist(x, z) {
   return d;
 }
 /*
- * Firepits (meshes: assets/vegetation/firepits.js; lighting them: app/fires.js): one on the beach by the jetty, one in a
- * clearing of the east forest, one on the south-west hill over the sea. Each: a ring of stones round the fire, three cut
- * logs to sit on round it (logs: the directions from the fire, degrees), and a small roofed woodpile within 5 m (pile:
+ * Firepits (meshes: assets/cabin/firepits.js; lighting them: app/fires.js): one on the beach by the jetty (bare: only the
+ * ring of stones and the fire on the sand), one in a clearing of the north-west woods, one on the south-west hill over
+ * the sea. The other two: a ring of stones round the fire, three cut logs to sit on round it (logs: the directions from the fire, degrees), and a small roofed woodpile within 5 m (pile:
  * its direction and distance), all placed where no tree, rock or path had to move (sites picked offline).
  */
 const PIT = { logR: 1.7, logLen: 1.15, logRad: 0.19, ring: 0.5, pileW: 1.7, pileD: 1.0 };
 export const FIREPITS = [
-  { name: 'beach', x: 30, z: -23, logs: [50, 110, 175], pile: [130, 3.6] },
-  { name: 'forest', x: 22.5, z: 11.3, logs: [200, 320, 80], pile: [40, 4.2] },
+  { name: 'beach', x: 30, z: -23, logs: [], pile: null, bare: true },   // just the stones and the fire on the sand
+  { name: 'forest', x: -21.5, z: 15.5, logs: [230, 350, 110], pile: [340, 4.2] },   // a clearing in the north-west woods
   { name: 'hill', x: -19, z: -23.5, logs: [320, 80, 200], pile: [130, 3.0] },
 ].map(f => {
   const R = Math.PI / 180, y = H(f.x, f.z);
@@ -322,16 +322,17 @@ export const FIREPITS = [
     const y0 = H(cx - tx * h, cz - tz * h) + PIT.logRad - 0.035, y1 = H(cx + tx * h, cz + tz * h) + PIT.logRad - 0.035;   // centre heights at its ends: it lies on the ground, a little sunk
     return { x: cx, z: cz, tx, tz, fx: -Math.cos(a), fz: -Math.sin(a), y0, y1, top: (y0 + y1) / 2 + PIT.logRad };
   });
-  const pa = f.pile[0] * R, px = f.x + Math.cos(pa) * f.pile[1], pz = f.z + Math.sin(pa) * f.pile[1];
-  return { ...f, y, logs, pile: { x: px, z: pz, fx: -Math.cos(pa), fz: -Math.sin(pa), w: PIT.pileW, d: PIT.pileD }, ...PIT };
+  const pa = f.pile ? f.pile[0] * R : 0, pile = f.pile ? { x: f.x + Math.cos(pa) * f.pile[1], z: f.z + Math.sin(pa) * f.pile[1], fx: -Math.cos(pa), fz: -Math.sin(pa), w: PIT.pileW, d: PIT.pileD } : null;
+  return { ...f, y, logs, pile, ...PIT };
 });
 FIREPITS.forEach((f, pit) => f.logs.forEach(l => SEATS.push({ x: l.x, z: l.z, fx: l.fx, fz: l.fz, top: l.top, half: PIT.logLen / 2, back: 0, pit })));   // sit on any log (pit: which firepit, for cooking)
 /** Distance to a firepit's footprint: the fire and its logs (a disc), or its woodpile (< 0 inside). */
 export function firepitDist(x, z) {
   let d = Infinity;
   for (const f of FIREPITS) {
-    d = Math.min(d, Math.hypot(x - f.x, z - f.z) - (f.logR + 0.55));
-    const P = f.pile, dx = x - P.x, dz = z - P.z, a = Math.abs(-dx * P.fz + dz * P.fx) - P.w / 2, b = Math.abs(dx * P.fx + dz * P.fz) - P.d / 2;
+    d = Math.min(d, Math.hypot(x - f.x, z - f.z) - (f.logs.length ? f.logR + 0.55 : f.ring + 0.4));
+    const P = f.pile; if (!P) continue;
+    const dx = x - P.x, dz = z - P.z, a = Math.abs(-dx * P.fz + dz * P.fx) - P.w / 2, b = Math.abs(dx * P.fx + dz * P.fz) - P.d / 2;
     d = Math.min(d, Math.max(a, b) < 0 ? Math.max(a, b) : Math.hypot(Math.max(a, 0), Math.max(b, 0)));
   }
   return d;

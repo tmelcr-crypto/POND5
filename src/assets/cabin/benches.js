@@ -158,9 +158,9 @@ export function createLanternKit(ctx, rnd) {
     glow.scale.set(BL.lantern.glow, BL.lantern.glow, 1); glow.renderOrder = 5; L.add(glow);
     glows.push({ s: glow, f: flame, size: BL.lantern.glow, ph: rnd() * 10 });
     // a warm pool of light on the ground below, following the terrain
-    const P = BL.lantern.pool, wp = new V(x, y, z).applyMatrix4(frame), seg = 14, pg = new THREE.PlaneGeometry(P * 2, P * 2, seg, seg); pg.rotateX(-Math.PI / 2);
-    const pp = pg.attributes.position; for (let k = 0; k < pp.count; k++) { const px = wp.x + pp.getX(k), pz = wp.z + pp.getZ(k); pp.setXYZ(k, px, Math.max(H(px, pz), pool ? pool(px, pz) : -1e9) + 0.03, pz); }
-    const poolMesh = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ map: poolTex, color: new THREE.Color(...BL.lantern.poolColor).multiplyScalar(BL.lantern.poolOpacity), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const P = BL.lantern.pool, wp = new V(x, y, z).applyMatrix4(frame), seg = 24, pg = new THREE.PlaneGeometry(P * 2, P * 2, seg, seg); pg.rotateX(-Math.PI / 2);
+    const pp = pg.attributes.position; for (let k = 0; k < pp.count; k++) { const px = wp.x + pp.getX(k), pz = wp.z + pp.getZ(k); pp.setXYZ(k, px, Math.max(H(px, pz), pool ? pool(px, pz) : -1e9) + 0.045, pz); }
+    const poolMesh = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, map: poolTex, color: new THREE.Color(...BL.lantern.poolColor).multiplyScalar(BL.lantern.poolOpacity), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
     poolMesh.renderOrder = 3; poolMesh.userData.noShadow = true; scene.add(poolMesh);
     const lamp = { light: { intensity: 0 }, base: 0, flames: [flame, glow, poolMesh], mats: [pm], kind: 'lantern' };
     lamps.push(lamp); return lamp;

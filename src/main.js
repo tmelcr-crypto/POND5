@@ -179,7 +179,7 @@ boating.onSplash = (x, z) => waterLife.splash && waterLife.splash(x, SEA_Y + 0.0
 const forage = createForage(ctx, { scatter, undergrowth });   // windfall apples, berries, pebbles to pick up
 const firepits = createFirepits(ctx);   // three firepits with logs to sit on and a roofed woodpile each (own random numbers)
 const inventory = createInventory({ st });   // the four quick slots and the Use button
-const items = createItems({ scene: ctx.scene, camera: ctx.camera, st, clock, inventory, ambience, waterLife, moments, undergrowth, stream, forage, scatter, piles: firepits.pits.map(p => p.pile), softDot: ctx.tex.softDot }); addTakeover(items.pickUpdate);   // picking up and using
+const items = createItems({ scene: ctx.scene, camera: ctx.camera, st, clock, inventory, ambience, waterLife, moments, undergrowth, stream, forage, scatter, piles: firepits.pits.map(p => p.pile).filter(Boolean), softDot: ctx.tex.softDot }); addTakeover(items.pickUpdate);   // picking up and using
 const chests = createChests(ctx);   // the storage chest by the woodpile
 const chestUI = createChestUI({ camera: ctx.camera, st, inventory, items, chests }); addTakeover(chestUI.hold);   // opening it, the storage screen
 const fires = createFires({ st, inventory });   // lighting and putting out fires: the cabin's fireplace and the firepits

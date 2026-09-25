@@ -18,6 +18,9 @@ import { WATER_Y, SEA_Y } from './layout.js';
  *  berries              summer and autumn
  *  bloom                rose flowers: spring and summer
  *  pond                 lily pads and flowers: gone under the ice in winter
+ *  mushroom / flower    the forest floor's mushrooms, the plot's meadow flowers round the pond: gone in winter
+ *  ice                  the jetty: a glaze of ice on its deck and rails in winter
+ *  fungi                the fallen logs: their mushrooms and shelf fungi folded away in winter (a 'fungus' attribute)
  */
 const PATCH = {
   groundPlot: { veg: true, snow: { lo: 0.5, hi: 0.78, minY: WATER_Y + 0.015 } },
@@ -26,9 +29,11 @@ const PATCH = {
   bark: { snow: { lo: 0.55, hi: 0.85, amount: 0.9 } },
   roof: { snow: { lo: 0.3, hi: 0.55 } },
   needles: { snow: { lo: 0.25, hi: 0.75, amount: 0.55 } },   // a light dusting on the spruces
+  fungi: { foldInWinter: 'fungus' },
+  ice: { ice: { lo: 0.55, hi: 0.85 } },                      // the jetty: a glaze of ice                          // the fallen logs' mushrooms and shelf fungi
 };
 export const SHOWN = {
-  grass: s => s !== 'winter', leaf: s => s !== 'winter', leafVeg: s => s !== 'winter', pond: s => s !== 'winter',
+  grass: s => s !== 'winter', leaf: s => s !== 'winter', mushroom: s => s !== 'winter', flower: s => s !== 'winter', leafVeg: s => s !== 'winter', pond: s => s !== 'winter',
   fruit: s => s === 'summer' || s === 'autumn', berries: s => s === 'summer' || s === 'autumn', bloom: s => s === 'spring' || s === 'summer',
 };
 

@@ -84,13 +84,15 @@ export function createFirepits(ctx) {
       g.scale(s * 1.2, s * 0.7, s); g.rotateY(-a + rr(-0.3, 0.3)); g.translate(x, H(x, z) + s * 0.25, z);
       parts.push(prep(g, tone([0x57524c, 0x645d55, 0x4a4641][i % 3], 0.75, 1.05), WHITE));
     }
-    const ash = new THREE.CircleGeometry(P.ring + 0.06, 20); ash.rotateX(-Math.PI / 2);
+    const ash = new THREE.CircleGeometry(P.bare ? P.ring - 0.08 : P.ring + 0.06, 20);   // a bare pit (the beach): ash only inside the stones ash.rotateX(-Math.PI / 2);
     { const p = ash.attributes.position; for (let k = 0; k < p.count; k++) { const x = P.x + p.getX(k), z = P.z + p.getZ(k); p.setXYZ(k, x, H(x, z) + 0.012, z); } }
     parts.push(prep(ash, lin(0x2c2a27), WHITE));
+    if (!P.bare) {
     const scorch = new THREE.RingGeometry(P.ring + 0.06, P.ring + 0.5, 24, 1); scorch.rotateX(-Math.PI / 2);
     { const p = scorch.attributes.position; for (let k = 0; k < p.count; k++) { const x = P.x + p.getX(k), z = P.z + p.getZ(k); p.setXYZ(k, x, H(x, z) + 0.006, z); } }
     const sc = prep(scorch, lin(0x3a3129), WHITE); { const c = sc.attributes.color, p = sc.attributes.position; for (let k = 0; k < c.count; k++) { const d = Math.hypot(p.getX(k) - P.x, p.getZ(k) - P.z), f = d > P.ring + 0.3 ? 0.6 : 1; c.setXYZ(k, c.getX(k) * f + 0.18 * (1 - f), c.getY(k) * f + 0.16 * (1 - f), c.getZ(k) * f + 0.12 * (1 - f)); } }
     parts.push(sc);
+    }
 
     /* three cut logs to sit on, lying along the ground */
     for (const L of P.logs) {
@@ -106,6 +108,8 @@ export function createFirepits(ctx) {
     }
     for (let i = 0; i < 2; i++) { const a = rr(0, 6.28), g = log(0.04, 0.5, 7, lin(0x302620), lin(0x221a14)); wood.push(place(g, P.x, P.y + 0.04, P.z, new V(Math.cos(a), 0, Math.sin(a)), rr(0, 6.28))); }
 
+    let pileAt = null;
+    if (P.pile) {
     /* the woodpile: a lean-to roof on four posts over split logs stacked on two rails, open towards the fire */
     const W = P.pile, PL = F.pile, fr = new V(W.fx, 0, W.fz), rt = new V(W.fz, 0, -W.fx);   // its front (towards the fire) and its side
     let base = -Infinity; for (const a of [-1, 1]) for (const b of [-1, 1]) base = Math.max(base, H(W.x + rt.x * a * W.w / 2 + fr.x * b * W.d / 2, W.z + rt.z * a * W.w / 2 + fr.z * b * W.d / 2));
@@ -134,6 +138,8 @@ export function createFirepits(ctx) {
       }
     }
     for (const a of [-0.55, 0, 0.55]) { const c = at(a, 0); obstacles.add(c.x, c.z, 0.5, base + F.collider.top); }
+    pileAt = { x: W.x, y: base + 0.6, z: W.z, fx: W.fx, fz: W.fz, hw: W.w / 2 - 0.1, hd: W.d / 2 - 0.1 };
+    }
     obstacles.add(P.x, P.z, P.ring + 0.05, P.y + F.collider.top);   // not through the fire
 
     const still = new THREE.Mesh(mergeGeos(parts, ['position', 'normal', 'uv', 'color']), woodMat); still.castShadow = true; still.receiveShadow = true; scene.add(still);
@@ -145,15 +151,15 @@ export function createFirepits(ctx) {
     const flames = [makeFlame(fire, 0, 0.06, 0, 0.5, 0.62, rr(0, 10), 1, 1.45, 3), makeFlame(fire, 0.1, 0.05, 0.08, 0.3, 0.42, rr(0, 10), 1.2, 1.3, 3)];
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDot, color: 0xff8a3a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
     glow.position.set(0, 0.4, 0); glow.scale.set(F.glow, F.glow, 1); glow.renderOrder = 5; fire.add(glow);
-    const seg = 18, pg = new THREE.PlaneGeometry(F.pool.size, F.pool.size, seg, seg); pg.rotateX(-Math.PI / 2);
-    { const p = pg.attributes.position; for (let k = 0; k < p.count; k++) { const x = P.x + p.getX(k), z = P.z + p.getZ(k); p.setXYZ(k, x, H(x, z) + 0.035, z); } }
-    const poolMat = new THREE.MeshBasicMaterial({ map: poolTex, color: new THREE.Color(...F.pool.color).multiplyScalar(F.pool.opacity), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const seg = 28, pg = new THREE.PlaneGeometry(F.pool.size, F.pool.size, seg, seg); pg.rotateX(-Math.PI / 2);
+    { const p = pg.attributes.position; for (let k = 0; k < p.count; k++) { const x = P.x + p.getX(k), z = P.z + p.getZ(k); p.setXYZ(k, x, H(x, z) + 0.05, z); } }
+    const poolMat = new THREE.MeshBasicMaterial({ polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, map: poolTex, color: new THREE.Color(...F.pool.color).multiplyScalar(F.pool.opacity), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     const pool = new THREE.Mesh(pg, poolMat); pool.renderOrder = 3; pool.userData.noShadow = true; scene.add(pool);
     const sp = { pos: new Float32Array(F.sparks * 3).fill(-50), vel: Array.from({ length: F.sparks }, () => new V()), life: new Float32Array(F.sparks) };
     const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp.pos, 3));
     const sparks = new THREE.Points(sg, new THREE.PointsMaterial({ size: 0.022, map: softDot, color: 0xffa040, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); sparks.frustumCulled = false; fire.add(sparks);
     const smoke = Array.from({ length: F.smoke }, (_, i) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDot, color: 0xa8a39c, transparent: true, opacity: 0, depthWrite: false })); scene.add(s); return { s, u: i / F.smoke, ph: rr(0, 6.28) }; });
-    pits.push({ P, fire, flames, glow, pool, poolMat, sparks, sp, smoke, emberMat, k: 1, e: 1, at: new V(P.x, P.y + 0.3, P.z), pile: { x: W.x, y: base + 0.6, z: W.z, fx: W.fx, fz: W.fz, hw: W.w / 2 - 0.1, hd: W.d / 2 - 0.1 } });
+    pits.push({ P, fire, flames, glow, pool, poolMat, sparks, sp, smoke, emberMat, k: 1, e: 1, at: new V(P.x, P.y + 0.3, P.z), pile: pileAt });
   }
 
   let night = 1;   // the warm pool and glow show at night, faintly by day (update() follows the sky)

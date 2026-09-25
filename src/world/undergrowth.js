@@ -175,7 +175,7 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
   const depth = (map, alphaTest) => { const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map, alphaTest }); addDistanceFade(m, false); return m; };
   const fade = m => { addDistanceFade(m, false); return m; };
   const fMat = new THREE.MeshStandardMaterial({ map: fernTex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.75, envMapIntensity: 0.6 }); fMat.userData.season = 'leafVeg'; addFlutter(fMat, 0.012); fade(fMat);
-  const vcMat = fade(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 })), woodyMat = fade(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
+  const vcMat = fade(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, userData: { season: 'mushroom' } })), woodyMat = fade(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
   const { headGeo, stemGeo } = flowerGeometries();
   const hMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, side: THREE.DoubleSide }); addWorldSway(hMat, 0.7); fade(hMat);
   const sMat = new THREE.MeshStandardMaterial({ color: lin(0x4d7328), roughness: 0.8 }); addWorldSway(sMat, 0.7); fade(sMat);
