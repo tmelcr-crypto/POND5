@@ -38,7 +38,8 @@ export function createInventory({ st }) {
       b.setAttribute('aria-label', s ? `${KINDS[s.kind].name}, ${s.n}` + (i === sel ? ', selected' : '') : `Empty slot ${i + 1}`);
     });
     useBtn.style.display = slots[sel] ? '' : 'none';
-    const lab = slots[sel] && useLabel(slots[sel].kind); useBtn.textContent = lab || 'Use'; useBtn.classList.toggle('cook', !!lab);
+    const special = slots[sel] && useLabel(slots[sel].kind), lab = special || (slots[sel] && KINDS[slots[sel].kind].verb);   // verb: the kind's own word (Drink)
+    useBtn.textContent = lab || 'Use'; useBtn.classList.toggle('cook', !!special);
     useBtn.setAttribute('aria-label', slots[sel] ? (lab || 'Use') + ' ' + KINDS[slots[sel].kind].name.toLowerCase() : 'Use');
     st.wheelSelect = any;   // the mouse wheel picks a slot while you carry something (app/controls.js)
   }

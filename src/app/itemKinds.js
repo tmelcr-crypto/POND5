@@ -3,7 +3,7 @@
  * size and colour (for the small model that flies to you, is thrown or drifts away) and its line icon (24 x 24, drawn
  * like the other buttons' icons). Adding a kind: one entry here, then a source in app/items.js. cook: what it becomes
  * roasted on a stick at a firepit or the fireplace (app/cooking.js); a food without it cannot be cooked. hint: what Use
- * says for a kind that is not used on its own.
+ * says for a kind that is not used on its own. verb: the Use button's word for it (Drink); sound: its sound when used.
  */
 export const KINDS = {
   apple: { name: 'Apple', use: 'eat', cook: 'bakedApple', r: 0.04, color: 0xb8322a, icon: '<path d="M12 7.5c-2.2-2-6.5-1.4-6.5 3.6 0 4.2 2.6 8.4 4.6 8.4.8 0 1.1-.5 1.9-.5s1.1.5 1.9.5c2 0 4.6-4.2 4.6-8.4 0-5-4.3-5.6-6.5-3.6z"/><path d="M12 7.5c0-2 .8-3.6 2.4-4.5"/><path d="M12.5 5.2c1.4-1.3 3.4-1.2 4.3-.4-1 1-2.9 1.2-4.3.4z"/>' },
@@ -20,6 +20,12 @@ export const KINDS = {
   shell: { name: 'Shell', use: 'throw', r: 0.03, color: 0xe6d6bd, icon: '<path d="M12 20L4.2 10.6a8.4 8.4 0 0 1 15.6 0z"/><path d="M12 20L7.6 7.4M12 20V6.3M12 20l4.4-12.6M12 20L5.3 9.3M12 20l6.7-10.7"/>' },
   rareShell: { name: 'Nautilus shell', use: 'keep', hint: 'Put it on the shelf in the cabin', r: 0.04, color: 0xf0e2cc, icon: '<path d="M12 12.2a1.3 1.3 0 1 1 1.3-1.3 2.6 2.6 0 0 1-2.6 2.6 3.9 3.9 0 0 1-3.9-3.9 5.2 5.2 0 0 1 5.2-5.2 6.5 6.5 0 0 1 6.5 6.5c0 4.3-3.4 7.8-7.7 7.8H6"/><path d="M19.5 2.5v3M18 4h3"/>' },
   driftwood: { name: 'Driftwood', use: 'throw', r: 0.05, color: 0xb9b2a6, icon: '<path d="M3 17.5c2.6-.2 5-1.2 7.6-2.4 2.8-1.3 5.6-2.6 9.9-2.8l.5 2.6c-3.9.4-6.5 1.6-9.3 2.8-2.7 1.2-5.3 2.1-8.4 2.3z"/><path d="M12.8 14.1c.6-1.6 1.8-3 3.6-4.1"/><path d="M7 17.2l2.4-.9M14.5 14.6l2.2-.6"/>' },
+  water: { name: 'Fresh water', use: 'eat', verb: 'Drink', sound: 'drink', r: 0.04, color: 0x6fa3b0, icon: '<path d="M6 7h12l-1.4 11.2a2 2 0 0 1-2 1.8H9.4a2 2 0 0 1-2-1.8z"/><path d="M6.6 11.5c1.8-1 3.6 1 5.4 0s3.6-1 5.4 0"/>' },
+  carrot: { name: 'Carrot', use: 'eat', r: 0.03, color: 0xe07a24, icon: '<path d="M14.5 9.5L5 19c-.6.6-.1 1.4.7 1.1l9.8-5.5c1.6-.9 1.9-3.1.6-4.4l-.1-.1c-.4-.4-1-.6-1.5-.6z"/><path d="M15.5 8.5c.2-1.8 1.2-3.6 3-4.5M16.5 9.5c1.5-.5 3.4-.3 4.5.8M16 9c.7-2.2.4-4.3-.5-5.5"/><path d="M8.5 16.5l1.2.7M11.5 14l1 .8"/>' },
+  potato: { name: 'Potato', use: 'cook', cook: 'bakedPotato', hint: 'Bake it over a fire', r: 0.035, color: 0xb58a55, icon: '<path d="M5.5 14.5c-1.2-3.8 1.6-8 6.2-8.8 4.2-.8 7.8 1.6 7.8 5.2 0 4.5-3.8 7.6-8.4 7.6-2.6 0-4.9-1.4-5.6-4z"/><path d="M9 10.5h.01M13 9.5h.01M15.5 12.5h.01M10.5 14.5h.01"/>' },
+  bakedPotato: { name: 'Baked potato', use: 'eat', r: 0.035, color: 0x8a5a2e, icon: '<path d="M4.5 15c0-3.3 3.4-5.5 7.5-5.5s7.5 2.2 7.5 5.5-3.4 5-7.5 5-7.5-1.7-7.5-5z"/><path d="M8 14.5l2 1.2 2-1.4 2 1.4 2-1.2"/><path d="M9.5 7c-.8-1 .8-1.8 0-2.9M14.5 7c-.8-1 .8-1.8 0-2.9"/>' },
+  pumpkin: { name: 'Pumpkin', use: 'cook', cook: 'roastedPumpkin', hint: 'Roast it over a fire', r: 0.06, color: 0xe0781e, icon: '<path d="M12 7.5c-1.5-1-5.9-1-7 2.9-.9 3.3.4 8.2 4.3 8.8 1.1.2 1.9-.3 2.7-.3s1.6.5 2.7.3c3.9-.6 5.2-5.5 4.3-8.8-1.1-3.9-5.5-3.9-7-2.9z"/><path d="M12 7.5c-1.3 2.8-1.3 8.2 0 11.4M12 7.5c1.3 2.8 1.3 8.2 0 11.4"/><path d="M12 7.5c0-1.4.4-2.6 1.4-3.5"/>' },
+  roastedPumpkin: { name: 'Roasted pumpkin', use: 'eat', r: 0.06, color: 0xa8501a, icon: '<path d="M12 9.5c-1.3-.9-5.1-.9-6 2.5-.8 2.9.3 7.1 3.7 7.6 1 .2 1.6-.3 2.3-.3s1.3.5 2.3.3c3.4-.5 4.5-4.7 3.7-7.6-.9-3.4-4.7-3.4-6-2.5z"/><path d="M12 9.5c-1.1 2.4-1.1 7.1 0 9.8M12 9.5c1.1 2.4 1.1 7.1 0 9.8"/><path d="M9.5 6.5c-.8-1 .8-1.8 0-2.9M14.5 6.5c-.8-1 .8-1.8 0-2.9"/>' },
   petal: { name: 'Rose petal', use: 'release', r: 0.018, color: 0xc0283c, icon: '<path d="M12 20.5c-5.2-3-6.5-9.4-3.2-15 2.1 2.9 6.2 3.2 8.4 2 1.2 6.2-.8 10.6-5.2 13z"/><path d="M12 20.5c-.2-4.4 1-8.4 4-11.6"/>' },
 };
 /** The icon of a kind as an SVG string, `size` px. */

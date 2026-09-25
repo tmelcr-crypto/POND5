@@ -15,7 +15,7 @@ import { mergeGeos } from '../core/geometry.js';
  * stick is only shown; you need not carry one. One piece at a time.
  */
 export function createCooking({ scene, camera, st, inventory, items, fires, tex = {} }) {
-  const C = CONFIG.cook, up = new V(0, 1, 0), BROWN = { fish: 0.6, mushroom: 0.5 };   // how far each browns
+  const C = CONFIG.cook, up = new V(0, 1, 0), BROWN = { fish: 0.6, mushroom: 0.5, potato: 0.55, pumpkin: 0.45 };   // how far each browns
   const stickMat = new THREE.MeshStandardMaterial({ map: tex.barkTex || null, vertexColors: true, roughness: 0.9, metalness: 0 });
   /**
    * A roasting stick cut from a branch, len long, its tip (where the food goes) at the origin and the rest back along -y:
