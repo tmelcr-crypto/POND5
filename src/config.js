@@ -178,12 +178,24 @@ export const CONFIG = {
     embers: 45,                    // s the embers keep glowing (and the chimney smoking) after it is out
   },
 
+  // Fishing from the jetty's head or the anchored boat (app/fishing.js)
+  fishing: {
+    cast: 6, depth: 0.5,           // m out the float lands; water it needs under it
+    rod: 1.7,                      // m, the rod (only shown)
+    castTime: 1.1, reelTime: 1.6,  // s
+    wait: [5, 25],                 // s before a bite
+    dawnDusk: 1.2, dawnDuskFactor: 0.5,   // hours either side of sunrise / sunset when bites come twice as fast
+    window: 1.1,                   // s to strike once it bites
+    golden: 0.01,                  // share of catches that are a golden fish
+  },
+
   // Cooking at a firepit (app/cooking.js)
   cook: {
     push: 2, time: 30,             // s: the stick reaching out to the fire (and back), the cooking
     reach: 0.9,                    // m the stick travels
     over: 0.12,                    // m the food hangs above the middle of the fire
     hand: [0.3, 0.2, 0.45],        // m from the seated eye to the hand: forward, right, down
+    hearth: 1.9,                   // m from the cabin's fireplace you can cook at it, standing
   },
 
   // Sleeping in the cabin's bed (app/sleeping.js)

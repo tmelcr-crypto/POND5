@@ -38,6 +38,9 @@ export const BED = (() => {
  * middle of its base; rot: the turn about y that points its front (the lid's open side, local +z) where it faces;
  * length along its front, depth, height.
  */
+/** The keepsake shelf on the cabin's back wall above the nightstand (app/shelf.js): its middle, width, depth, top, and its
+ *  places (x) for the golden fish and, later, the unique shell. */
+export const SHELF = { x: HOUSE.x + 0.34, z: HOUSE.z - CB.ZW + CB.R + 0.075, y: PAD_H + CB.FL + 1.2, w: 0.5, d: 0.15, slots: [-0.15, 0, 0.15] };
 export const CHESTS = [
   { id: 'cabin', x: HOUSE.x - 0.45, z: HOUSE.z - CB.ZW - 0.11 - 0.26 - 0.25, rot: Math.PI, length: 0.86, depth: 0.5, height: 0.52 },   // under the back window (house x -0.9..0), facing away from the wall; 0.26 m out so the open lid (0.20 m behind its hinge) clears the logs
 ];

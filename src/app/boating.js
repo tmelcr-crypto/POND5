@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { V, clamp } from '../core/math.js';
 import { CONFIG } from '../config.js';
 import { U } from '../core/uniforms.js';
@@ -16,6 +17,8 @@ import { H, SEA_Y, JETTY, coastDist, jettyDeckY, jettyDist } from '../world/layo
  *  - dock: near the berth at the jetty head the boat brings itself in and ties up (steering off); exit then steps you
  *    out onto the jetty. Pushing ahead casts off again.
  *  - exit elsewhere: only where there is land within a jump of the boat; you walk forward and jump ashore.
+ *  - anchor: out on open water, once the boat has (nearly) stopped, the anchor drops with a splash and the boat stays,
+ *    swinging slowly bow into the wind (you can fish from it: app/fishing.js); weigh anchor to sail on.
  * While an animation plays nothing else moves you. update(dt) returns true while the boat has the camera.
  */
 export function createBoating({ camera, st, boat, resetInput = () => {} }) {
@@ -26,6 +29,8 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     board: svg('<path d="M3 16h18l-3 4H6z"/><path d="M12 4v12"/><path d="M12 5l6 9h-6"/><path d="M6 3v6M3.5 6.5L6 9l2.5-2.5"/>'),
     dock: svg('<circle cx="12" cy="4.5" r="2"/><path d="M12 6.5V21"/><path d="M8 10h8"/><path d="M4 14a8 7 0 0 0 16 0"/><path d="M4 14l-1 2M20 14l1 2"/>'),
     exit: svg('<path d="M3 17h13l-2.5 3.5H5.5z"/><path d="M9 6v11"/><path d="M9 7l4.5 7H9"/><path d="M17 13V4M14.5 6.5L17 4l2.5 2.5"/>'),
+    anchor: svg('<circle cx="12" cy="5" r="2"/><path d="M12 7v14"/><path d="M8 11h8"/><path d="M5 15a7 6 0 0 0 14 0"/><path d="M5 15l-1.5-1.5M19 15l1.5-1.5"/>'),
+    weigh: svg('<circle cx="12" cy="9" r="1.8"/><path d="M12 10.8V21"/><path d="M9 14h6"/><path d="M6.5 17a5.5 4.5 0 0 0 11 0"/><path d="M12 5V1.5M9.5 4L12 1.5 14.5 4"/>'),
   };
   const b = { x: J.berth.x, z: J.berth.z, h: J.berth.heading, speed: 0, docked: true, aground: false };
   let mode = null, anim = null, wheelA = 0, boomA = 0, boomOverride = null, auto = false, T = 0, check = 0, action = '';
@@ -89,7 +94,7 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
   function setButton(a) {
     if (!btn || a === action) return; action = a;
     btn.style.display = a && a !== 'busy' ? '' : 'none';
-    if (a && a !== 'busy') { btn.innerHTML = ICONS[a]; btn.setAttribute('aria-label', { board: 'Board the boat', dock: 'Dock at the jetty', exit: 'Leave the boat' }[a]); }
+    if (a && a !== 'busy') { btn.innerHTML = ICONS[a]; btn.setAttribute('aria-label', { board: 'Board the boat', dock: 'Dock at the jetty', exit: 'Leave the boat', anchor: 'Drop the anchor', weigh: 'Weigh anchor' }[a]); }
   }
   const step = (dur, f) => ({ dur: Math.max(dur, 0.05), f });
   function play(steps, then) { anim = { steps, i: 0, t: 0, then }; setButton('busy'); }
@@ -150,9 +155,19 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     play(steps, () => { mode = null; st.vel.set(0, 0, 0); st.grounded = true; boomOverride = null; resetInput(); });   // a fresh touch is needed to walk
   }
 
+  /* ---- anchor: a rope from the bow down into the water while it holds ---- */
+  const rope = (() => {
+    const L = 2.2, a = new V(L, boat.sheer(L) - 0.02, 0), e = new V(L + 1.1, -0.35, 0), d = e.clone().sub(a);
+    const g = new THREE.CylinderGeometry(0.009, 0.009, d.length(), 5); g.translate(0, d.length() / 2, 0);
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x8a7a5c, roughness: 0.9 })); m.position.copy(a); m.quaternion.setFromUnitVectors(new V(0, 1, 0), d.normalize());
+    m.visible = false; boat.group.add(m); return m;
+  })();
+  let splash = () => {};
+  function anchor() { mode = 'anchored'; rope.visible = true; const c = Math.cos(b.h), s = Math.sin(b.h); splash(b.x + c * 3.3, b.z + s * 3.3); }
+  function weigh() { mode = 'sailing'; rope.visible = false; }
   function act() {
     if (anim) return;
-    if (action === 'board') board(); else if (action === 'dock') dock(); else if (action === 'exit') exit();
+    if (action === 'board') board(); else if (action === 'dock') dock(); else if (action === 'exit') exit(); else if (action === 'anchor') anchor(); else if (action === 'weigh') weigh();
   }
   if (btn) { btn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); act(); }); btn.addEventListener('contextmenu', e => e.preventDefault()); }
   addEventListener('keydown', e => { if (e.code === 'KeyB' && !e.repeat && st.playing) act(); });
@@ -194,14 +209,22 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
       if (A.i < A.steps.length) A.steps[A.i].f(ease(A.t / A.steps[A.i].dur));
       else { anim = null; action = ''; A.then(); }
     } else if (mode === 'sailing' || mode === 'moored') sail(dt);
+    else if (mode === 'anchored') {   // held by the anchor: comes to rest and swings slowly bow into the wind
+      b.speed *= Math.exp(-dt * 1.5); b.x += Math.cos(b.h) * b.speed * dt; b.z += Math.sin(b.h) * b.speed * dt;
+      const wd = U.uWindDir.value, dh = wrapA(Math.atan2(-wd.y, -wd.x) - b.h) * Math.min(1, dt * 0.06) * clamp(U.uWind.value * 2);
+      b.h += dh; st.yaw -= dh; wheelA *= Math.exp(-dt * 3);
+    }
     pose();
-    if (mode === 'sailing' || mode === 'moored' || mode === 'docking') st.pos.copy(toWorld(boat.helm.x, boat.helm.y, boat.helm.z));   // standing at the wheel
+    if (mode === 'sailing' || mode === 'moored' || mode === 'docking' || mode === 'anchored') st.pos.copy(toWorld(boat.helm.x, boat.helm.y, boat.helm.z));   // standing at the wheel
     if (mode === 'sailing' || mode === 'moored') {
-      if ((check -= dt) <= 0) { check = 0.15; setButton(mode === 'moored' ? 'exit' : nearBerth() ? 'dock' : Math.abs(b.speed) < 0.4 && landing() ? 'exit' : ''); }   // ashore only once it has (nearly) stopped
+      if ((check -= dt) <= 0) { check = 0.15; const slow = Math.abs(b.speed) < 0.4; setButton(mode === 'moored' ? 'exit' : nearBerth() ? 'dock' : slow && landing() ? 'exit' : slow && contact(b.x, b.z, b.h).worst > 0.3 ? 'anchor' : ''); }   // ashore only once it has (nearly) stopped; anchor on open water
+    }
+    if (mode === 'anchored') {
+      if ((check -= dt) <= 0) { check = 0.15; setButton('weigh'); }
     }
     camera.position.copy(st.pos); camera.rotation.set(st.pitch, st.yaw, 0);
     st.aboard = mode !== null;
     return mode !== null;
   }
-  return { update, state: b, get mode() { return mode; } };
+  return { update, state: b, get mode() { return mode; }, get anchored() { return mode === 'anchored'; }, set onSplash(f) { splash = f; } };
 }

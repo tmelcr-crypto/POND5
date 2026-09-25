@@ -72,5 +72,5 @@ export function createInventory({ st }) {
     for (const k of kinds) for (const s of slots.filter(x => x && x.kind === k).sort((a, b) => a.n - b.n)) { const t = Math.min(n, s.n); s.n -= t; n -= t; if (!s.n) slots[slots.indexOf(s)] = null; if (!n) break; }
     refresh(); return true;
   }
-  return { canAdd, add, use, select, refresh, count, take, get slots() { return slots; }, get selected() { return slots[sel]; }, set onUse(f) { onUse = f; }, get onUse() { return onUse; }, set useLabel(f) { useLabel = f; render(); }, set nearChest(v) { if (v !== near) { near = v; render(); } } };
+  return { canAdd, add, use, select, refresh, count, take, get slots() { return slots; }, get selected() { return slots[sel]; }, set onUse(f) { onUse = f; }, get onUse() { return onUse; }, set useLabel(f) { useLabel = f; render(); }, get useLabel() { return useLabel; }, set nearChest(v) { if (v !== near) { near = v; render(); } } };
 }

@@ -270,6 +270,15 @@ export function createRoseBush(ctx) {
   shows the cost, and a note says so when you lack them). You can light or put out a fire while sitting on a log.
   No real lights: flames, a glow, a warm pool on the ground, sparks and smoke, and the crackle of the nearest lit fire.
   A stepping-stone path leads from the bridge's east end to the forest firepit.
+- **Fishing** (`app/fishing.js`, `CONFIG.fishing`): on the jetty's head, or aboard the anchored boat, looking out over
+  deep water, the fish button (H) casts: the rod shows in your hand and the float lands 6 m out. After 5-25 s (half
+  that around sunrise and sunset) it dips with a splash: tap Strike (or anywhere) within 1.1 s to hook the fish and
+  reel it in; miss it and the float waits again. The button reels in empty while you wait. One catch in 100 is a
+  golden fish. Raw fish cooks into grilled fish (firepits, and now the cabin's fireplace, standing at it).
+- **Anchor** (`app/boating.js`): out on open water, once the boat has nearly stopped, the boat button drops the anchor
+  (a splash, a rope from the bow); the boat stays, swinging slowly bow into the wind. The same button weighs anchor.
+- **Keepsake shelf** (`app/shelf.js`, `SHELF` in `world/layout.js`): on the cabin's back wall above the nightstand.
+  With a keepsake selected (the golden fish), near it and looking at it, Use says Place and puts it there for good.
 - **Seasons** (`world/seasons.js`, `world/seasonLooks.js`, `world/weather.js`, `CONFIG.seasons`): spring, summer,
   autumn, winter, 10 in-game days each; a season only turns while you sleep (the first sleep after its days are up),
   and its name fades in as you wake. The panel's Season picker jumps to any season. Summer is the scene as it always

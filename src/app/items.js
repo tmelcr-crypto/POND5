@@ -4,6 +4,7 @@ import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
 import { H, WATER_Y, SEA_Y, ROSE, lakeD, streamAt, jettyDeckY, bridgeDeckY } from '../world/layout.js';
 import { KINDS, iconSvg } from './itemKinds.js';
+import { mergeGeos } from '../core/geometry.js';
 import { SHOWN } from '../world/seasonLooks.js';
 
 /**
@@ -88,6 +89,13 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   const models = {}, mq = new THREE.Quaternion(), ms = new V(), mp = new V();
   const own = new Map();   // a material that comes and goes with the season (world/seasonLooks.js) gets a copy that stays
   const keep = mat => { if (!mat.userData.season) return mat; if (!own.has(mat)) { const c = mat.clone(); c.onBeforeCompile = mat.onBeforeCompile; c.customProgramCacheKey = mat.customProgramCacheKey; delete c.userData.season; c.visible = true; own.set(mat, c); } return own.get(mat); };
+  const FISHES = { fish: 1, grilledFish: 1, goldenFish: 1 };
+  /** A small fish along x: a flattened body and a tail fin. */
+  function fishGeo() {
+    const body = new THREE.SphereGeometry(1, 14, 8); body.scale(0.11, 0.035, 0.025);
+    const tail = new THREE.ConeGeometry(0.035, 0.06, 4); tail.rotateZ(Math.PI / 2); tail.scale(1, 1, 0.3); tail.translate(-0.13, 0, 0);
+    return mergeGeos([body, tail], ['position', 'normal']);
+  }
   function model(kind, look) {
     const L = look || protos[kind];
     if (L) {
@@ -96,8 +104,8 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       im.frustumCulled = false; im.castShadow = kind !== 'petal'; im.receiveShadow = true; im.userData.dynamic = true; scene.add(im); return im;
     }
     if (!models[kind]) {
-      const K = KINDS[kind], mat = new THREE.MeshStandardMaterial({ color: lin(K.color), roughness: 0.6, metalness: 0, side: kind === 'petal' ? THREE.DoubleSide : THREE.FrontSide, flatShading: kind === 'pebble' });
-      const geo = kind === 'cone' ? new THREE.ConeGeometry(0.028, 0.08, 8).rotateX(Math.PI / 2) : kind === 'stick' ? new THREE.CylinderGeometry(0.009, 0.012, 0.3, 5).rotateZ(Math.PI / 2)
+      const K = KINDS[kind], mat = new THREE.MeshStandardMaterial({ color: lin(K.color), roughness: kind === 'goldenFish' ? 0.3 : 0.6, metalness: kind === 'goldenFish' ? 0.6 : 0, side: kind === 'petal' ? THREE.DoubleSide : THREE.FrontSide, flatShading: kind === 'pebble' });
+      const geo = kind in FISHES ? fishGeo() : kind === 'cone' ? new THREE.ConeGeometry(0.028, 0.08, 8).rotateX(Math.PI / 2) : kind === 'stick' ? new THREE.CylinderGeometry(0.009, 0.012, 0.3, 5).rotateZ(Math.PI / 2)
         : kind === 'pebble' ? new THREE.IcosahedronGeometry(0.025, 0).scale(1, 0.6, 0.8) : kind === 'petal' ? new THREE.PlaneGeometry(0.036, 0.03) : new THREE.SphereGeometry(K.r, 10, 8);
       models[kind] = { geo, mat };
     }
@@ -211,6 +219,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     const K = KINDS[kind], busy = st.aboard || st.seat || st.inBed;
     camera.getWorldDirection(dir);
     if (K.use === 'eat') { sfx('crunch'); return true; }
+    if (K.hint) { const n = document.getElementById('fireNote'); if (n) { n.textContent = K.hint; n.classList.remove('hide'); clearTimeout(use.t); use.t = setTimeout(() => n.classList.add('hide'), 2200); } return false; }   // cook it first / a keepsake
     if (K.use === 'throw') {
       const m = model(kind), p = camera.position.clone().addScaledVector(dir, 0.35); p.y -= 0.12; m.position.copy(p);
       thrown.push({ kind, mesh: m, v: dir.clone().multiplyScalar(IC.throwSpeed).add(new V(0, 2.2, 0)), spin: new V(Math.random() * 12 - 6, Math.random() * 12 - 6, Math.random() * 12 - 6), rest: false, bounced: false });

@@ -54,6 +54,8 @@ import { createChests } from './assets/cabin/chest.js';
 import { createChestUI } from './app/chestUI.js';
 import { createFires } from './app/fires.js';
 import { createCooking } from './app/cooking.js';
+import { createFishing } from './app/fishing.js';
+import { createShelf } from './app/shelf.js';
 import { createFirepits } from './assets/cabin/firepits.js';
 import { createControls } from './app/controls.js';
 import { createDebugOverlay } from './app/debugOverlay.js';
@@ -141,7 +143,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
+  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
@@ -168,7 +170,8 @@ const sleeping = createSleeping({ camera: ctx.camera, st, cabin, clock, setHours
 const wind = createWind({ clock, show: showWind });   // the wind shifts by itself (strength and direction)
 const horizon = createHorizon({ ...ctx, skyUniforms });   // distant sailboat, lighthouse
 const moments = createSmallMoments({ ...ctx, detail, plot: { apple: plotApple, spruce: plotSpruce, rose: plotRose } });   // falling leaves, apples, cones, rose petals
-const waterLife = createWaterLife({ ...ctx, detail, skyUniforms, ocean });   // fish rises, dragonflies, shore foam
+const waterLife = createWaterLife({ ...ctx, detail, skyUniforms, ocean });
+boating.onSplash = (x, z) => waterLife.splash && waterLife.splash(x, SEA_Y + 0.002, z, 0.6);   // the anchor going in   // fish rises, dragonflies, shore foam
 const forage = createForage(ctx, { scatter, undergrowth });   // windfall apples, berries, pebbles to pick up
 const firepits = createFirepits(ctx);   // three firepits with logs to sit on and a roofed woodpile each (own random numbers)
 const inventory = createInventory({ st });   // the four quick slots and the Use button
@@ -182,13 +185,15 @@ const fires = createFires({ st, inventory });   // lighting and putting out fire
   fires.add({ id: 'fireplace', at: hearth.localToWorld(cabin.fireParts.hearth.clone()), near: p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW, set: (k, e) => { setFire(k, e); ambience.setFireLevel(k); } });
 }
 const cooking = createCooking({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, fires });   // roasting food over a firepit
+const fishing = createFishing({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, boating, waterLife, clock, seasons });   // from the jetty's head or the anchored boat
+const shelf = createShelf({ scene: ctx.scene, camera: ctx.camera, st, inventory, items });   // the keepsake shelf in the cabin
 const seasonLooks = createSeasonLooks(scene, seasons);   // the season's colours, snow and what comes and goes (before finalizeScene)
 const weather = createWeather(ctx, { apples: scatter.apple });   // snowfall, autumn leaves, spring blossom
 seasons.on(s => { items.season(s); moments.setSeason(s); weather.setSeason(s); });   // what can be picked
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);
