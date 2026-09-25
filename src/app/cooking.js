@@ -7,7 +7,7 @@ import { mergeGeos } from '../core/geometry.js';
 
 /**
  * Cooking at a fire. Sitting on a log round a burning firepit, or standing at the cabin's burning fireplace looking in,
- * with a food that cooks selected (KINDS[kind].cook: apple to baked apple, fish to grilled fish; berries do not), the
+ * with a food that cooks selected (KINDS[kind].cook: apple to baked apple, fish to grilled fish, bolete to roasted bolete; berries do not), the
  * Use button says Cook. Cook takes one piece: a roasting stick reaches out from your
  * hand towards the fire with it on the end (CONFIG.cook.push seconds), a ring round it fills while it cooks
  * (CONFIG.cook.time seconds, browning as it goes), then the stick comes back the same way and the cooked piece is in
@@ -15,7 +15,7 @@ import { mergeGeos } from '../core/geometry.js';
  * stick is only shown; you need not carry one. One piece at a time.
  */
 export function createCooking({ scene, camera, st, inventory, items, fires, tex = {} }) {
-  const C = CONFIG.cook, up = new V(0, 1, 0);
+  const C = CONFIG.cook, up = new V(0, 1, 0), BROWN = { fish: 0.6, mushroom: 0.5 };   // how far each browns
   const stickMat = new THREE.MeshStandardMaterial({ map: tex.barkTex || null, vertexColors: true, roughness: 0.9, metalness: 0 });
   /**
    * A roasting stick cut from a branch, len long, its tip (where the food goes) at the origin and the rest back along -y:
@@ -85,6 +85,7 @@ export function createCooking({ scene, camera, st, inventory, items, fires, tex 
     const g = stickGeo(len);   // the tip at its origin, the rest back along it
     const stick = new THREE.Mesh(g, stickMat); stick.quaternion.setFromUnitVectors(up, dir); stick.castShadow = true; scene.add(stick);
     const food = items.model(kind); food.castShadow = true;
+    if (food.isInstancedMesh && !food.instanceColor) food.setColorAt(0, new THREE.Color(1, 1, 1));   // vertex-coloured (a bolete): a tint to brown it with
     let raw = food.isInstancedMesh && food.instanceColor ? new THREE.Color().fromArray(food.instanceColor.array, 0) : null;
     if (!food.isInstancedMesh) { food.material = food.material.clone(); raw = food.material.color.clone(); }   // browns on its own
     job = { kind, cooked, phase: 'in', t: 0, tip, dir, stick, food, raw, done: false, seated: !!S, from: st.pos.clone() };
@@ -97,7 +98,7 @@ export function createCooking({ scene, camera, st, inventory, items, fires, tex 
   }
   function brown(k) {
     const im = job.food; if (!job.raw) return;
-    const c = job.raw.clone().lerp(lin(0x5e2a12), k * (job.kind === 'fish' ? 0.6 : 1));
+    const c = job.raw.clone().lerp(lin(0x5e2a12), k * (BROWN[job.kind] || 1));
     if (im.isInstancedMesh) { im.setColorAt(0, c); im.instanceColor.needsUpdate = true; } else im.material.color.copy(c);
   }
   function finish() {

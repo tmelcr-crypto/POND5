@@ -190,7 +190,7 @@ const chestUI = createChestUI({ camera: ctx.camera, st, inventory, items, chests
 const fires = createFires({ st, inventory, scene: ctx.scene, camera: ctx.camera, softDot: ctx.tex.softDot });   // lighting and putting out fires: the cabin's fireplace and the firepits
 {
   const hearth = cabin.fireLight.parent; hearth.updateWorldMatrix(true, false);
-  firepits.pits.forEach((p, i) => { const s = ambience.addFire(p.at); fires.add({ id: 'pit-' + p.P.name, at: p.at, near: () => true, fuel: { kinds: ['stick', 'cone'], n: 3, text: 'You need 3 sticks or cones' }, set: (k, e) => { firepits.set(i, k, e); ambience.setFireLevel(k, s); } }); });
+  firepits.pits.forEach((p, i) => { const s = ambience.addFire(p.at); fires.add({ id: 'pit-' + p.P.name, at: p.at, near: () => true, fuel: { kinds: ['stick', 'cone', 'driftwood'], n: 3, text: 'You need 3 sticks, cones or driftwood' }, set: (k, e) => { firepits.set(i, k, e); ambience.setFireLevel(k, s); } }); });
   // every lamp, candle and lantern, on its own (#56); inside the cabin only from inside
   const inCabin = p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW;
   cabin.lamps.forEach((L, i) => {

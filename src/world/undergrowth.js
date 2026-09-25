@@ -270,5 +270,5 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
     butterflies.update(t, c);
     if (withStats) { stats.near = all.filter(e => e.g.visible).length; stats.small = smalls.reduce((s, k) => s + k.mesh.count, 0); stats.butterfliesDrawn = butterflies.drawn; }
   }
-  return { update, stats, bushes, roses, bushVariants: bushV, roseVariants: roseV, logs, logVariants: logSet.variants, groups: all, smalls, sticks: smalls[3], cones: smalls[4] };
+  return { update, stats, bushes, roses, bushVariants: bushV, roseVariants: roseV, logs, logVariants: logSet.variants, groups: all, smalls, boletes: smalls[1], sticks: smalls[3], cones: smalls[4] };
 }

@@ -194,8 +194,8 @@ export const CONFIG = {
   // How the body feels, shown only (app/body.js)
   body: {
     perDay: 0.75, floor: 0.25,     // hunger bar: drain per in-game day, never below this
-    food: { apple: 0.15, berry: 0.08, bakedApple: 0.3, grilledFish: 0.4 },   // how much each fills it
-    warm: ['bakedApple', 'grilledFish'],   // cooked food that warms you
+    food: { apple: 0.15, berry: 0.08, bakedApple: 0.3, grilledFish: 0.4, roastedMushroom: 0.22 },   // how much each fills it
+    warm: ['bakedApple', 'grilledFish', 'roastedMushroom'],   // cooked food that warms you
     grace: 60, freeze: 180, melt: 25,      // s outdoors in winter before frost starts; s to full frost; s to melt it
     fireWarm: 3.5,                 // m from a burning fire that warms you
   },
@@ -244,6 +244,7 @@ export const CONFIG = {
     respawn: 24,                   // in-game hours before what you took is back
     rosePetals: 3,                 // petals a rose bush gives a day
     pileSticks: 10,                // sticks a firepit's woodpile gives a day
+    rareShell: 0.0001,             // the chance a shell you pick up is the nautilus (a keepsake for the cabin's shelf)
   },
 
   // Storage chests (app/chestUI.js)

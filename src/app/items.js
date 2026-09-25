@@ -5,13 +5,14 @@ import { CONFIG } from '../config.js';
 import { H, WATER_Y, SEA_Y, ROSE, lakeD, streamAt, jettyDeckY, bridgeDeckY } from '../world/layout.js';
 import { KINDS, iconSvg } from './itemKinds.js';
 import { fishModel } from '../assets/water/fishModel.js';
+import { rareShellModel } from '../assets/vegetation/forage.js';
 import { SHOWN } from '../world/seasonLooks.js';
 
 /**
  * Picking things up and using them (what you carry: app/inventory.js; the kinds: app/itemKinds.js).
  *  - sources: the plot's apples (on the reference tree and under it), the low-hanging apples of the island's apple trees, its spruce's cones and the rose's fallen petals;
  *    the island's cones and sticks (world/undergrowth.js), the stream's pebbles, the windfall apples, berries and
- *    pebbles of assets/vegetation/forage.js; what small moments drops (apples, cones, gust petals) and what you throw;
+ *    pebbles, shells and driftwood of assets/vegetation/forage.js (one shell in CONFIG.items.rareShell is a nautilus, a keepsake); what small moments drops (apples, cones, gust petals) and what you throw;
  *    petals straight off any rose bush (CONFIG.items.rosePetals a day each) and sticks from the firepits' woodpiles
  *    (CONFIG.items.pileSticks a day each).
  *  - aim: whatever is in the middle of the screen (no crosshair) and within reach: CONFIG.items.reach around you, from
@@ -55,9 +56,9 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   const P = moments && moments.parts;
   // (the plot's own materials dissolve away from the plot, so they never stand in for what you throw or let go)
   if (P) { imSource('plotApple', 'apple', P.appleIM, 0, false); imSource('plotCone', 'cone', P.coneIM, 0, false); imSource('plotPetal', 'petal', P.groundPetals, 0, false); }
-  if (undergrowth) for (const [id, kind, t] of [['cone', 'cone', undergrowth.cones], ['stick', 'stick', undergrowth.sticks]]) if (t) addSource(id, kind, t.positions(), i => t.hide(i), i => t.show(i), i => t.look(i));
+  if (undergrowth) for (const [id, kind, t] of [['cone', 'cone', undergrowth.cones], ['stick', 'stick', undergrowth.sticks], ['bolete', 'mushroom', undergrowth.boletes]]) if (t) addSource(id, kind, t.positions(), i => t.hide(i), i => t.show(i), i => t.look(i));
   if (stream) imSource('streamPebble', 'pebble', stream.stones, stream.pebbleFrom);
-  if (forage) for (const [id, kind, f] of [['windfall', 'apple', forage.windfalls], ['berry', 'berry', forage.berries], ['pebble', 'pebble', forage.pebbles]]) addSource(id, kind, f.points, f.hide, f.show, f.look);
+  if (forage) for (const [id, kind, f] of [['windfall', 'apple', forage.windfalls], ['berry', 'berry', forage.berries], ['pebble', 'pebble', forage.pebbles], ['shell', 'shell', forage.shells], ['driftwood', 'driftwood', forage.driftwood]]) if (f) addSource(id, kind, f.points, f.hide, f.show, f.look);
   // the island's apple trees: the apples low enough to reach (a tree's apples are its variant's shared instances, so a
   // tree gets its own copy of the apple and stem matrices the first time one is taken, and only its apple goes)
   if (scatter) scatter.trees.filter(tr => tr.species === 'apple').forEach((tr, ti) => {
@@ -98,6 +99,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       im.frustumCulled = false; im.castShadow = kind !== 'petal'; im.receiveShadow = true; im.userData.dynamic = true; scene.add(im); return im;
     }
     if (!models[kind] && kind in FISHES) models[kind] = fishModel(kind);   // assets/water/fishModel.js
+    if (!models[kind] && kind === 'rareShell') models[kind] = rareShellModel();   // assets/vegetation/forage.js
     if (!models[kind]) {
       const K = KINDS[kind], mat = new THREE.MeshStandardMaterial({ color: lin(K.color), roughness: kind === 'goldenFish' ? 0.3 : 0.6, metalness: kind === 'goldenFish' ? 0.6 : 0, side: kind === 'petal' ? THREE.DoubleSide : THREE.FrontSide, flatShading: kind === 'pebble' });
       const geo = kind === 'cone' ? new THREE.ConeGeometry(0.028, 0.08, 8).rotateX(Math.PI / 2) : kind === 'stick' ? new THREE.CylinderGeometry(0.009, 0.012, 0.3, 5).rotateZ(Math.PI / 2)
@@ -120,8 +122,12 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       apple: () => { tone(240, 170, 0.1, 0.22); noise(0.05, 1400, 1, 0.08); },
       berry: () => { tone(900, 620, 0.05, 0.1); tone(1100, 800, 0.04, 0.06, 0.05); },
       cone: () => noise(0.12, 2600, 2, 0.16),
+      mushroom: () => { noise(0.06, 900, 1.5, 0.14); tone(300, 220, 0.05, 0.06); },
       stick: () => { noise(0.05, 3600, 3, 0.22); tone(520, 300, 0.04, 0.06); },
       pebble: () => { tone(1900, 1600, 0.05, 0.16); tone(2700, 2400, 0.04, 0.08, 0.03); },
+      shell: () => { tone(2600, 2200, 0.04, 0.1); tone(3400, 3000, 0.035, 0.06, 0.025); },
+      rareShell: () => { [0, 0.09, 0.18].forEach((at, i) => tone(880 * (1 + i * 0.25), 870 * (1 + i * 0.25), 0.35, 0.07, at)); },
+      driftwood: () => { noise(0.07, 1200, 2, 0.2); tone(300, 180, 0.06, 0.08); },
       petal: () => noise(0.22, 6200, 0.7, 0.05, 'highpass'),
       crunch: () => { for (let i = 0; i < 3; i++) noise(0.07, 1800, 0.6, 0.2, 'lowpass', i * 0.12); },
       throw: () => noise(0.16, 1400, 0.6, 0.07),
@@ -173,26 +179,28 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     return best ? best.what : null;
   }
   const pileLeft = i => IC.pileSticks - Object.keys(taken).filter(k => k.startsWith('pile:' + i + ':')).length;
-  // the season (world/seasons.js): apples on the trees and windfalls, berries and rose petals only in theirs
+  // the season (world/seasons.js): apples on the trees and windfalls, berries, rose petals and boletes only in theirs
   let season = 'summer';
-  const inSeason = s => (s.kind === 'berry' ? SHOWN.berries(season) : s.kind === 'petal' ? SHOWN.bloom(season) : s.kind === 'apple' ? SHOWN.fruit(season) : true);
+  const inSeason = s => (s.kind === 'berry' ? SHOWN.berries(season) : s.kind === 'petal' ? SHOWN.bloom(season) : s.kind === 'apple' ? SHOWN.fruit(season) : s.kind === 'mushroom' ? SHOWN.mushroom(season) : true);
   const roseLeft = i => IC.rosePetals - Object.keys(taken).filter(k => k.startsWith('rose:' + i + ':')).length;
 
   /* ---- pick up: crouch or reach, the item flies to you ---- */
   let pick = null;
   function tryPick() {
     if (!aimed || !canAim()) return;
-    const kind = aimed.kind;
+    let kind = aimed.kind;
+    const rare = kind === 'shell' && Math.random() < IC.rareShell; if (rare) kind = 'rareShell';   // one shell in so many is the nautilus
     if (!inventory.canAdd(kind)) { hint.classList.remove('shake'); void hint.offsetWidth; hint.classList.add('shake'); sfx('full'); return; }
     const a = aimed, from = a.p.clone ? a.p.clone() : new V(a.p.x, a.p.y, a.p.z), eye = camera.position.clone(), feet = eye.y - PC.eyeHeight;
     if (a.type === 'static') { const s = sources[a.si]; s.hide(a.k); taken[s.id + ':' + a.k] = total; dirty = true; }
     else if (a.type === 'loose') { if (a.it.mine) { scene.remove(a.it.obj.mesh); thrown.splice(thrown.indexOf(a.it.obj), 1); } else moments.take(a.it); }
     else if (a.type === 'rose' || a.type === 'pile') { taken[a.type + ':' + a.i + ':' + Math.random().toString(36).slice(2, 7)] = total; dirty = true; }
     const dip = from.y < feet + 0.7 ? clamp(eye.y - (from.y + 0.95), 0, 0.75) : 0, reachUp = from.y > eye.y - 0.25 ? 0.07 : 0;
-    const look = a.type === 'static' && sources[a.si].look ? sources[a.si].look(a.k) : a.type === 'loose' && !a.it.mine && protos[kind] && a.it.obj.q ? { ...protos[kind], m: new THREE.Matrix4().compose(new V(), a.it.obj.q, a.it.obj.s || new V(1, 1, 1)) } : null;
+    const look = rare ? null : a.type === 'static' && sources[a.si].look ? sources[a.si].look(a.k) : a.type === 'loose' && !a.it.mine && protos[kind] && a.it.obj.q ? { ...protos[kind], m: new THREE.Matrix4().compose(new V(), a.it.obj.q, a.it.obj.s || new V(1, 1, 1)) } : null;
     const m = a.type === 'loose' && a.it.mine ? a.it.obj.mesh : model(kind, look); m.position.copy(from); scene.add(m);
     pick = { t: 0, dur: IC.pickTime, base: st.pos.clone(), dip, reachUp, from, m, kind, done: false };
     aimed = null; glow.visible = false; hint.classList.add('hide');
+    if (rare) note('A nautilus shell! Put it on the shelf in the cabin', 4000);
   }
   addEventListener('meadow-tap', tryPick);
   /** The pick-up animation has the camera while it plays (app/controls.js takeover). */
@@ -210,11 +218,12 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   }
 
   /* ---- use ---- */
+  function note(text, ms = 2200) { const n = document.getElementById('fireNote'); if (!n) return; n.textContent = text; n.classList.remove('hide'); clearTimeout(note.t); note.t = setTimeout(() => n.classList.add('hide'), ms); }
   function use(kind) {
     const K = KINDS[kind], busy = st.aboard || st.seat || st.inBed;
     camera.getWorldDirection(dir);
     if (K.use === 'eat') { sfx('crunch'); dispatchEvent(new CustomEvent('meadow-eat', { detail: kind })); return true; }   // app/body.js fills the hunger bar
-    if (K.hint) { const n = document.getElementById('fireNote'); if (n) { n.textContent = K.hint; n.classList.remove('hide'); clearTimeout(use.t); use.t = setTimeout(() => n.classList.add('hide'), 2200); } return false; }   // cook it first / a keepsake
+    if (K.hint) { note(K.hint); return false; }   // cook it first / a keepsake
     if (K.use === 'throw') {
       const m = model(kind), p = camera.position.clone().addScaledVector(dir, 0.35); p.y -= 0.12; m.position.copy(p);
       thrown.push({ kind, mesh: m, v: dir.clone().multiplyScalar(IC.throwSpeed).add(new V(0, 2.2, 0)), spin: new V(Math.random() * 12 - 6, Math.random() * 12 - 6, Math.random() * 12 - 6), rest: false, bounced: false });
@@ -240,9 +249,10 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   /** A thrown thing comes to rest: a random turn (a stick lies along the ground, turned any way; the rest any way up),
    *  then lifted until no part of it is below the ground under that part. */
   const sv = new V(), sm = new THREE.Matrix4();
+  const LONG = { stick: 1, driftwood: 1 };   // come to rest lying along the ground
   function settle(o) {
     const m = o.mesh, TAU = Math.PI * 2;
-    if (o.kind === 'stick') m.rotation.set(0, Math.random() * TAU, 0); else m.rotation.set(Math.random() * TAU, Math.random() * TAU, Math.random() * TAU);
+    if (LONG[o.kind]) m.rotation.set(0, Math.random() * TAU, 0); else m.rotation.set(Math.random() * TAU, Math.random() * TAU, Math.random() * TAU);
     m.updateMatrixWorld(true); sm.copy(m.matrixWorld); if (m.isInstancedMesh) { m.getMatrixAt(0, m4); sm.multiply(m4); }
     const pos = m.geometry.attributes.position, base = m.position.y; let lift = 0;
     for (let i = 0, step = Math.max(1, Math.floor(pos.count / 400)); i < pos.count; i += step) {
@@ -264,7 +274,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     for (let i = thrown.length - 1; i >= 0; i--) {
       const o = thrown[i]; if (o.rest) continue;
       o.v.y -= 9.8 * dt; o.mesh.position.addScaledVector(o.v, dt); o.mesh.rotation.x += o.spin.x * dt; o.mesh.rotation.y += o.spin.y * dt; o.mesh.rotation.z += o.spin.z * dt;
-      const p = o.mesh.position, w = waterAt(p.x, p.z), g = floorAt(p.x, p.z, p.y), r = o.kind === 'stick' ? 0.012 : KINDS[o.kind].r;
+      const p = o.mesh.position, w = waterAt(p.x, p.z), g = floorAt(p.x, p.z, p.y), r = LONG[o.kind] ? 0.015 : KINDS[o.kind].r;
       if (w > g && p.y <= w) { if (waterLife && waterLife.splash) waterLife.splash(p.x, w + 0.002, p.z, 0.35); sfx('splash'); scene.remove(o.mesh); thrown.splice(i, 1); continue; }
       if (p.y - r <= g) {
         p.y = g + r;
