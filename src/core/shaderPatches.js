@@ -236,7 +236,7 @@ const SEASON_GLSL = `uniform float uSpring; uniform float uAutumn; uniform float
   vec3 seasonVeg(vec3 c){
     float g = clamp((c.g - max(c.r, c.b)) / max(c.g, 1e-4) * 3.0, 0.0, 1.0), l = dot(c, vec3(0.3, 0.59, 0.11));
     vec3 t = c;
-    t = mix(t, c * vec3(0.92, 1.14, 0.72), uSpring);
+    t = mix(t, c * vec3(1.0, 1.3, 0.5) + vec3(0.004, 0.012, 0.0), uSpring);   // fresh, yellower green
     t = mix(t, vec3(1.7, 1.12, 0.42) * l, uAutumn);
     t = mix(t, vec3(1.3, 1.1, 0.8) * l, uWinter);
     return mix(c, t, g);
