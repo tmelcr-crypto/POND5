@@ -33,26 +33,32 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   const sources = [], grid = new Map(), gk = (i, j) => i * 73856093 ^ j * 19349663;
   const protos = {};   // per kind, the look of one real item (for what you throw or let go)
   /** look(i): the item's own geometry, material, matrix and colour, so what flies to you is exactly what lay there. */
-  function addSource(id, kind, points, hide, show, look) {
+  function addSource(id, kind, points, hide, show, look, proto = true) {
     const s = { id, kind, points, hide, show, look }, si = sources.push(s) - 1;
-    if (look && points.length && !protos[kind]) protos[kind] = look(0);
+    if (proto && look && points.length && !protos[kind]) protos[kind] = look(0);
     points.forEach((p, i) => { const k = gk(Math.floor(p.x), Math.floor(p.z)); (grid.get(k) || grid.set(k, []).get(k)).push([si, i]); });
     for (const key in taken) { const [sid, i] = key.split(':'); if (sid === id && points[+i]) hide(+i); }   // still gone from before
   }
-  function imSource(id, kind, im, from = 0) {   // an InstancedMesh's instances from `from` on
+  function imSource(id, kind, im, from = 0, proto = true) {   // an InstancedMesh's instances from `from` on (proto: may stand for its kind when thrown)
     if (!im) return;
     const pts = [], saved = new Map();
     for (let i = from; i < im.count; i++) { im.getMatrixAt(i, m4); pts.push(new V().setFromMatrixPosition(m4)); }
     addSource(id, kind, pts,
       i => { im.getMatrixAt(i + from, m4); if (!saved.has(i)) saved.set(i, m4.clone()); im.setMatrixAt(i + from, zero); im.instanceMatrix.needsUpdate = true; },
       i => { const m = saved.get(i); if (m) { im.setMatrixAt(i + from, m); im.instanceMatrix.needsUpdate = true; } },
-      i => { const m = saved.get(i) || (im.getMatrixAt(i + from, m4), m4.clone()), c = im.instanceColor ? new THREE.Color().fromArray(im.instanceColor.array, (i + from) * 3) : null; return { geo: im.geometry, mat: im.material, m, color: c }; });
+      i => { const m = saved.get(i) || (im.getMatrixAt(i + from, m4), m4.clone()), c = im.instanceColor ? new THREE.Color().fromArray(im.instanceColor.array, (i + from) * 3) : null; return { geo: im.geometry, mat: im.material, m, color: c }; }, proto);
   }
   const P = moments && moments.parts;
-  if (P) { imSource('plotApple', 'apple', P.appleIM); imSource('plotCone', 'cone', P.coneIM); imSource('plotPetal', 'petal', P.groundPetals); }
+  // (the plot's own materials dissolve away from the plot, so they never stand in for what you throw or let go)
+  if (P) { imSource('plotApple', 'apple', P.appleIM, 0, false); imSource('plotCone', 'cone', P.coneIM, 0, false); imSource('plotPetal', 'petal', P.groundPetals, 0, false); }
   if (undergrowth) for (const [id, kind, t] of [['cone', 'cone', undergrowth.cones], ['stick', 'stick', undergrowth.sticks]]) if (t) addSource(id, kind, t.positions(), i => t.hide(i), i => t.show(i), i => t.look(i));
   if (stream) imSource('streamPebble', 'pebble', stream.stones, stream.pebbleFrom);
   if (forage) for (const [id, kind, f] of [['windfall', 'apple', forage.windfalls], ['berry', 'berry', forage.berries], ['pebble', 'pebble', forage.pebbles]]) addSource(id, kind, f.points, f.hide, f.show, f.look);
+  // a petal for letting go and for picking off a rose: the rose's fallen-petal card with a material of its own
+  if (!protos.petal && P && P.groundPetals) {
+    const src = P.groundPetals, pm = new THREE.MeshStandardMaterial({ map: src.material.map, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.5, metalness: 0 });
+    src.getMatrixAt(0, m4); protos.petal = { geo: src.geometry, mat: pm, m: m4.clone(), color: src.instanceColor ? new THREE.Color().fromArray(src.instanceColor.array, 0) : null };
+  }
   // rose bushes: petals picked straight off them (a few a day each)
   const roses = [{ x: ROSE.x, z: ROSE.z, y: H(ROSE.x, ROSE.z), h: 0.9, r: 0.45 }];
   if (undergrowth) undergrowth.roses.forEach(r => { const v = undergrowth.roseVariants[r.variant]; roses.push({ x: r.x, z: r.z, y: r.y, h: (v.height || 0.9) * r.s, r: 0.45 * r.s }); });
