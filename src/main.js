@@ -205,7 +205,8 @@ const footsteps = createFootsteps({ st, ambience, seasons });   // steps by what
 const music = createMusic({ ambience, seasons, skyUniforms });   // a soft soundtrack, off by default
 const seasonLooks = createSeasonLooks(scene, seasons);   // the season's colours, snow and what comes and goes (before finalizeScene)
 const weather = createWeather(ctx, { apples: scatter.apple });   // snowfall, autumn leaves, spring blossom
-seasons.on(s => { items.season(s); moments.setSeason(s); weather.setSeason(s); birds.setSeason(s); ambience.setBirdShare({ autumn: 0.55, winter: 0.12 }[s] ?? 1); tod.setSeasonSky(s); });   // what can be picked
+let bakedFor = 'summer';   // the far trees' billboards are baked as they look in summer; again for each season
+seasons.on(s => { if (s !== bakedFor) { bakedFor = s; scatter.rebake(s); } items.season(s); moments.setSeason(s); weather.setSeason(s); birds.setSeason(s); ambience.setBirdShare({ autumn: 0.55, winter: 0.12 }[s] ?? 1); tod.setSeasonSky(s); });   // what can be picked
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });

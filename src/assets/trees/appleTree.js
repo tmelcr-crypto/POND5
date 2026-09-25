@@ -122,7 +122,7 @@ export function createAppleTree(ctx) {
   {
     const barkMesh = new THREE.Mesh(mergeGeos(bark, ['position', 'normal', 'uv']), tag(new THREE.MeshStandardMaterial({ map: barkTex, color: lin(0x9a9082), roughness: 0.9 }), 'bark'));
     barkMesh.castShadow = barkMesh.receiveShadow = true; scene.add(barkMesh);
-    const twigMesh = new THREE.Mesh(mergeGeos(twigs, ['position', 'normal', 'uv']), tag(new THREE.MeshStandardMaterial({ map: barkTex, color: lin(0x7d6f60), roughness: 0.9 }), 'bark'));
+    const twigMesh = new THREE.Mesh(mergeGeos(twigs, ['position', 'normal', 'uv']), tag(new THREE.MeshStandardMaterial({ map: barkTex, color: lin(0x7d6f60), roughness: 0.9 }), 'twig'));   // the fine twigs: gone in winter (they float without the leaves)
     twigMesh.castShadow = twigMesh.receiveShadow = true; scene.add(twigMesh);
     const leafGeo = new THREE.PlaneGeometry(1, 1); leafGeo.translate(0, 0.5, 0);
     const lMat = tag(new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7, envMapIntensity: 0.6 }), 'leaf');
@@ -163,7 +163,7 @@ export function createAppleVariants(ctx, count, seed) {
   const leafGeo = new THREE.PlaneGeometry(1, 1); leafGeo.translate(0, 0.5, 0);
   const appleGeo = appleProfile(), stemGeo = appleStem();
   const barkCol = lin(0x9a9082), twigCol = lin(0x7d6f60);
-  const paintGeo = (g, c) => { const n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) c.toArray(a, i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); g.userData.twig = c === twigCol; return g; };
+  const paintGeo = (g, c) => { const n = g.attributes.position.count, a = new Float32Array(n * 3), t = new Float32Array(n * 3); for (let i = 0; i < n; i++) { c.toArray(a, i * 3); if (c === twigCol) t[i * 3] = 1; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); g.setAttribute('twig', new THREE.BufferAttribute(t, 3)); g.userData.twig = c === twigCol; return g; };   // twig: folded away in winter (world/seasonLooks.js)
   const out = [];
   for (let v = 0; v < count; v++) {
     setSeed(seed + v * 104729);
@@ -171,7 +171,7 @@ export function createAppleVariants(ctx, count, seed) {
     const P = new V();
     const leafRank = t.leaves.map(([m]) => { P.setFromMatrixPosition(m); const outer = clamp(P.distanceTo(t.crownC) / t.crownR); return rng() * (0.45 + 0.55 * (1 - outer * outer)); });
     const wood = t.bark.map(g => paintGeo(g, barkCol)).concat(t.twigs.map(g => paintGeo(g, twigCol)));
-    const barkSet = mergeRanked(wood, ['position', 'normal', 'uv', 'color'], g => (g.userData.twig ? 0.3 + 0.7 * rng() : 0));
+    const barkSet = mergeRanked(wood, ['position', 'normal', 'uv', 'color', 'twig'], g => (g.userData.twig ? 0.3 + 0.7 * rng() : 0));
     const leafSet = rankedInstances(leafGeo, t.leaves.map(l => l[0]), leafRank, t.leaves.map(l => l[1]));
     const appleSet = rankedInstances(appleGeo, t.apples, t.apples.map(() => 0.9), t.appleColors);
     const stemSet = rankedInstances(stemGeo, t.apples, t.apples.map(() => 0.9));

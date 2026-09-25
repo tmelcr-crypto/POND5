@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { setSeed, rng, rr } from '../core/random.js';
 import { smooth } from '../core/math.js';
-import { THIN } from '../core/shaderPatches.js';
+import { THIN, addSeason } from '../core/shaderPatches.js';
 import { CONFIG } from '../config.js';
 import { H, WORLD_HALF, forest, excluded, coastDist, walkwayDist } from './layout.js';
+import { SHOWN, PATCH } from './seasonLooks.js';
 import { obstacles, rockBodies } from './bounds.js';
 import { createSpruceVariants } from '../assets/trees/spruce.js';
 import { createAppleVariants } from '../assets/trees/appleTree.js';
@@ -97,7 +98,7 @@ export function updateGroups(entries, c, range = CONFIG.trees) {
  * half brightness (instance colours go above 1); the billboard material lights it and doubles it back. A proto may
  * carry an `origin` (its base, for assets built in world space); protos are otherwise in local space around (0, 0, 0).
  */
-export function bakeAtlas(renderer, protos, tile) {
+export function bakeAtlas(renderer, protos, tile, season = null) {   // season: bake as it looks then (world/seasonLooks.js)
   const W = Math.max(...protos.map(p => p.width)), Hh = Math.max(...protos.map(p => p.height));
   const tw = tile, th = Math.max(32, Math.round(tile * Hh / W / 16) * 16);
   const rt = new THREE.WebGLRenderTarget(tw * 8, th * protos.length, { format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
@@ -111,8 +112,11 @@ export function bakeAtlas(renderer, protos, tile) {
     const sc = new THREE.Scene();
     if (p.origin) sc.position.set(-p.origin.x, -p.origin.y, -p.origin.z);   // an asset built in world space (the plot's)
     for (const part of p.parts) {
-      const m = part.material, mb = new THREE.MeshBasicMaterial({ map: m.map, color: m.color, vertexColors: m.vertexColors, alphaTest: m.alphaTest || 0, side: THREE.DoubleSide, toneMapped: false, fog: false });
+      const m = part.material, role = season && m.userData.season;
+      if (role && SHOWN[role] && !SHOWN[role](season)) continue;   // not there this season (bare apple trees in winter)
+      const mb = new THREE.MeshBasicMaterial({ map: m.map, color: m.color, vertexColors: m.vertexColors, alphaTest: m.alphaTest || 0, side: THREE.DoubleSide, toneMapped: false, fog: false });
       mb.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb *= 0.5;'); };
+      if (role && PATCH[role]) addSeason(mb, { ...PATCH[role], basic: true });
       mats.push(mb);
       let mesh;
       if (part.instances) { mesh = new THREE.InstancedMesh(part.geometry, mb, 0); mesh.instanceMatrix = part.instances.matrix; mesh.instanceColor = part.instances.color; mesh.count = part.instances.count; }
@@ -129,7 +133,7 @@ export function bakeAtlas(renderer, protos, tile) {
   rt.scissorTest = false;
   renderer.setRenderTarget(prevRT); renderer.setClearColor(prevCol, prevA); renderer.shadowMap.enabled = prevSM;
   mats.forEach(m => m.dispose());
-  return { texture: rt.texture, W, H: Hh, rows: protos.length };
+  return { texture: rt.texture, rt, W, H: Hh, rows: protos.length };
 }
 
 /**
@@ -232,9 +236,11 @@ export function createScatter(ctx) {
 
   /* ---- tree meshes: one small group per tree, everything shared with its variant ---- */
   const trees = plantGroups(scene, spruce, spruceV, 'spruce').concat(plantGroups(scene, apple, appleV, 'apple'));
-  const bbs = [];
-  if (spruce.length) { const a = bakeAtlas(renderer, spruceV, TC.billboardTile); bbs.push(billboards(a, spruce)); }
-  if (apple.length) { const a = bakeAtlas(renderer, appleV, TC.billboardTile); bbs.push(billboards(a, apple)); }
+  const bbs = [], bakes = [];
+  if (spruce.length) { const a = bakeAtlas(renderer, spruceV, TC.billboardTile); bbs.push(billboards(a, spruce)); bakes.push({ protos: spruceV, bb: bbs[bbs.length - 1], rt: a.rt }); }
+  if (apple.length) { const a = bakeAtlas(renderer, appleV, TC.billboardTile); bbs.push(billboards(a, apple)); bakes.push({ protos: appleV, bb: bbs[bbs.length - 1], rt: a.rt }); }
+  /** Bake the billboards again as the trees look in this season (world/seasons.js). */
+  function rebake(season) { for (const b of bakes) { const a = bakeAtlas(renderer, b.protos, TC.billboardTile, season); b.bb.material.map = a.texture; b.rt.dispose(); b.rt = a.rt; } }
   bbs.forEach(b => scene.add(b));
 
   /* ---- rocks: full-detail mesh per rock near the camera, one instanced far mesh per variant, cross-faded like the trees ---- */
@@ -272,5 +278,5 @@ export function createScatter(ctx) {
     }
   }
   // placed: everything as placed, before the walkways were cleared (the undergrowth avoids these, so its own draws are unchanged)
-  return { update, stats, spruce, apple, rocks, trees, placed: { spruce: spruceAll, apple: appleAll, rocks: rocksAll } };
+  return { update, stats, spruce, apple, rocks, trees, rebake, placed: { spruce: spruceAll, apple: appleAll, rocks: rocksAll } };
 }
