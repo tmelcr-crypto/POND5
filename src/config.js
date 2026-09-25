@@ -262,6 +262,15 @@ export const CONFIG = {
   // and how far away the ground may be, and how clear of the island's trees and of each other they must be (m)
   planting: { max: 12, days: 8, pitch: -0.6, reach: 2.4, clear: 2.2, apart: 1.6 },
 
+  // The island's animals (assets/fauna/rabbits.js, squirrels.js, frogs.js, gulls.js): how many, how close you can come
+  // before they flee (m), and their pace (s, m/s)
+  animals: {
+    rabbits: { count: isTouch ? 4 : 6, range: 45, spawn: [15, 40], flee: 5.5, fleeTime: 3, fleeHop: 0.95, fleeHopTime: 0.26, hopTime: 0.3, gone: 16, away: [15, 40] },
+    squirrels: { count: 3, flee: 7, roam: 3, speed: 2.2, climb: 1.4, escape: [3.5, 5.5], perch: [8, 25], coneEvery: 120 },
+    frogs: { count: 5, size: 1.3, jump: 2.2, leap: 0.7, leapTime: 0.42, under: [20, 45], reappear: 4, dusk: 0.3, croakEvery: [3, 12] },
+    gulls: { count: 4, beach: 3, scare: 5, speed: 6, circle: 14, beats: 2.6, flyTime: [20, 45], callEvery: [12, 35] },
+  },
+
   // Storage chests (app/chestUI.js)
   chest: { reach: 2.2, cone: 0.6, lidOpen: 1.69, longPress: 450 },   // lidOpen 97 degrees: the lid then reaches 0.20 m behind its hinge (keep the chest that far from a wall)   // m, rad (in view), rad (lid open), ms (a press that picks how many)
 
