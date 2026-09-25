@@ -259,6 +259,10 @@ export function createRoseBush(ctx) {
 - **Sitting** (`app/controls.js`, `CONFIG.player.sit`): in front of a bench the seat button (R on desktop) turns you to
   it, walks you up, turns you round and sits you down; seated you can only look around; the stand button raises you and
   gives the controls back.
+- **Fires** (`app/fires.js`, `CONFIG.fire`): near a fire with it in view, the fire button (X on desktop) puts it out or
+  lights it. Lit, the flames catch over 4 s; put out, they die down over 1.6 s, and the embers glow (and the chimney
+  smokes) for 45 s more. Flames, light, sparks, ember glow, smoke and crackle all follow. Each fire's state is remembered.
+  Every fire registers with `fires.add()` in `main.js`; today that is the cabin's fireplace.
 - **Water life** (`assets/water/waterLife.js`, numbers in its `WATER` object): fish rises, a ring spreading about 1 m
   on the sea (0.45 m on the pond) and fading in 2 s, every 4-10 s on each water (sometimes two in a row); on the sea
   they appear 2.5-14 m out from the shore, 5-30 m in front of the camera. Three dragonflies dart and hover over the pond

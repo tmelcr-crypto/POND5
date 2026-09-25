@@ -441,15 +441,18 @@ export function createAmbience(ctx) {
   showUI();
 
   const fwd = new camera.position.constructor(), stats = { updateMs: 0, running: false };
+  let fireLevel = 1;   // how much the fireplace burns (app/fires.js): 0 out, silent
   return {
     stats,
     /** The running audio context and the master gain (for short effects elsewhere, e.g. app/items.js), or null. */
+    /** How much the fireplace burns, 0..1 (app/fires.js). */
+    setFireLevel(k) { fireLevel = k; },
     get audio() { return ac && g && ac.state === 'running' ? { ac, out: g.master } : null; },
     update(dt) {
       if (!ac || ac.state !== 'running') { stats.running = false; return; }
       stats.running = true; acc += dt; if (acc < A.update) return; acc = 0;
       const t0 = performance.now(), t = ac.currentTime, p = camera.position, onBoat = !!(ctx.boat && ctx.boat.onBoard);
-      const m = mixAt(p, skyUniforms.uNight.value, U.uWind.value, fireAt, onBoat);
+      const m = mixAt(p, skyUniforms.uNight.value, U.uWind.value, fireAt, onBoat); m.fire *= fireLevel;
       g.setMix(m, t); g.schedule(t, t + A.lookahead);
       camera.getWorldDirection(fwd); g.setListener(p, fwd, t); g.setPond(p, t); g.setFire(fireAt, t); g.setStream(m, t);
       stats.updateMs = performance.now() - t0;

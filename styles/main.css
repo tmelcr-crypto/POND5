@@ -68,7 +68,7 @@ body.touch .desk-only{display:none}
 #knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(240,196,105,.85)}
 #vbtns{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));display:none;flex-direction:column;gap:12px;z-index:4}
 body.touch.playing #vbtns{display:flex}
-body.playing:not(.touch) #vbtns{display:flex}body:not(.touch) #vbtns>:not(#btnSeat):not(#btnBoat):not(#btnBed1):not(#btnBed2):not(#btnBed3):not(#btnUse){display:none!important}   /* desktop: only the seat, boat, bed and use buttons */
+body.playing:not(.touch) #vbtns{display:flex}body:not(.touch) #vbtns>:not(#btnSeat):not(#btnBoat):not(#btnBed1):not(#btnBed2):not(#btnBed3):not(#btnUse):not(#btnFire){display:none!important}   /* desktop: only the seat, boat, bed, use and fire buttons */
 #quickbar{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:4;transition:opacity .3s}
 #quickbar.hide{opacity:0;pointer-events:none}body:not(.playing) #quickbar{display:none}
 .qslot{position:relative;width:54px;height:54px;border-radius:12px;display:grid;place-items:center;color:var(--ink);cursor:pointer;touch-action:none;padding:0}
