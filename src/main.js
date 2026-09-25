@@ -17,6 +17,9 @@ import { createGroundTexture, createWorldGrass } from './world/grass.js';
 import { createScatter } from './world/scatter.js';
 import { createUndergrowth } from './world/undergrowth.js';
 import { createTimeOfDay } from './world/timeOfDay.js';
+import { createSeasons } from './world/seasons.js';
+import { createSeasonLooks } from './world/seasonLooks.js';
+import { createWeather } from './world/weather.js';
 import { createPond, createOcean } from './assets/water/pond.js';
 import { createGrass } from './assets/vegetation/grass.js';
 import { createSpruce } from './assets/trees/spruce.js';
@@ -107,6 +110,8 @@ const undergrowth = createUndergrowth(ctx, { scatter, pollen });
 const birds = createBirds({ ...ctx, skyUniforms });
 await step(88);
 const tod = createTimeOfDay({ ...ctx, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin, setLights }), { scheduleEnv, clock, setHours } = tod;
+const seasons = createSeasons({ clock });   // the four seasons; they turn while you sleep
+seasons.on(s => { tod.setSeasonSun(CONFIG.seasons.sun[s]); scheduleEnv(true); });
 
 // Controls + UI
 const { st, move, fmtTime, setSpeed, timeIn, timeV, showTime, addTakeover, resetInput, showWind } = createControls({ ...ctx, cabin, toggleDoor, setLights, setHours, clock, scheduleEnv });
@@ -136,7 +141,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
+  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
@@ -159,7 +164,7 @@ const benches = createBenches({ ...ctx, cabin });   // the sunrise and sunset be
 const jetty = createJetty({ ...ctx, cabin });   // the jetty on the east beach with its lamp post
 const boat = createSailboat(ctx);   // the sailboat at the jetty
 const boating = createBoating({ camera: ctx.camera, st, boat, resetInput }); addTakeover(boating.update);   // boarding, sailing, docking
-const sleeping = createSleeping({ camera: ctx.camera, st, cabin, clock, setHours, scheduleEnv, resetInput, afterTimeJump: () => setLights(skyUniforms.uNight.value > 0.5) }); addTakeover(sleeping.update);   // the bed: sleep, sit, album
+const sleeping = createSleeping({ camera: ctx.camera, st, cabin, clock, setHours, scheduleEnv, resetInput, afterTimeJump: hrs => { seasons.slept(hrs); setLights(skyUniforms.uNight.value > 0.5); } }); addTakeover(sleeping.update);   // the bed: sleep, sit, album
 const wind = createWind({ clock, show: showWind });   // the wind shifts by itself (strength and direction)
 const horizon = createHorizon({ ...ctx, skyUniforms });   // distant sailboat, lighthouse
 const moments = createSmallMoments({ ...ctx, detail, plot: { apple: plotApple, spruce: plotSpruce, rose: plotRose } });   // falling leaves, apples, cones, rose petals
@@ -177,10 +182,13 @@ const fires = createFires({ st, inventory });   // lighting and putting out fire
   fires.add({ id: 'fireplace', at: hearth.localToWorld(cabin.fireParts.hearth.clone()), near: p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW, set: (k, e) => { setFire(k, e); ambience.setFireLevel(k); } });
 }
 const cooking = createCooking({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, fires });   // roasting food over a firepit
+const seasonLooks = createSeasonLooks(scene, seasons);   // the season's colours, snow and what comes and goes (before finalizeScene)
+const weather = createWeather(ctx, { apples: scatter.apple });   // snowfall, autumn leaves, spring blossom
+seasons.on(s => { items.season(s); moments.setSeason(s); weather.setSeason(s); });   // what can be picked
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);

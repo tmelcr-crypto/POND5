@@ -9,7 +9,9 @@ import { H, WATER_Y, APP, CON, ROSE } from '../../world/layout.js';
  * drops, bounces, rolls a little downhill and rests; in strong gusts a few rose petals skip along the ground and fade.
  * Geometry and textures are the plot's own (the apple tree's leaf cards and apples, the spruce's cones, the rose's
  * fallen petals). Each part runs only within the near detail band of its plant; everything lands on the terrain
- * (H) or, over the pond, on the water. Every number is in MOMENTS.
+ * (H) or, over the pond, on the water. Every number is in MOMENTS. The season (setSeason, world/seasons.js): no leaves or
+ * apples in winter, leaves falling four times as often (in autumn colours) in autumn, white-pink blossom instead of leaves
+ * in spring, apples in summer and autumn, rose petals in spring and summer.
  */
 export const MOMENTS = {
   band: CONFIG.trees.fade[0],     // m: the plants' full-detail (near) range
@@ -76,7 +78,7 @@ export function createSmallMoments(ctx) {
   const q = new THREE.Quaternion(), e = new THREE.Euler(), n = new V3(), up = new V3(0, 1, 0), m4 = new THREE.Matrix4();
   function spawnLeaf(t) {
     if (!leafSpots.length || items.leaves.length >= M.leaves.max) { const lying = items.leaves.find(l => l.landed); if (!lying) return; lying.age = Math.max(lying.age, M.leaves.lie - M.leaves.fade); return; }
-    const s = leafSpots[Math.floor(Math.random() * leafSpots.length)], tint = colorOf(leafIM, s.i).lerp(new THREE.Color(1.1, 0.75, 0.25), rr(0.2, 0.6));
+    const s = leafSpots[Math.floor(Math.random() * leafSpots.length)], tint = season === 'spring' ? new THREE.Color(0.95, rr(0.62, 0.85), rr(0.7, 0.85)) : season === 'autumn' ? new THREE.Color(rr(0.6, 0.85), rr(0.1, 0.5), 0.03) : colorOf(leafIM, s.i).lerp(new THREE.Color(1.1, 0.75, 0.25), rr(0.2, 0.6));
     items.leaves.push({ p: s.p.clone(), v: new V3(), rot: new V3(rr(0, 6), rr(0, 6), rr(0, 6)), spin: new V3(rr(-4, 4), rr(-3, 3), rr(-5, 5)), ph: rr(0, 6), fall: rr(...M.leaves.fall), size: s.s.y * rr(0.95, 1.05), tint, landed: false, age: 0, yaw: rr(0, 6.28) });
     say(t, `a leaf detaches at ${s.p.y.toFixed(1)} m`);
   }
@@ -90,7 +92,7 @@ export function createSmallMoments(ctx) {
     say(t, `${kind === 'apples' ? 'an apple' : 'a spruce cone'} drops from ${s.p.y.toFixed(1)} m`);
   }
   function spawnPetals(t) {
-    if (!petalSpots.length) return;
+    if (!petalSpots.length || season === 'autumn' || season === 'winter') return;
     const k = Math.round(rr(...M.petals.count)), wd = U.uWindDir.value;
     for (let i = 0; i < k && items.petals.length < M.petals.max; i++) {
       const s = petalSpots[Math.floor(Math.random() * petalSpots.length)], dir = new V3(wd.x, 0, wd.y).applyAxisAngle(up, rr(-0.5, 0.5)).normalize();
@@ -170,6 +172,7 @@ export function createSmallMoments(ctx) {
     detail.band('rose moments', at(ROSE, 0.4), M.band, b => { on.rose = b; });
   } else { on.apple = on.spruce = on.rose = true; }
 
+  let season = 'summer';
   let t = 0, nextLeaf = rr(...M.leaves.every), nextApple = rr(...M.apples.every), nextCone = rr(...M.cones.every), petalCool = 0;
   const gustAt = (time, o) => 0.6 + 0.4 * Math.sin(time * 1.6 + o.x * 0.8 + o.z * 0.6) + 0.2 * Math.sin(time * 3.7 + o.z * 1.9);   // the rose's own sway gusts
   function draw(pl, list, fn) {
@@ -184,6 +187,8 @@ export function createSmallMoments(ctx) {
     stats, log, items,
     /** Drop an apple or a cone now (for testing). */
     drop: kind => spawnRoller(kind, t),
+    /** The season (world/seasons.js). */
+    setSeason(s) { season = s; },
     /** What lies on the ground and can be picked up (app/items.js): apples and cones at rest, landed petals. */
     loose() {
       const out = [];
@@ -199,8 +204,8 @@ export function createSmallMoments(ctx) {
       if (!on.apple && !on.spruce && !on.rose) { for (const k in P) if (P[k]) P[k].m.visible = false; return; }
       t += dt;
       if (on.apple) {
-        if ((nextLeaf -= dt) <= 0) { spawnLeaf(t); nextLeaf = rr(...M.leaves.every); }
-        if ((nextApple -= dt) <= 0) { spawnRoller('apples', t); nextApple = rr(...M.apples.every); }
+        if ((nextLeaf -= dt) <= 0) { if (season !== 'winter') spawnLeaf(t); nextLeaf = rr(...M.leaves.every) / (season === 'autumn' ? 4 : 1); }
+        if ((nextApple -= dt) <= 0) { if (season === 'summer' || season === 'autumn') spawnRoller('apples', t); nextApple = rr(...M.apples.every); }
         for (const l of items.leaves) { l.m = stepLeaf(l, dt).clone(); l.fadeNow = l.landed ? Math.min(1, (M.leaves.lie - l.age) / M.leaves.fade) : 1; }
         const before = items.leaves.length; items.leaves = items.leaves.filter(l => !l.landed || l.age < M.leaves.lie);
         if (items.leaves.length < before) say(t, 'a lying leaf has faded out');

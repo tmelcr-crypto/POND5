@@ -4,6 +4,7 @@ import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
 import { H, WATER_Y, SEA_Y, ROSE, lakeD, streamAt, jettyDeckY, bridgeDeckY } from '../world/layout.js';
 import { KINDS, iconSvg } from './itemKinds.js';
+import { SHOWN } from '../world/seasonLooks.js';
 
 /**
  * Picking things up and using them (what you carry: app/inventory.js; the kinds: app/itemKinds.js).
@@ -85,10 +86,12 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   /* ---- models: what flies to you, is thrown, or drifts away: a one-instance copy of the real item (its own geometry,
      material, size, turn and colour; one instance keeps every instanced attribute and shader patch working) ---- */
   const models = {}, mq = new THREE.Quaternion(), ms = new V(), mp = new V();
+  const own = new Map();   // a material that comes and goes with the season (world/seasonLooks.js) gets a copy that stays
+  const keep = mat => { if (!mat.userData.season) return mat; if (!own.has(mat)) { const c = mat.clone(); c.onBeforeCompile = mat.onBeforeCompile; c.customProgramCacheKey = mat.customProgramCacheKey; delete c.userData.season; c.visible = true; own.set(mat, c); } return own.get(mat); };
   function model(kind, look) {
     const L = look || protos[kind];
     if (L) {
-      const im = new THREE.InstancedMesh(L.geo, L.mat, 1); L.m.decompose(mp, mq, ms);
+      const im = new THREE.InstancedMesh(L.geo, keep(L.mat), 1); L.m.decompose(mp, mq, ms);
       im.setMatrixAt(0, m4.compose(mp.set(0, 0, 0), mq, ms)); if (L.color) im.setColorAt(0, L.color);
       im.frustumCulled = false; im.castShadow = kind !== 'petal'; im.receiveShadow = true; im.userData.dynamic = true; scene.add(im); return im;
     }
@@ -149,7 +152,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) {
       const l = grid.get(gk(i, j)); if (!l) continue;
       for (const [si, k] of l) {
-        const s = sources[si]; if (taken[s.id + ':' + k] !== undefined) continue;
+        const s = sources[si]; if (taken[s.id + ':' + k] !== undefined || !inSeason(s)) continue;
         const b = test(s.points[k], KINDS[s.kind].r, eye, feet, best); if (b !== best) { best = b; best.what = { type: 'static', si, k, kind: s.kind, p: s.points[k] }; }
       }
     }
@@ -157,7 +160,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     for (const it of loose) { const b = test(it.p, KINDS[it.kind].r, eye, feet, best); if (b !== best) { best = b; best.what = { type: 'loose', it, kind: it.kind, p: it.p }; } }
     roses.forEach((r, i) => {
       const c = new V(r.x, r.y + r.h * 0.55, r.z), b = test(c, r.r, eye, feet, best);
-      if (b !== best && roseLeft(i) > 0) { best = b; best.what = { type: 'rose', i, kind: 'petal', p: c }; }
+      if (b !== best && roseLeft(i) > 0 && SHOWN.bloom(season)) { best = b; best.what = { type: 'rose', i, kind: 'petal', p: c }; }
     });
     piles.forEach((w, i) => {   // a woodpile: its point nearest to you, so you reach it from anywhere round it
       const dx = eye.x - w.x, dz = eye.z - w.z, a = clamp(dx * w.fz - dz * w.fx, -w.hw, w.hw), f = clamp(dx * w.fx + dz * w.fz, -w.hd, w.hd);
@@ -167,6 +170,9 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     return best ? best.what : null;
   }
   const pileLeft = i => IC.pileSticks - Object.keys(taken).filter(k => k.startsWith('pile:' + i + ':')).length;
+  // the season (world/seasons.js): apples on the trees and windfalls, berries and rose petals only in theirs
+  let season = 'summer';
+  const inSeason = s => (s.kind === 'berry' ? SHOWN.berries(season) : s.kind === 'petal' ? SHOWN.bloom(season) : s.kind === 'apple' ? SHOWN.fruit(season) : true);
   const roseLeft = i => IC.rosePetals - Object.keys(taken).filter(k => k.startsWith('rose:' + i + ':')).length;
 
   /* ---- pick up: crouch or reach, the item flies to you ---- */
@@ -285,5 +291,5 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       if (dirty) { dirty = false; try { localStorage.setItem(KEY, JSON.stringify({ total, taken })); } catch (err) { void err; } }
     }
   }
-  return { update, pickUpdate, use, sfx, model: kind => model(kind), get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
+  return { update, pickUpdate, use, sfx, model: kind => model(kind), season: s => { season = s; }, get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
 }

@@ -181,7 +181,7 @@ export function createCabin(ctx) {
       door: std({ map: boardTexV, color: lin(0xb08a66), roughness: 0.7 }),
       furn: std({ map: boardTex, color: lin(0xe0bc92), roughness: 0.55 }),
       dark: std({ map: boardTex, color: lin(0x7a5c46), roughness: 0.6 }),
-      shingle: std({ map: shingleTex, bumpMap: shingleTex, bumpScale: 0.8, roughness: 0.92, envMapIntensity: 0.6 }),
+      shingle: std({ map: shingleTex, bumpMap: shingleTex, bumpScale: 0.8, roughness: 0.92, envMapIntensity: 0.6, userData: { season: 'roof' } }),
       stone: std({ map: stoneTex, bumpMap: stoneTex, bumpScale: 0.9, roughness: 0.92 }),
       soot: std({ map: stoneTex, color: lin(0x3a342e), roughness: 1 }),
       iron: std({ color: lin(0x2b2b2e), roughness: 0.45, metalness: 0.75 }),

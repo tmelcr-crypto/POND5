@@ -3,7 +3,8 @@ import { U } from '../../core/uniforms.js';
 import { WATER_Y, LAKE, H, lakeD, streamDist } from '../../world/layout.js';
 
 /**
- * Pond surface: MeshStandardMaterial with procedural wave normals, depth tint, shoreline foam.
+ * Pond surface: MeshStandardMaterial with procedural wave normals, depth tint, shoreline foam. In winter (U.uWinter) it
+ * is ice: still, pale grey-blue with cracks and drifts of snow (app/controls.js lets you walk on it).
  */
 export function createPond(ctx) {
   const { scene } = ctx;
@@ -20,10 +21,12 @@ export function createPond(ctx) {
     g.setAttribute('aDepth', new THREE.BufferAttribute(dep, 1)); g.setAttribute('aKeep', new THREE.BufferAttribute(keep, 1));
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, envMapIntensity: 1.25 });
     m.onBeforeCompile = s => {
-      s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind;
+      s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uWinter = U.uWinter;
       s.vertexShader = 'attribute float aDepth; attribute float aKeep; varying float vDepth; varying float vKeep; varying vec3 vWP;\n' +
         s.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDepth = aDepth; vKeep = aKeep; vWP = (modelMatrix*vec4(transformed,1.0)).xyz;');
-      s.fragmentShader = `varying float vDepth; varying float vKeep; varying vec3 vWP; uniform float uTime; uniform float uWind;
+      s.fragmentShader = `varying float vDepth; varying float vKeep; varying vec3 vWP; uniform float uTime; uniform float uWind; uniform float uWinter;
+        float iceH(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float iceN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(iceH(i), iceH(i+vec2(1,0)), f.x), mix(iceH(i+vec2(0,1)), iceH(i+vec2(1,1)), f.x), f.y); }
         vec2 wv(vec2 p, float t, vec2 d, float f, float sp, float a){ return d * (a*f*cos(dot(d,p)*f + t*sp)); }
         vec2 waveGrad(vec2 p, float t){
           vec2 g = vec2(0.0);
@@ -40,9 +43,17 @@ export function createPond(ctx) {
           diffuseColor.rgb = mix(vec3(0.16,0.17,0.08), vec3(0.018,0.06,0.058), sh);
           float foam = (1.0 - smoothstep(0.0, 0.035, vDepth)) * (0.55 + 0.45*sin(vWP.x*18.0 + vWP.z*13.0 + uTime*1.5));
           diffuseColor.rgb += vec3(0.28,0.3,0.26) * foam * 0.5;
-          diffuseColor.a = smoothstep(-0.005, 0.03, vDepth) * mix(0.42, 0.93, sh) * vKeep;`)
+          diffuseColor.a = smoothstep(-0.005, 0.03, vDepth) * mix(0.42, 0.93, sh) * vKeep;
+          if (uWinter > 0.5) {   // ice: cracks, drifts of snow thickest by the shore
+            float cr = 1.0 - smoothstep(0.0, 0.035, abs(iceN(vWP.xz * 3.1) - 0.5)) * 0.6;
+            vec3 ice = mix(vec3(0.34, 0.42, 0.48), vec3(0.12, 0.2, 0.25), sh * 0.7) * (0.85 + 0.25 * iceN(vWP.xz * 11.0)) * cr;
+            float drift = smoothstep(0.45, 0.75, iceN(vWP.xz * 1.3) * 0.7 + (1.0 - smoothstep(0.0, 0.25, vDepth)) * 0.55);
+            diffuseColor.rgb = mix(ice, vec3(0.8, 0.84, 0.9), drift);
+            diffuseColor.a = smoothstep(-0.01, 0.015, vDepth) * vKeep;
+          }`)
         .replace('#include <normal_fragment_maps>', `
-          vec2 wg = waveGrad(vWP.xz, uTime);
+          vec2 wg = waveGrad(vWP.xz, uTime) * (1.0 - uWinter) + (vec2(iceN(vWP.xz * 23.0), iceN(vWP.xz * 23.0 + 7.0)) - 0.5) * 0.02 * uWinter;
+          roughnessFactor = mix(roughnessFactor, 0.22, uWinter);
           vec3 nW = normalize(vec3(-wg.x, 1.0, -wg.y));
           normal = normalize((viewMatrix * vec4(nW, 0.0)).xyz);`);
     };
@@ -62,10 +73,10 @@ export function createOcean(ctx, ground, seaY) {
   const g = new THREE.PlaneGeometry(320, 320, 1, 1); g.rotateX(-Math.PI / 2);
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.06, metalness: 0, envMapIntensity: 1.1 });
   m.onBeforeCompile = s => {
-    s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uGround = { value: ground.tex };
+    s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uWinter = U.uWinter; s.uniforms.uGround = { value: ground.tex };
     s.uniforms.uGroundST = { value: new THREE.Vector2(ground.scale, ground.offset) }; s.uniforms.uSea = { value: seaY };
     s.vertexShader = 'varying vec3 vWP;\n' + s.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    s.fragmentShader = `varying vec3 vWP; uniform float uTime; uniform float uWind; uniform sampler2D uGround; uniform vec2 uGroundST; uniform float uSea;
+    s.fragmentShader = `varying vec3 vWP; uniform float uTime; uniform float uWind; uniform float uWinter; uniform sampler2D uGround; uniform vec2 uGroundST; uniform float uSea;
       vec2 wv(vec2 p, float t, vec2 d, float f, float sp, float a){ return d * (a*f*cos(dot(d,p)*f + t*sp)); }
       vec2 seaGrad(vec2 p, float t){
         vec2 g = vec2(0.0);
@@ -81,6 +92,7 @@ export function createOcean(ctx, ground, seaY) {
         float depth = uSea - texture2D(uGround, (vWP.xz + uGroundST.y) * uGroundST.x).r;
         vec3 shallow = vec3(0.16, 0.34, 0.30), deep = vec3(0.012, 0.055, 0.07);
         diffuseColor.rgb = mix(shallow, deep, smoothstep(0.0, 2.8, depth));
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))) * vec3(0.8, 0.95, 1.1), 0.55 * uWinter);   // a colder, greyer sea in winter
         /* shore-foam */   // assets/water/waterLife.js adds the shore foam here (depth, vWP and uTime are in scope)`)
       .replace('#include <normal_fragment_maps>', `
         vec2 wg = seaGrad(vWP.xz, uTime);

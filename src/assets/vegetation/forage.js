@@ -42,7 +42,7 @@ export function createForage(ctx, { scatter, undergrowth }) {
     if (walkwayDist(x, z) < 0.3) continue;
     apples.push([x, H(x, z) + r * 0.8, z, r, lin(rnd() < 0.7 ? 0xb3302a : 0xc7962f).multiplyScalar(rr(0.8, 1.05))]);
   }
-  const windfalls = set(appleGeo, new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0 }), apples, true);
+  const windfalls = set(appleGeo, new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0 }), apples, true); windfalls.mesh.material.userData.season = 'fruit';
 
   /* ---- berries on some of the bushes: little clusters on the outside of the crown ---- */
   const cluster = mergeGeos([[0, 0, 0], [0.018, -0.006, 0.006], [-0.008, -0.012, 0.014], [0.006, 0.01, -0.012]].map(([x, y, z]) => { const g = new THREE.SphereGeometry(0.011, 6, 4).toNonIndexed(); g.translate(x, y, z); return g; }), ['position', 'normal']);
@@ -55,7 +55,7 @@ export function createForage(ctx, { scatter, undergrowth }) {
       berries.push([b.x + Math.cos(a) * rad, b.y + h, b.z + Math.sin(a) * rad, rr(0.85, 1.2), lin(col).multiplyScalar(rr(0.8, 1.1))]);
     }
   }
-  const berryMesh = set(cluster, new THREE.MeshStandardMaterial({ roughness: 0.25, metalness: 0 }), berries, false);
+  const berryMesh = set(cluster, new THREE.MeshStandardMaterial({ roughness: 0.25, metalness: 0 }), berries, false); berryMesh.mesh.material.userData.season = 'berries';
 
   /* ---- pebbles on the beaches and the meadow (not in the plot) ---- */
   const pebGeo = new THREE.IcosahedronGeometry(1, 0); pebGeo.scale(1, 0.55, 0.8);

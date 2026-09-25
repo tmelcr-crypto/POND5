@@ -270,6 +270,15 @@ export function createRoseBush(ctx) {
   shows the cost, and a note says so when you lack them). You can light or put out a fire while sitting on a log.
   No real lights: flames, a glow, a warm pool on the ground, sparks and smoke, and the crackle of the nearest lit fire.
   A stepping-stone path leads from the bridge's east end to the forest firepit.
+- **Seasons** (`world/seasons.js`, `world/seasonLooks.js`, `world/weather.js`, `CONFIG.seasons`): spring, summer,
+  autumn, winter, 10 in-game days each; a season only turns while you sleep (the first sleep after its days are up),
+  and its name fades in as you wake. The panel's Season picker jumps to any season. Summer is the scene as it always
+  was. Spring: a fresher green meadow, the apple trees in blossom, blossom petals drifting down. Autumn: a golden
+  meadow, yellow-orange-red apple leaves falling. Winter: snow over the ground and roofs (grass under it, flowers and
+  reeds sticking through), bare apple trees and bushes with a little snow, the pond frozen (you can walk on it), a
+  greyer sea, snowfall. Days are longer in summer and short in winter, with a lower sun. What you can collect follows
+  too: apples in summer and autumn, berries in summer and autumn, rose petals in spring and summer. Materials take part
+  by a role in `userData.season`; the shader side is `addSeason` in `core/shaderPatches.js`.
 - **Cooking** (`app/cooking.js`, `CONFIG.cook`): sitting on a log at a burning firepit with a food that cooks selected
   (`cook` in `app/itemKinds.js`: the apple becomes a baked apple; berries do not cook), the Use button says Cook. A
   roasting stick reaches out from your hand to the fire with the food on its end (2 s), a ring round it fills over 30 s

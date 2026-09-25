@@ -96,7 +96,7 @@ export function createWorldGrass(ctx, ground) {
       uH: { value: new THREE.Vector2(G.height[0], G.height[1]) },
       uTA: { value: tA }, uTB: { value: tB }, uTDry: { value: tDry },
     };
-    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.7 });
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.7 }); m.userData.season = 'grass';
     m.onBeforeCompile = s => {
       Object.assign(s.uniforms, uni);
       s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uWindDir = U.uWindDir;

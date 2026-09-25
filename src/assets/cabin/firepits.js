@@ -72,7 +72,7 @@ export function createFirepits(ctx) {
   const X = new V(1, 0, 0), q = new THREE.Quaternion(), m = new THREE.Matrix4();
   const place = (g, x, y, z, dir, spin = 0) => { q.setFromUnitVectors(X, dir.clone().normalize()); if (spin) q.multiply(new THREE.Quaternion().setFromAxisAngle(X, spin)); return g.applyMatrix4(m.compose(new V(x, y, z), q, new V(1, 1, 1))); };
 
-  const pits = [];
+  const pits = [], roofs = [];   // the woodpiles' roof boards, all in one mesh (they take snow in winter)
   for (const P of FIREPITS) {
     const parts = [], wood = [];
     /* stones round the fire, half sunk, and the ash between them */
@@ -120,7 +120,7 @@ export function createFirepits(ctx) {
     const roofDir = new V().addScaledVector(fr, -(W.d + 0.36)).setY(PL.back - PL.front), nPl = 7;
     for (let i = 0; i < nPl; i++) {
       const lx = -hw - 0.1 + (i + 0.5) * (W.w + 0.2) / nPl, c = at(lx, 0), g = new THREE.BoxGeometry(roofDir.length(), 0.025, (W.w + 0.2) / nPl - 0.012);
-      parts.push(place(prep(g, tone(0xd8c7b2, 0.8, 1.05), BARK), c.x, base + (PL.front + PL.back) / 2 + 0.035, c.z, roofDir.clone(), rr(-0.03, 0.03)));
+      roofs.push(place(prep(g, tone(0xd8c7b2, 0.8, 1.05), BARK), c.x, base + (PL.front + PL.back) / 2 + 0.035, c.z, roofDir.clone(), rr(-0.03, 0.03)));
     }
     for (const lz of [hd, -hd]) { const c = at(0, lz), g = new THREE.BoxGeometry(W.w + 0.1, 0.07, 0.07); parts.push(place(prep(g, tone(0xbfa892), BARK), c.x, base + (lz > 0 ? PL.front : PL.back) - 0.03, c.z, rt.clone())); }   // beams
     for (const lx of [-hw + 0.2, hw - 0.2]) { const c = at(lx, 0), g = new THREE.BoxGeometry(W.d - 0.1, 0.07, 0.08); parts.push(place(prep(g, tone(0xa8927c), BARK), c.x, base + 0.035, c.z, fr.clone())); }   // rails
@@ -158,6 +158,9 @@ export function createFirepits(ctx) {
 
   let night = 1;   // the warm pool and glow show at night, faintly by day (update() follows the sky)
   const byNight = () => 0.12 + 0.88 * night;
+  const roofMat = woodMat.clone(); roofMat.userData.season = 'roof';
+  const roof = new THREE.Mesh(mergeGeos(roofs, ['position', 'normal', 'uv', 'color']), roofMat); roof.castShadow = true; roof.receiveShadow = true; scene.add(roof);
+
   /** Show pit i burning k 0..1 with embers e 0..1. */
   function set(i, k, e) {
     const p = pits[i]; p.k = k; p.e = e;

@@ -162,6 +162,14 @@ export const CONFIG = {
     strength: [0.2, 1.6, 0.7],     // range, and the power on a uniform random number (< 1 leans strong: mean ~1.0)
   },
 
+  // The seasons (world/seasons.js)
+  seasons: {
+    days: 10,                      // in-game days a season lasts; it turns during the first sleep after that
+    start: 'summer',               // a first visit
+    // sunrise and sunset (hours) and how high the sun climbs (1 = as the summer sun always has) per season
+    sun: { spring: [6, 18, 0.85], summer: [5, 19, 1], autumn: [6.5, 17.5, 0.75], winter: [8, 16, 0.5] },
+  },
+
   // Lighting and putting out fires (app/fires.js)
   fire: {
     reach: 2.4, cone: 0.7,         // m from the fire, and how near the middle of the view it must be (rad)

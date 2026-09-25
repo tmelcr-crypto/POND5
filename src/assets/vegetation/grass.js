@@ -51,7 +51,7 @@ export function createGrass(ctx) {
     bg.setAttribute('aScl', new THREE.InstancedBufferAttribute(scl, 3));
     bg.setAttribute('aTint', new THREE.InstancedBufferAttribute(tint, 3));
     bg.instanceCount = n;
-    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.7 });
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.7 }); m.userData.season = 'grass';
     m.onBeforeCompile = s => {
       s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uWindDir = U.uWindDir; s.uniforms.uViewPos = THIN.uViewPos; s.uniforms.uFade = THIN.uFade;
       s.vertexShader = `attribute vec4 aOff; attribute vec3 aScl; attribute vec3 aTint;

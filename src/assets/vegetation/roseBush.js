@@ -140,9 +140,9 @@ export function createRoseBush(ctx) {
       scene.add(im); return im;
     };
     inst(thornG, new THREE.MeshStandardMaterial({ color: lin(0x8a3b26), roughness: 0.5 }), thorns);
-    const lMat = new THREE.MeshStandardMaterial({ map: leafletTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.38, envMapIntensity: 0.8 }); addFlutter(lMat, LEAF_FLUTTER);
+    const lMat = new THREE.MeshStandardMaterial({ map: leafletTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.38, envMapIntensity: 0.8 }); lMat.userData.season = 'leafVeg'; addFlutter(lMat, LEAF_FLUTTER);
     inst(lfG, lMat, leaflets, leafletTex, 0.5);
-    const pMat = new THREE.MeshStandardMaterial({ map: petalTex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.5, envMapIntensity: 0.55, emissive: new THREE.Color(0.35, 0.02, 0.04), emissiveMap: petalTex, emissiveIntensity: 0.12 });
+    const pMat = new THREE.MeshStandardMaterial({ map: petalTex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.5, envMapIntensity: 0.55, emissive: new THREE.Color(0.35, 0.02, 0.04), emissiveMap: petalTex, emissiveIntensity: 0.12 }); pMat.userData.season = 'bloom';
     inst(petIn, pMat, pin, petalTex, 0.45); inst(petOut, pMat, pout, petalTex, 0.45); inst(petFlat, pMat, ground, petalTex, 0.45);
     const sMat = new THREE.MeshStandardMaterial({ map: sepalTex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.6 });
     inst(spG, sMat, sep, sepalTex, 0.45);
@@ -165,8 +165,8 @@ export function createRoseVariants(ctx, count, seed, thin) {
   const depth = (map, alphaTest) => new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map, alphaTest });
   const thinned = (m, cards) => { addThinning(m, cards, thin); return addPlantSway(m, SWAY); };   // variants are built at the origin
   const solidMat = thinned(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, envMapIntensity: 0.6 }), false);
-  const lMat = new THREE.MeshStandardMaterial({ map: leafletTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.38, envMapIntensity: 0.8 }); addFlutter(lMat, LEAF_FLUTTER); thinned(lMat, true);
-  const pMat = thinned(new THREE.MeshStandardMaterial({ map: petalTex, vertexColors: true, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.5, envMapIntensity: 0.55, emissive: new THREE.Color(0.35, 0.02, 0.04), emissiveMap: petalTex, emissiveIntensity: 0.12 }), false);
+  const lMat = new THREE.MeshStandardMaterial({ map: leafletTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.38, envMapIntensity: 0.8 }); lMat.userData.season = 'leafVeg'; addFlutter(lMat, LEAF_FLUTTER); thinned(lMat, true);
+  const pMat = thinned(new THREE.MeshStandardMaterial({ map: petalTex, vertexColors: true, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.5, envMapIntensity: 0.55, emissive: new THREE.Color(0.35, 0.02, 0.04), emissiveMap: petalTex, emissiveIntensity: 0.12 }), false); pMat.userData.season = 'bloom';
   const sMat = thinned(new THREE.MeshStandardMaterial({ map: sepalTex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.6 }), true);
   const solidDepth = thinned(depth(null, 0), false), lDepth = thinned(depth(leafletTex, 0.5), true), pDepth = thinned(depth(petalTex, 0.45), false), sDepth = thinned(depth(sepalTex, 0.45), true);
   const stamG = new THREE.SphereGeometry(1, 4, 2), hipG = new THREE.SphereGeometry(1, 6, 4), S = new THREE.Matrix4().makeScale(0.004, 0.006, 0.004);

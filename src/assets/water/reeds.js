@@ -28,7 +28,7 @@ export function createReeds(ctx) {
         heads.push(new THREE.Matrix4().compose(base.clone().addScaledVector(upv, len * 0.8), q, new V(0.02, hl, 0.02)));
       }
     }
-    const rMat = new THREE.MeshStandardMaterial({ color: lin(0x5f7d34), roughness: 0.7 }); addWorldSway(rMat, 0.07);
+    const rMat = new THREE.MeshStandardMaterial({ color: lin(0x5f7d34), roughness: 0.7 }); rMat.userData.season = 'veg'; addWorldSway(rMat, 0.07);
     const hMat = new THREE.MeshStandardMaterial({ color: lin(0x5a3a22), roughness: 0.95 }); addWorldSway(hMat, 0.07);
     const rm = new THREE.InstancedMesh(reedG, rMat, reeds.length); reeds.forEach((m, i) => rm.setMatrixAt(i, m));
     const hm = new THREE.InstancedMesh(headG, hMat, heads.length); heads.forEach((m, i) => hm.setMatrixAt(i, m));

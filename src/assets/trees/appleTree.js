@@ -6,6 +6,8 @@ import { mergeGeos, limb, joint, mergeRanked, rankedInstances } from '../../core
 import { addFlutter, addThinning } from '../../core/shaderPatches.js';
 import { APP, H } from '../../world/layout.js';
 
+/** A seasonal role for world/seasonLooks.js. */
+const tag = (m, season) => { m.userData.season = season; return m; };
 const appleProfile = () => new THREE.LatheGeometry([[0.001, -0.036], [0.013, -0.038], [0.026, -0.034], [0.036, -0.022], [0.041, -0.005], [0.04, 0.012], [0.035, 0.026], [0.025, 0.035], [0.013, 0.035], [0.005, 0.029], [0.001, 0.027]].map(p => new THREE.Vector2(p[0], p[1])), 22);
 const appleStem = () => { const sg = new THREE.CylinderGeometry(0.0022, 0.003, 0.024, 5); sg.translate(0, 0.036, 0); sg.rotateZ(0.2); return sg; };
 
@@ -118,12 +120,12 @@ export function createAppleTree(ctx) {
   const { barkTex, leafTex } = ctx.tex;
   const { bark, twigs, leaves, apples, appleColors, blobs } = buildApple(APP.x, APP.z, H(APP.x, APP.z), true);
   {
-    const barkMesh = new THREE.Mesh(mergeGeos(bark, ['position', 'normal', 'uv']), new THREE.MeshStandardMaterial({ map: barkTex, color: lin(0x9a9082), roughness: 0.9 }));
+    const barkMesh = new THREE.Mesh(mergeGeos(bark, ['position', 'normal', 'uv']), tag(new THREE.MeshStandardMaterial({ map: barkTex, color: lin(0x9a9082), roughness: 0.9 }), 'bark'));
     barkMesh.castShadow = barkMesh.receiveShadow = true; scene.add(barkMesh);
-    const twigMesh = new THREE.Mesh(mergeGeos(twigs, ['position', 'normal', 'uv']), new THREE.MeshStandardMaterial({ map: barkTex, color: lin(0x7d6f60), roughness: 0.9 }));
+    const twigMesh = new THREE.Mesh(mergeGeos(twigs, ['position', 'normal', 'uv']), tag(new THREE.MeshStandardMaterial({ map: barkTex, color: lin(0x7d6f60), roughness: 0.9 }), 'bark'));
     twigMesh.castShadow = twigMesh.receiveShadow = true; scene.add(twigMesh);
     const leafGeo = new THREE.PlaneGeometry(1, 1); leafGeo.translate(0, 0.5, 0);
-    const lMat = new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7, envMapIntensity: 0.6 });
+    const lMat = tag(new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7, envMapIntensity: 0.6 }), 'leaf');
     addFlutter(lMat, 0.014);
     const lm = new THREE.InstancedMesh(leafGeo, lMat, leaves.length);
     leaves.forEach(([m, c], i) => { lm.setMatrixAt(i, m); lm.setColorAt(i, c); });
@@ -132,8 +134,8 @@ export function createAppleTree(ctx) {
     lm.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: leafTex, alphaTest: 0.5 });
     scene.add(lm);
 
-    const am = new THREE.InstancedMesh(appleProfile(), new THREE.MeshStandardMaterial({ roughness: 0.32, metalness: 0 }), apples.length);
-    const stems = new THREE.InstancedMesh(appleStem(), new THREE.MeshStandardMaterial({ color: lin(0x4a3520), roughness: 0.9 }), apples.length);
+    const am = new THREE.InstancedMesh(appleProfile(), tag(new THREE.MeshStandardMaterial({ roughness: 0.32, metalness: 0 }), 'fruit'), apples.length);
+    const stems = new THREE.InstancedMesh(appleStem(), tag(new THREE.MeshStandardMaterial({ color: lin(0x4a3520), roughness: 0.9 }), 'fruit'), apples.length);
     apples.forEach((m, i) => { am.setMatrixAt(i, m); stems.setMatrixAt(i, m); am.setColorAt(i, appleColors[i]); });
     am.castShadow = am.receiveShadow = true; stems.castShadow = true;
     if (am.instanceColor) am.instanceColor.needsUpdate = true;
@@ -150,10 +152,10 @@ export function createAppleTree(ctx) {
  */
 export function createAppleVariants(ctx, count, seed) {
   const { barkTex, leafTex } = ctx.tex;
-  const barkMat = new THREE.MeshStandardMaterial({ map: barkTex, vertexColors: true, roughness: 0.9 });
-  const lMat = new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7, envMapIntensity: 0.6 });
+  const barkMat = tag(new THREE.MeshStandardMaterial({ map: barkTex, vertexColors: true, roughness: 0.9 }), 'bark');
+  const lMat = tag(new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7, envMapIntensity: 0.6 }), 'leaf');
   addFlutter(lMat, 0.014);
-  const appleMat = new THREE.MeshStandardMaterial({ roughness: 0.32, metalness: 0 }), stemMat = new THREE.MeshStandardMaterial({ color: lin(0x4a3520), roughness: 0.9 });
+  const appleMat = tag(new THREE.MeshStandardMaterial({ roughness: 0.32, metalness: 0 }), 'fruit'), stemMat = tag(new THREE.MeshStandardMaterial({ color: lin(0x4a3520), roughness: 0.9 }), 'fruit');
   const depth = (map, alphaTest) => new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map, alphaTest });
   const barkDepth = depth(null, 0), lDepth = depth(leafTex, 0.5), appleDepth = depth(null, 0);
   addThinning(barkMat, false); addThinning(barkDepth, false); addThinning(lMat, true); addThinning(lDepth, true);
