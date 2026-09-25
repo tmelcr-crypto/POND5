@@ -298,8 +298,40 @@ export function benchDist(x, z) {
   }
   return d;
 }
-/** Distance to anything built to walk on or sit at (path stones, bridge, benches, jetty): the island's scatter is cleared off these. */
-export function walkwayDist(x, z) { return Math.min(footpathDist(x, z), bridgeDist(x, z), benchDist(x, z), jettyDist(x, z)); }
+/*
+ * Firepits (meshes: assets/vegetation/firepits.js; lighting them: app/fires.js): one on the beach by the jetty, one in a
+ * clearing of the east forest, one on the south-west hill over the sea. Each: a ring of stones round the fire, three cut
+ * logs to sit on round it (logs: the directions from the fire, degrees), and a small roofed woodpile within 5 m (pile:
+ * its direction and distance), all placed where no tree, rock or path had to move (sites picked offline).
+ */
+const PIT = { logR: 1.7, logLen: 1.15, logRad: 0.19, ring: 0.5, pileW: 1.7, pileD: 1.0 };
+export const FIREPITS = [
+  { name: 'beach', x: 30, z: -23, logs: [50, 110, 175], pile: [130, 3.6] },
+  { name: 'forest', x: 22.5, z: 11.3, logs: [200, 320, 80], pile: [40, 4.2] },
+  { name: 'hill', x: -19, z: -23.5, logs: [320, 80, 200], pile: [130, 3.0] },
+].map(f => {
+  const R = Math.PI / 180, y = H(f.x, f.z);
+  const logs = f.logs.map(d => {
+    const a = d * R, cx = f.x + Math.cos(a) * PIT.logR, cz = f.z + Math.sin(a) * PIT.logR, tx = -Math.sin(a), tz = Math.cos(a), h = PIT.logLen / 2;
+    const y0 = H(cx - tx * h, cz - tz * h) + PIT.logRad - 0.035, y1 = H(cx + tx * h, cz + tz * h) + PIT.logRad - 0.035;   // centre heights at its ends: it lies on the ground, a little sunk
+    return { x: cx, z: cz, tx, tz, fx: -Math.cos(a), fz: -Math.sin(a), y0, y1, top: (y0 + y1) / 2 + PIT.logRad };
+  });
+  const pa = f.pile[0] * R, px = f.x + Math.cos(pa) * f.pile[1], pz = f.z + Math.sin(pa) * f.pile[1];
+  return { ...f, y, logs, pile: { x: px, z: pz, fx: -Math.cos(pa), fz: -Math.sin(pa), w: PIT.pileW, d: PIT.pileD }, ...PIT };
+});
+FIREPITS.forEach(f => f.logs.forEach(l => SEATS.push({ x: l.x, z: l.z, fx: l.fx, fz: l.fz, top: l.top, half: PIT.logLen / 2, back: 0 })));   // sit on any log
+/** Distance to a firepit's footprint: the fire and its logs (a disc), or its woodpile (< 0 inside). */
+export function firepitDist(x, z) {
+  let d = Infinity;
+  for (const f of FIREPITS) {
+    d = Math.min(d, Math.hypot(x - f.x, z - f.z) - (f.logR + 0.55));
+    const P = f.pile, dx = x - P.x, dz = z - P.z, a = Math.abs(-dx * P.fz + dz * P.fx) - P.w / 2, b = Math.abs(dx * P.fx + dz * P.fz) - P.d / 2;
+    d = Math.min(d, Math.max(a, b) < 0 ? Math.max(a, b) : Math.hypot(Math.max(a, 0), Math.max(b, 0)));
+  }
+  return d;
+}
+/** Distance to anything built to walk on or sit at (path stones, bridge, benches, jetty, firepits): the island's scatter is cleared off these. */
+export function walkwayDist(x, z) { return Math.min(footpathDist(x, z), bridgeDist(x, z), benchDist(x, z), jettyDist(x, z), firepitDist(x, z)); }
 /** Distance to the bridge's footprint (< 0 under the deck). */
 export function bridgeDist(x, z) {
   const B = BRIDGE, dx = x - B.x, dz = z - B.z, u = Math.abs(dx * B.ax + dz * B.az) - B.half, v = Math.abs(dx * B.az - dz * B.ax) - B.width / 2;

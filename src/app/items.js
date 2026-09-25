@@ -10,7 +10,8 @@ import { KINDS, iconSvg } from './itemKinds.js';
  *  - sources: the plot's apples (on the reference tree and under it), the low-hanging apples of the island's apple trees, its spruce's cones and the rose's fallen petals;
  *    the island's cones and sticks (world/undergrowth.js), the stream's pebbles, the windfall apples, berries and
  *    pebbles of assets/vegetation/forage.js; what small moments drops (apples, cones, gust petals) and what you throw;
- *    and petals straight off any rose bush (CONFIG.items.rosePetals a day each).
+ *    petals straight off any rose bush (CONFIG.items.rosePetals a day each) and sticks from the firepits' woodpiles
+ *    (CONFIG.items.pileSticks a day each).
  *  - aim: whatever is in the middle of the screen (no crosshair) and within reach: CONFIG.items.reach around you, from
  *    the ground to a little above your head (your hand gets within 0.4 m: you crouch for low things, reach up for high
  *    ones). The item glows softly and its icon shows below the middle of the screen.
@@ -21,7 +22,7 @@ import { KINDS, iconSvg } from './itemKinds.js';
  *    and drifts off on the wind. Sitting, in bed or aboard only eating and throwing.
  *  - what you take comes back after an in-game day. Taken things and the day count are saved in the browser.
  */
-export function createItems({ scene, camera, st, clock, inventory, ambience, waterLife, moments, undergrowth, stream, forage, scatter, softDot }) {
+export function createItems({ scene, camera, st, clock, inventory, ambience, waterLife, moments, undergrowth, stream, forage, scatter, piles = [], softDot }) {
   const IC = CONFIG.items, PC = CONFIG.player, KEY = 'meadow.items';
   const zero = new THREE.Matrix4().makeScale(0, 0, 0), m4 = new THREE.Matrix4();
 
@@ -158,8 +159,14 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       const c = new V(r.x, r.y + r.h * 0.55, r.z), b = test(c, r.r, eye, feet, best);
       if (b !== best && roseLeft(i) > 0) { best = b; best.what = { type: 'rose', i, kind: 'petal', p: c }; }
     });
+    piles.forEach((w, i) => {   // a woodpile: its point nearest to you, so you reach it from anywhere round it
+      const dx = eye.x - w.x, dz = eye.z - w.z, a = clamp(dx * w.fz - dz * w.fx, -w.hw, w.hw), f = clamp(dx * w.fx + dz * w.fz, -w.hd, w.hd);
+      const c = new V(w.x + w.fz * a + w.fx * f, w.y, w.z - w.fx * a + w.fz * f), b = test(c, 0.45, eye, feet, best);
+      if (b !== best && pileLeft(i) > 0) { best = b; best.what = { type: 'pile', i, kind: 'stick', p: c }; }
+    });
     return best ? best.what : null;
   }
+  const pileLeft = i => IC.pileSticks - Object.keys(taken).filter(k => k.startsWith('pile:' + i + ':')).length;
   const roseLeft = i => IC.rosePetals - Object.keys(taken).filter(k => k.startsWith('rose:' + i + ':')).length;
 
   /* ---- pick up: crouch or reach, the item flies to you ---- */
@@ -171,7 +178,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     const a = aimed, from = a.p.clone ? a.p.clone() : new V(a.p.x, a.p.y, a.p.z), eye = camera.position.clone(), feet = eye.y - PC.eyeHeight;
     if (a.type === 'static') { const s = sources[a.si]; s.hide(a.k); taken[s.id + ':' + a.k] = total; dirty = true; }
     else if (a.type === 'loose') { if (a.it.mine) { scene.remove(a.it.obj.mesh); thrown.splice(thrown.indexOf(a.it.obj), 1); } else moments.take(a.it); }
-    else if (a.type === 'rose') { taken['rose:' + a.i + ':' + Math.random().toString(36).slice(2, 7)] = total; dirty = true; }
+    else if (a.type === 'rose' || a.type === 'pile') { taken[a.type + ':' + a.i + ':' + Math.random().toString(36).slice(2, 7)] = total; dirty = true; }
     const dip = from.y < feet + 0.7 ? clamp(eye.y - (from.y + 0.95), 0, 0.75) : 0, reachUp = from.y > eye.y - 0.25 ? 0.07 : 0;
     const look = a.type === 'static' && sources[a.si].look ? sources[a.si].look(a.k) : a.type === 'loose' && !a.it.mine && protos[kind] && a.it.obj.q ? { ...protos[kind], m: new THREE.Matrix4().compose(new V(), a.it.obj.q, a.it.obj.s || new V(1, 1, 1)) } : null;
     const m = a.type === 'loose' && a.it.mine ? a.it.obj.mesh : model(kind, look); m.position.copy(from); scene.add(m);

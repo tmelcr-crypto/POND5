@@ -12,6 +12,37 @@ import { HOUSE, PAD_H, CB, roofY } from '../../world/layout.js';
  * Furnished, enterable log cabin: saddle-notched log walls, shingled roof, stone fireplace with animated fire, windows, door,
  * furniture and props, interior lights and exterior details. Returns the cabin state plus setLights, toggleDoor and update(dt, t).
  */
+const flameVS = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }';
+const flameFS = `uniform float uTime; uniform float uSeed; uniform float uAmp; uniform float uGain; varying vec2 vUv;
+  float hs(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+  float ns(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hs(i),hs(i+vec2(1,0)),f.x), mix(hs(i+vec2(0,1)),hs(i+vec2(1,1)),f.x), f.y); }
+  float fb(vec2 p){ float s=0.0,a=0.5; for(int i=0;i<4;i++){ s+=a*ns(p); p*=2.1; a*=0.5; } return s; }
+  void main(){
+    vec2 uv = vUv; float t = uTime*uAmp;
+    float n = fb(vec2(uv.x*3.0 + uSeed, uv.y*2.6 - t*2.4));
+    float x = (uv.x - 0.5)*2.0 + (n - 0.5)*0.7*uv.y;
+    float w = mix(0.8, 0.06, pow(uv.y, 0.8));
+    float body = 1.0 - smoothstep(w*0.45, w, abs(x));
+    float top = 1.0 - smoothstep(0.35, 1.0, uv.y + (n-0.5)*0.55);
+    float f = clamp(body * top * smoothstep(0.0, 0.08, uv.y) * 1.6, 0.0, 1.0);
+    vec3 col = mix(vec3(0.95,0.28,0.04), vec3(1.0,0.78,0.35), smoothstep(0.3, 0.95, f));
+    col = mix(col, vec3(1.0,0.95,0.8), smoothstep(0.85,1.0,f)*(1.0-uv.y));
+    gl_FragColor = vec4(col*f*uGain, 1.0);
+  }`;
+let flameBase = null;
+const makeFlameBase = () => new THREE.ShaderMaterial({ uniforms: { uTime: U.uTime, uSeed: { value: 0 }, uAmp: { value: 1 }, uGain: { value: 1.5 } }, vertexShader: flameVS, fragmentShader: flameFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false });
+/** A flickering flame of n crossed planes (additive, animated by U.uTime) standing at (x, y, z) in parent, w x h; also
+ *  used by the firepits (assets/cabin/firepits.js). Returns its group. */
+export function makeFlame(parent, x, y, z, w, h, seed, amp = 1, gain = 1.5, n = 3) {
+  if (!flameBase) flameBase = makeFlameBase();
+  const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g);
+  for (let i = 0; i < n; i++) {
+    const m = flameBase.clone(); m.uniforms.uTime = U.uTime; m.uniforms.uSeed.value = seed + i * 3.7; m.uniforms.uAmp.value = amp; m.uniforms.uGain.value = gain;
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); p.position.y = h / 2; p.rotation.y = i * Math.PI / n; p.userData.noShadow = true; p.renderOrder = 5; g.add(p);
+  }
+  return g;
+}
+
 export function createCabin(ctx) {
   const { scene, camera, maxAniso } = ctx;
   const { barkTex, leafTex, softDot } = ctx.tex;
@@ -191,32 +222,7 @@ export function createCabin(ctx) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDot, color, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false }));
       s.position.set(x, y, z); s.scale.set(size, size, 1); parent.add(s); cabin.glows.push({ s, size, ph: rng() * 10 }); return s;
     }
-    const flameVS = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }';
-    const flameFS = `uniform float uTime; uniform float uSeed; uniform float uAmp; uniform float uGain; varying vec2 vUv;
-      float hs(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
-      float ns(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hs(i),hs(i+vec2(1,0)),f.x), mix(hs(i+vec2(0,1)),hs(i+vec2(1,1)),f.x), f.y); }
-      float fb(vec2 p){ float s=0.0,a=0.5; for(int i=0;i<4;i++){ s+=a*ns(p); p*=2.1; a*=0.5; } return s; }
-      void main(){
-        vec2 uv = vUv; float t = uTime*uAmp;
-        float n = fb(vec2(uv.x*3.0 + uSeed, uv.y*2.6 - t*2.4));
-        float x = (uv.x - 0.5)*2.0 + (n - 0.5)*0.7*uv.y;
-        float w = mix(0.8, 0.06, pow(uv.y, 0.8));
-        float body = 1.0 - smoothstep(w*0.45, w, abs(x));
-        float top = 1.0 - smoothstep(0.35, 1.0, uv.y + (n-0.5)*0.55);
-        float f = clamp(body * top * smoothstep(0.0, 0.08, uv.y) * 1.6, 0.0, 1.0);
-        vec3 col = mix(vec3(0.95,0.28,0.04), vec3(1.0,0.78,0.35), smoothstep(0.3, 0.95, f));
-        col = mix(col, vec3(1.0,0.95,0.8), smoothstep(0.85,1.0,f)*(1.0-uv.y));
-        gl_FragColor = vec4(col*f*uGain, 1.0);
-      }`;
-    const flameBase = new THREE.ShaderMaterial({ uniforms: { uTime: U.uTime, uSeed: { value: 0 }, uAmp: { value: 1 }, uGain: { value: 1.5 } }, vertexShader: flameVS, fragmentShader: flameFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false });
-    function flame(parent, x, y, z, w, h, seed, amp = 1, gain = 1.5, n = 3) {
-      const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g);
-      for (let i = 0; i < n; i++) {
-        const m = flameBase.clone(); m.uniforms.uTime = U.uTime; m.uniforms.uSeed.value = seed + i * 3.7; m.uniforms.uAmp.value = amp; m.uniforms.uGain.value = gain;
-        const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); p.position.y = h / 2; p.rotation.y = i * Math.PI / n; p.userData.noShadow = true; p.renderOrder = 5; g.add(p);
-      }
-      return g;
-    }
+    const flame = makeFlame;
     function candle(parent, x, y, z, h) {
       mk(cyl(0.05, 0.055, 0.012, 20), M.brass, x, y + 0.006, z, parent);
       mk(cyl(0.017, 0.018, h, 14), M.wax, x, y + 0.012 + h / 2, z, parent);

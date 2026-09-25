@@ -262,7 +262,13 @@ export function createRoseBush(ctx) {
 - **Fires** (`app/fires.js`, `CONFIG.fire`): near a fire with it in view, the fire button (X on desktop) puts it out or
   lights it. Lit, the flames catch over 4 s; put out, they die down over 1.6 s, and the embers glow (and the chimney
   smokes) for 45 s more. Flames, light, sparks, ember glow, smoke and crackle all follow. Each fire's state is remembered.
-  Every fire registers with `fires.add()` in `main.js`; today that is the cabin's fireplace.
+  Every fire registers with `fires.add()` in `main.js`: the cabin's fireplace and the three firepits.
+- **Firepits** (`assets/cabin/firepits.js`, sites `FIREPITS` in `world/layout.js`): one on the beach by the jetty, one
+  in a clearing of the east forest, one on the south-west hill. Each has a ring of stones round the fire, three cut logs
+  to sit on (the seat button, as at the benches) and a roofed woodpile within 5 m that gives up to 10 sticks a day
+  (`CONFIG.items.pileSticks`). They start cold; lighting one takes 3 sticks or cones from what you carry (the button
+  shows the cost, and a note says so when you lack them). You can light or put out a fire while sitting on a log.
+  No real lights: flames, a glow, a warm pool on the ground, sparks and smoke, and the crackle of the nearest lit fire.
 - **Water life** (`assets/water/waterLife.js`, numbers in its `WATER` object): fish rises, a ring spreading about 1 m
   on the sea (0.45 m on the pond) and fading in 2 s, every 4-10 s on each water (sometimes two in a row); on the sea
   they appear 2.5-14 m out from the shore, 5-30 m in front of the camera. Three dragonflies dart and hover over the pond
