@@ -220,6 +220,20 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   };
   const floorAt = (x, z, y) => { let g = H(x, z); for (const d of [jettyDeckY(x, z), bridgeDeckY(x, z)]) if (d > g && d <= y + 0.05) g = d; return g; };
 
+  /** A thrown thing comes to rest: a random turn (a stick lies along the ground, turned any way; the rest any way up),
+   *  then lifted until no part of it is below the ground under that part. */
+  const sv = new V(), sm = new THREE.Matrix4();
+  function settle(o) {
+    const m = o.mesh, TAU = Math.PI * 2;
+    if (o.kind === 'stick') m.rotation.set(0, Math.random() * TAU, 0); else m.rotation.set(Math.random() * TAU, Math.random() * TAU, Math.random() * TAU);
+    m.updateMatrixWorld(true); sm.copy(m.matrixWorld); if (m.isInstancedMesh) { m.getMatrixAt(0, m4); sm.multiply(m4); }
+    const pos = m.geometry.attributes.position, base = m.position.y; let lift = 0;
+    for (let i = 0, step = Math.max(1, Math.floor(pos.count / 400)); i < pos.count; i += step) {
+      sv.fromBufferAttribute(pos, i).applyMatrix4(sm); lift = Math.max(lift, floorAt(sv.x, sv.z, base) + 0.004 - sv.y);
+    }
+    m.position.y += lift; m.updateMatrixWorld(true);
+  }
+
   function update(dt) {
     const h = clock.hours, d = ((h - prevH) % 24 + 24) % 24; prevH = h; if (d < 3) total += d;
     // aim
@@ -238,7 +252,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       if (p.y - r <= g) {
         p.y = g + r;
         if (!o.bounced && o.v.y < -3) { o.bounced = true; o.v.set(o.v.x * 0.3, -o.v.y * 0.25, o.v.z * 0.3); sfx('thud'); }
-        else { o.rest = true; o.mesh.rotation.x = o.kind === 'stick' ? 0 : o.mesh.rotation.x; if (!o.bounced) sfx('thud'); }
+        else { o.rest = true; settle(o); if (!o.bounced) sfx('thud'); }
       }
       if (p.y < -20) { scene.remove(o.mesh); thrown.splice(i, 1); }
     }
