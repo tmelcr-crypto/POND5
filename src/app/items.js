@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { V, clamp, lin } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { H, WATER_Y, SEA_Y, ROSE, lakeD, streamAt, jettyDeckY, bridgeDeckY } from '../world/layout.js';
+import { H, WATER_Y, SEA_Y, ROSE, GARDEN, lakeD, streamAt, jettyDeckY, bridgeDeckY } from '../world/layout.js';
 import { KINDS, iconSvg } from './itemKinds.js';
 import { fishModel } from '../assets/water/fishModel.js';
 import { rareShellModel } from '../assets/vegetation/forage.js';
@@ -102,6 +102,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     if (!models[kind] && kind in FISHES) models[kind] = fishModel(kind);   // assets/water/fishModel.js
     if (!models[kind] && kind === 'rareShell') models[kind] = rareShellModel();   // assets/vegetation/forage.js
     if (!models[kind] && kind in PRODUCE_KINDS) models[kind] = produceModel(kind);   // assets/cabin/garden.js
+    if (!models[kind] && KINDS[kind].packet) { const g = new THREE.BoxGeometry(0.055, 0.08, 0.008), c = lin(KINDS[kind].color), p = lin(0xeee4cc), col = new Float32Array(g.attributes.position.count * 3); for (let i = 0; i < col.length / 3; i++) (g.attributes.position.getY(i) > 0.012 ? p : c).toArray(col, i * 3); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); models[kind] = { geo: g, mat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }) }; }   // a seed packet
     if (!models[kind]) {
       const K = KINDS[kind], mat = new THREE.MeshStandardMaterial({ color: lin(K.color), roughness: kind === 'goldenFish' ? 0.3 : 0.6, metalness: kind === 'goldenFish' ? 0.6 : 0, side: kind === 'petal' ? THREE.DoubleSide : THREE.FrontSide, flatShading: kind === 'pebble' });
       const geo = kind === 'cone' ? new THREE.ConeGeometry(0.028, 0.08, 8).rotateX(Math.PI / 2) : kind === 'stick' ? new THREE.CylinderGeometry(0.009, 0.012, 0.3, 5).rotateZ(Math.PI / 2)
@@ -136,6 +137,9 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       crank: () => { tone(310, 240, 0.18, 0.05); noise(0.16, 900, 4, 0.06); },
       dig: () => { noise(0.14, 700, 0.8, 0.18, 'lowpass'); noise(0.1, 1600, 1, 0.06, 'bandpass', 0.08); },
       pop: () => { tone(420, 260, 0.07, 0.14); noise(0.05, 1200, 1, 0.08); },
+      carrotSeeds: () => { noise(0.12, 5200, 0.8, 0.08, 'highpass'); noise(0.08, 3000, 2, 0.05, 'bandpass', 0.06); },
+      pumpkinSeeds: () => { noise(0.12, 5200, 0.8, 0.08, 'highpass'); noise(0.08, 3000, 2, 0.05, 'bandpass', 0.06); },
+      seedPotato: () => { tone(200, 140, 0.08, 0.15); noise(0.05, 900, 1, 0.08); },
       flare: () => { noise(0.7, 500, 0.5, 0.3, 'lowpass'); for (let i = 0; i < 6; i++) noise(0.04, 2600 + Math.random() * 1800, 3, 0.14, 'bandpass', 0.05 + i * 0.07 + Math.random() * 0.05); },
       throw: () => noise(0.16, 1400, 0.6, 0.07),
       splash: () => { noise(0.45, 900, 0.7, 0.28, 'lowpass'); noise(0.2, 2400, 1, 0.08, 'bandpass', 0.05); },
@@ -178,6 +182,10 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       const c = new V(r.x, r.y + r.h * 0.55, r.z), b = test(c, r.r, eye, feet, best);
       if (b !== best && roseLeft(i) > 0 && SHOWN.bloom(season)) { best = b; best.what = { type: 'rose', i, kind: 'petal', p: c }; }
     });
+    GARDEN.bins.forEach((b, i) => {   // the garden's seed box: a compartment of each kind of seed
+      const c = new V(b.x, b.y, b.z), t2 = test(c, 0.09, eye, feet, best);
+      if (t2 !== best && binLeft(i) > 0) { best = t2; best.what = { type: 'bin', i, kind: b.kind, p: c }; }
+    });
     piles.forEach((w, i) => {   // a woodpile: its point nearest to you, so you reach it from anywhere round it
       const dx = eye.x - w.x, dz = eye.z - w.z, a = clamp(dx * w.fz - dz * w.fx, -w.hw, w.hw), f = clamp(dx * w.fx + dz * w.fz, -w.hd, w.hd);
       const c = new V(w.x + w.fz * a + w.fx * f, w.y, w.z - w.fx * a + w.fz * f), b = test(c, 0.45, eye, feet, best);
@@ -186,6 +194,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     return best ? best.what : null;
   }
   const pileLeft = i => IC.pileSticks - Object.keys(taken).filter(k => k.startsWith('pile:' + i + ':')).length;
+  const binLeft = i => CONFIG.garden.seeds - Object.keys(taken).filter(k => k.startsWith('bin:' + i + ':')).length;
   // the season (world/seasons.js): apples on the trees and windfalls, berries, rose petals and boletes only in theirs
   let season = 'summer';
   const inSeason = s => (s.kind === 'berry' ? SHOWN.berries(season) : s.kind === 'petal' ? SHOWN.bloom(season) : s.kind === 'apple' ? SHOWN.fruit(season) : s.kind === 'mushroom' ? SHOWN.mushroom(season) : true);
@@ -201,7 +210,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     const a = aimed, from = a.p.clone ? a.p.clone() : new V(a.p.x, a.p.y, a.p.z), eye = camera.position.clone(), feet = eye.y - PC.eyeHeight;
     if (a.type === 'static') { const s = sources[a.si]; s.hide(a.k); taken[s.id + ':' + a.k] = total; dirty = true; }
     else if (a.type === 'loose') { if (a.it.mine) { scene.remove(a.it.obj.mesh); thrown.splice(thrown.indexOf(a.it.obj), 1); } else moments.take(a.it); }
-    else if (a.type === 'rose' || a.type === 'pile') { taken[a.type + ':' + a.i + ':' + Math.random().toString(36).slice(2, 7)] = total; dirty = true; }
+    else if (a.type === 'rose' || a.type === 'pile' || a.type === 'bin') { taken[a.type + ':' + a.i + ':' + Math.random().toString(36).slice(2, 7)] = total; dirty = true; }
     const dip = from.y < feet + 0.7 ? clamp(eye.y - (from.y + 0.95), 0, 0.75) : 0, reachUp = from.y > eye.y - 0.25 ? 0.07 : 0;
     const look = rare ? null : a.type === 'static' && sources[a.si].look ? sources[a.si].look(a.k) : a.type === 'loose' && !a.it.mine && protos[kind] && a.it.obj.q ? { ...protos[kind], m: new THREE.Matrix4().compose(new V(), a.it.obj.q, a.it.obj.s || new V(1, 1, 1)) } : null;
     const m = a.type === 'loose' && a.it.mine ? a.it.obj.mesh : model(kind, look); m.position.copy(from); scene.add(m);
