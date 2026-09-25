@@ -274,7 +274,9 @@ export function createRoseBush(ctx) {
   gives the controls back.
 - **Fires** (`app/fires.js`, `CONFIG.fire`): near a fire, lamp, candle or lantern and looking at it, it glows softly and
   an icon floats beside it (as when picking things up); tap it (X on desktop) to put it out or light it. Lamps, candles
-  and lanterns go on and off at once, each on its own; the Lights switch still does them all. Lit, the flames catch over 4 s; put out, they die down over 1.6 s, and the embers glow (and the chimney
+  and lanterns go on and off at once, each on its own; the Lights switch still does them all. Looking at a burning fire
+  with a stick, cone or driftwood selected, Use says Burn and tosses it in: the fire flares up 30 % bigger for 30 s
+  (again from the start with each piece) and cooks 60 % faster meanwhile (`CONFIG.fire.boost`). Lit, the flames catch over 4 s; put out, they die down over 1.6 s, and the embers glow (and the chimney
   smokes) for 45 s more. Flames, light, sparks, ember glow, smoke and crackle all follow. Each fire's state is remembered.
   Every fire registers with `fires.add()` in `main.js`: the cabin's fireplace and the three firepits.
 - **Firepits** (`assets/cabin/firepits.js`, sites `FIREPITS` in `world/layout.js`): one on the beach by the jetty (just
@@ -303,14 +305,15 @@ export function createRoseBush(ctx) {
   greyer sea, snowfall. Days are longer in summer and short in winter, with a lower sun. What you can collect follows
   too: apples in summer and autumn, berries in summer and autumn, rose petals in spring and summer. Materials take part
   by a role in `userData.season`; the shader side is `addSeason` in `core/shaderPatches.js`.
-- **Cooking** (`app/cooking.js`, `CONFIG.cook`): sitting on a log at a burning firepit, or standing at the cabin's lit
-  fireplace looking in, with a food that cooks selected (`cook` in `app/itemKinds.js`: apple to baked apple, fish to
+- **Cooking** (`app/cooking.js`, `CONFIG.cook`): sitting on a log at a burning firepit, or standing at one (within
+  2.3 m) or at the cabin's lit fireplace, looking at it, with a food that cooks selected (`cook` in `app/itemKinds.js`: apple to baked apple, fish to
   grilled fish, bolete to roasted bolete; berries do not cook), the Use button says Cook. A roasting stick (a crooked,
   whittled branch) reaches out from your hand to the fire with the food on its end (2 s), a ring round it fills over
   30 s as it browns, the stick comes back (2 s) and the cooked piece is in your inventory. One piece at a time; standing
   up, walking off or the fire going out stops it and you keep the raw piece. The stick is only shown.
-- **Signposts** (`assets/cabin/signposts.js`, `SIGNS` in `world/layout.js`): at the three forks of the paths (the
-  bridge, where the jetty path leaves the sunrise path, where the forest path leaves the sunset path), a weathered post
+- **Signposts** (`assets/cabin/signposts.js`, `SIGNS` in `world/layout.js`): at the four forks of the paths (the
+  bridge, where the jetty path leaves the sunrise path, where the forest path leaves the sunset path, where the garden
+  path leaves the forest path), a weathered post
   with an arrow board for each place, pointing along the path, with the name and the distance along the paths burnt in
   on both faces. One mesh and one texture for all of them.
 - **Hand lantern** (`app/lantern.js`, `assets/cabin/handLantern.js`, `CONFIG.lantern`): a hurricane lantern at the far
@@ -318,12 +321,12 @@ export function createRoseBush(ctx) {
   hand, swinging as you walk, and at night it lights the ground, grass, trees and rocks round you (one shader light,
   `U.uHandLight`, added to every outdoor material in `engine/finalizeScene.js`; nothing by day). Back at the bench the
   same icon puts it down. Whether you carry it is saved.
-- **Well** (`WELL` in `world/layout.js`, `assets/cabin/well.js`, `app/drawWater.js`, `CONFIG.well`): behind the cabin, a
-  stone well with a little roof and a windlass. Looking at it, the icon beside it (T) lowers the bucket (the crank
+- **Well** (`WELL` in `world/layout.js`, `assets/cabin/well.js`, `app/drawWater.js`, `CONFIG.well`): in the meadow west
+  of the pond, beside the short garden path off the forest path (signposted), a stone well with a little roof and a windlass. Looking at it, the icon beside it (T) lowers the bucket (the crank
   turns and creaks, a splash far down), winds it back up full, and a cup of fresh water goes into your quick slots
   (Use says Drink).
 - **Vegetable garden** (`GARDEN` in `world/layout.js`, `assets/cabin/garden.js`, `app/gardening.js`, `CONFIG.garden`):
-  three raised beds behind the cabin, carrots, potatoes and pumpkins, three plots each. Looking at a bare plot, the
+  three raised beds at the end of the garden path, carrots, potatoes and pumpkins, three plots each. Looking at a bare plot, the
   icon sows it (no seeds to carry); it grows by itself over 2 / 3 / 4 in-game days (sleeping counts; nothing grows or
   is sown in winter, when the beds are under snow), then the icon harvests it: 3 carrots (eaten raw), 3 potatoes or a
   pumpkin (both cooked on the stick into baked potatoes and roasted pumpkin). Saved in the browser.
