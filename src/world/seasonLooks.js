@@ -13,6 +13,7 @@ import { WATER_Y, SEA_Y } from './layout.js';
  *  veg                  reeds: coloured by season (straw in winter)
  *  bark                 apple branches: a little snow on top in winter
  *  roof                 the cabin's and the woodpiles' roofs: snow in winter
+ *  needles              the spruces: a light dusting of snow on the upper sides in winter
  *  fruit                apples on the trees and windfalls: summer and autumn
  *  berries              summer and autumn
  *  bloom                rose flowers: spring and summer
@@ -24,6 +25,7 @@ const PATCH = {
   grass: { veg: true }, leaf: { leaf: true }, leafVeg: { veg: true }, veg: { veg: true },
   bark: { snow: { lo: 0.55, hi: 0.85, amount: 0.9 } },
   roof: { snow: { lo: 0.3, hi: 0.55 } },
+  needles: { snow: { lo: 0.25, hi: 0.75, amount: 0.55 } },   // a light dusting on the spruces
 };
 export const SHOWN = {
   grass: s => s !== 'winter', leaf: s => s !== 'winter', leafVeg: s => s !== 'winter', pond: s => s !== 'winter',

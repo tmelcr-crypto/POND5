@@ -56,6 +56,7 @@ import { createFires } from './app/fires.js';
 import { createCooking } from './app/cooking.js';
 import { createFishing } from './app/fishing.js';
 import { createShelf } from './app/shelf.js';
+import { createCurtains } from './app/curtains.js';
 import { createFirepits } from './assets/cabin/firepits.js';
 import { createControls } from './app/controls.js';
 import { createDebugOverlay } from './app/debugOverlay.js';
@@ -95,7 +96,7 @@ await step(14);
 const plotOutcrop = added(() => createRockOutcrop(ctx)).objs;
 const plotRose = added(() => createRoseBush(ctx)).objs;
 await step(20);
-const { cabin, setLights, setFire, toggleDoor, update: updateCabin } = createCabin(ctx);
+const { cabin, setLights, setLamp, setFire, toggleDoor, update: updateCabin } = createCabin(ctx);
 const { pollen, update: updatePollen } = createPollen(ctx);
 const plotObjects = ctx.scene.children.length;
 await step(25);
@@ -143,7 +144,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
+  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
@@ -182,18 +183,27 @@ const fires = createFires({ st, inventory });   // lighting and putting out fire
 {
   const hearth = cabin.fireLight.parent; hearth.updateWorldMatrix(true, false);
   firepits.pits.forEach((p, i) => { const s = ambience.addFire(p.at); fires.add({ id: 'pit-' + p.P.name, at: p.at, near: () => true, fuel: { kinds: ['stick', 'cone'], n: 3, text: 'You need 3 sticks or cones' }, set: (k, e) => { firepits.set(i, k, e); ambience.setFireLevel(k, s); } }); });
+  // every lamp, candle and lantern, on its own (#56); inside the cabin only from inside
+  const inCabin = p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW;
+  cabin.lamps.forEach((L, i) => {
+    const o = L.flames[0]; o.updateWorldMatrix(true, false); const at = o.getWorldPosition(new THREE.Vector3()); if (L.kind !== 'candle') at.y += 0.05;
+    const inside = inCabin(at);
+    fires.add({ id: 'lamp-' + i, at, label: L.kind, small: L.kind === 'candle', reach: 2.2, quick: true, save: false, lit0: cabin.lightsOn, near: p => inside === inCabin(p), set: k => setLamp(L, k > 0.5) });
+  });
+  addEventListener('meadow-lights', e => fires.setAll('lamp-', e.detail));
   fires.add({ id: 'fireplace', at: hearth.localToWorld(cabin.fireParts.hearth.clone()), near: p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW, set: (k, e) => { setFire(k, e); ambience.setFireLevel(k); } });
 }
 const cooking = createCooking({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, fires });   // roasting food over a firepit
 const fishing = createFishing({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, boating, waterLife, clock, seasons });   // from the jetty's head or the anchored boat
 const shelf = createShelf({ scene: ctx.scene, camera: ctx.camera, st, inventory, items });   // the keepsake shelf in the cabin
+const curtains = createCurtains({ st, cabin });   // opening and closing the cabin's curtains
 const seasonLooks = createSeasonLooks(scene, seasons);   // the season's colours, snow and what comes and goes (before finalizeScene)
 const weather = createWeather(ctx, { apples: scatter.apple });   // snowfall, autumn leaves, spring blossom
-seasons.on(s => { items.season(s); moments.setSeason(s); weather.setSeason(s); });   // what can be picked
+seasons.on(s => { items.season(s); moments.setSeason(s); weather.setSeason(s); birds.setSeason(s); ambience.setBirdShare({ autumn: 0.55, winter: 0.12 }[s] ?? 1); tod.setSeasonSky(s); });   // what can be picked
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);
