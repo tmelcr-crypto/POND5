@@ -165,12 +165,30 @@ export const BRIDGE = (() => {
   const s = 16.3, p = STREAM.pts.reduce((b, q) => Math.abs(q.s - s) < Math.abs(b.s - s) ? q : b, STREAM.pts[0]);
   const ax = -p.tz, az = p.tx, half = 1.55, width = 1.0, arch = 0.1;   // across the stream (u), along it (v)
   const endY = Math.max(H(p.x - ax * half, p.z - az * half), H(p.x + ax * half, p.z + az * half)) + 0.16;   // the stringers rest on the banks
-  return { x: p.x, z: p.z, ax, az, half, width, arch, endY, W: p.W, deckY: u => endY + arch * (1 - (u / half) ** 2) };
+  const rail = { v: 0.567, t: 0.065, u: half - 0.04, top: 0.92 };   // railings: centre offset, half thickness, half span, top above the deck
+  return { x: p.x, z: p.z, ax, az, half, width, arch, endY, W: p.W, rail, deckY: u => endY + arch * (1 - (u / half) ** 2) };
 })();
 /** Top of the bridge deck at (x, z), or -Infinity off the deck. */
 export function bridgeDeckY(x, z) {
   const B = BRIDGE, dx = x - B.x, dz = z - B.z, u = dx * B.ax + dz * B.az, v = dx * B.az - dz * B.ax;
   return Math.abs(u) <= B.half + 0.05 && Math.abs(v) <= B.width / 2 ? B.deckY(Math.max(-B.half, Math.min(B.half, u))) : -Infinity;
+}
+/** Keep a body of `radius` out of the bridge's railings (posts and rails, as walls from the deck to just above the top
+ *  rail, drawn in assets/cabin/footbridge.js): someone on the deck stays on it, someone beside it stays beside it, and the
+ *  rail ends are rounded. p moves; prev (where it was) says which side of a rail it is on. foot / head: the body's height. */
+export function bridgeRails(p, prev, radius, foot, head) {
+  const B = BRIDGE, R = B.rail, dx = p.x - B.x, dz = p.z - B.z;
+  let u = dx * B.ax + dz * B.az, v = dx * B.az - dz * B.ax;
+  if (Math.abs(u) > R.u + radius + 0.1 || Math.abs(v) > R.v + R.t + radius + 0.1) return;
+  const y = B.deckY(Math.max(-B.half, Math.min(B.half, u))); if (foot > y + R.top || head < y - 0.1) return;
+  const pv = (prev.x - B.x) * B.az - (prev.z - B.z) * B.ax, r = R.t + radius;
+  for (const side of [-1, 1]) {
+    const cu = Math.max(-R.u, Math.min(R.u, u)), du = u - cu, dv = v - side * R.v, d = Math.hypot(du, dv);
+    if (d >= r) continue;
+    if (du === 0) v = side * R.v + (side * pv < R.v ? -side : side) * r;   // along the rail: back to the side it came from
+    else if (d > 1e-5) { u = cu + du / d * r; v = side * R.v + dv / d * r; }   // round the rail's end
+  }
+  p.x = B.x + u * B.ax + v * B.az; p.z = B.z + u * B.az - v * B.ax;
 }
 const streamPt = s => STREAM.pts.reduce((b, q) => Math.abs(q.s - s) < Math.abs(b.s - s) ? q : b, STREAM.pts[0]);
 const westBank = (s, off) => { const p = streamPt(s), t = -(p.w + off); return [p.x - p.tz * t, p.z + p.tx * t]; };   // a point on the stream's west bank

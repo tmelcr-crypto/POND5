@@ -2,7 +2,7 @@ import { isTouch } from '../core/env.js';
 import { V, UPV, clamp } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, jettyDeckY, SEATS } from '../world/layout.js';
+import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, bridgeRails, jettyDeckY, SEATS } from '../world/layout.js';
 import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
 
 /** Icons of the sit and stand buttons (also used by the bed, app/sleeping.js). */
@@ -227,6 +227,7 @@ export function createControls(app) {
       if (d < t.r && d > 1e-4) { np.x = t.x + dx / d * t.r; np.z = t.z + dz / d * t.r; }
     }
     obstacles.resolve(np, 0.15);
+    bridgeRails(np, st.pos, 0.15, np.y - (st.walk ? PC.eyeHeight : 0.3), np.y + 0.1);   // the footbridge's railings
     applyBounds(np, st.vel, dt, st.walk && jettyDeckY(np.x, np.z) === -Infinity);   // on the jetty, deep water below is fine
     if (st.walk) {
       // eye height above the walkable surface; step up smoothly, stick to the ground going down hill
