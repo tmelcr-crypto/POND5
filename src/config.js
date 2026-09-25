@@ -189,6 +189,7 @@ export const CONFIG = {
     catch: 4,                      // s from a spark to a full fire
     out: 1.6,                      // s for the flames to die down
     embers: 45,                    // s the embers keep glowing (and the chimney smoking) after it is out
+    boost: { time: 30, size: 1.3, cook: 1.6, ramp: 3, fly: 0.5 },   // a stick, cone or driftwood tossed in: s it flares, how much bigger, how much faster food cooks, s to die back down, s in the air
   },
 
   // How the body feels, shown only (app/body.js)
@@ -222,7 +223,7 @@ export const CONFIG = {
     reach: 0.9,                    // m the stick travels
     over: 0.12,                    // m the food hangs above the middle of the fire
     hand: [0.3, 0.2, 0.45],        // m from the seated eye to the hand: forward, right, down
-    hearth: 1.9,                   // m from the cabin's fireplace you can cook at it, standing
+    hearth: 1.9, stand: 2.3,       // m from the cabin's fireplace / (across the ground) from a firepit you can cook at it, standing
   },
 
   // Sleeping in the cabin's bed (app/sleeping.js)

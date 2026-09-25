@@ -688,9 +688,9 @@ export function createCabin(ctx) {
   }
   /** The fireplace's state (app/fires.js): k 0..1 how much it burns (flames, light, sparks), e 0..1 how hot the embers
    *  still are after it went out (their glow, the chimney smoke). The flicker in update() rides on top of these. */
-  function setFire(k, e) {
-    cabin.fireK = k; cabin.emberK = e; const F = cabin.fireParts;
-    F.flames.forEach((g, i) => { const s = Math.min(1, k * (1.4 - i * 0.2)); g.visible = s > 0.01; g.scale.set(0.45 + 0.55 * s, Math.max(0.01, s), 0.45 + 0.55 * s); });
+  function setFire(k, e, b = 0) {   // b 0..1: flared up by a stick tossed in (app/fires.js)
+    cabin.fireK = k; cabin.emberK = e; cabin.fireB = b; const F = cabin.fireParts, big = 1 + 0.3 * b;
+    F.flames.forEach((g, i) => { const s = Math.min(1, k * (1.4 - i * 0.2)); g.visible = s > 0.01; g.scale.set((0.45 + 0.55 * s) * big, Math.max(0.01, s) * big, (0.45 + 0.55 * s) * big); });
     F.glow.visible = k > 0.01; F.glow.material.opacity = 0.32 * k;
     cabin.fireLight.intensity = 2.8 * 0.85 * k; cabin.emberMat.emissiveIntensity = 1.05 * Math.max(k, 0.45 * e * e);
   }
@@ -714,13 +714,13 @@ export function createCabin(ctx) {
     if (cabin.detailNear === false) return;   // far from the cabin (detail manager): fire flicker, sparks, clock paused
     const f = 0.82 + 0.1 * Math.sin(t * 9.1) + 0.06 * Math.sin(t * 15.3 + 1.3) + 0.05 * Math.sin(t * 23.7 + 0.4) + 0.04 * (Math.random() - 0.5);
     const fk = cabin.fireK, ek = Math.max(fk, 0.45 * cabin.emberK * cabin.emberK);   // lit (flames) and glowing (embers), app/fires.js
-    cabin.fireLight.intensity = 2.8 * f * fk;
+    const big = 1 + 0.3 * (cabin.fireB || 0); cabin.fireLight.intensity = 2.8 * f * fk * big;
     cabin.emberMat.emissiveIntensity = (1.0 + (f - 0.8) * 2.5) * ek;
-    cabin.glows.forEach(g => { const k = 0.9 + 0.12 * Math.sin(t * 11 + g.ph) + 0.05 * Math.sin(t * 23 + g.ph * 2); g.s.scale.set(g.size * k, g.size * k, 1); });
+    cabin.glows.forEach(g => { const k = (0.9 + 0.12 * Math.sin(t * 11 + g.ph) + 0.05 * Math.sin(t * 23 + g.ph * 2)) * (g.s === cabin.fireParts.glow ? big : 1); g.s.scale.set(g.size * k, g.size * k, 1); });
     const sp = cabin.sparks, pa = sp.pts.geometry.attributes.position;
     for (let i = 0; i < sp.life.length; i++) {
       sp.life[i] -= dt;
-      if (sp.life[i] <= 0) { if (Math.random() < 0.03 * cabin.fireK) { sp.life[i] = rr(0.4, 1.2); pa.setXYZ(i, -1.24 + rr(-0.08, 0.08), sp.FL + 0.2, rr(-0.12, 0.12)); sp.vel[i].set(rr(-0.06, 0.1), rr(0.35, 0.8), rr(-0.08, 0.08)); } else { pa.setY(i, -50); continue; } }
+      if (sp.life[i] <= 0) { if (Math.random() < 0.03 * cabin.fireK * (1 + 3 * (cabin.fireB || 0))) { sp.life[i] = rr(0.4, 1.2); pa.setXYZ(i, -1.24 + rr(-0.08, 0.08), sp.FL + 0.2, rr(-0.12, 0.12)); sp.vel[i].set(rr(-0.06, 0.1), rr(0.35, 0.8), rr(-0.08, 0.08)); } else { pa.setY(i, -50); continue; } }
       const y = pa.getY(i) + sp.vel[i].y * dt; sp.vel[i].x += Math.sin(t * 7 + i) * dt * 0.3;
       if (y > sp.FL + 0.8) { sp.life[i] = 0; pa.setY(i, -50); continue; }
       pa.setXYZ(i, pa.getX(i) + sp.vel[i].x * dt, y, pa.getZ(i) + sp.vel[i].z * dt);

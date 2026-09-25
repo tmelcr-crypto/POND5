@@ -6,7 +6,7 @@ import { KINDS } from './itemKinds.js';
 import { mergeGeos } from '../core/geometry.js';
 
 /**
- * Cooking at a fire. Sitting on a log round a burning firepit, or standing at the cabin's burning fireplace looking in,
+ * Cooking at a fire. Sitting on a log round a burning firepit, or standing at one or at the cabin's fireplace looking at it,
  * with a food that cooks selected (KINDS[kind].cook: apple to baked apple, fish to grilled fish, bolete to roasted bolete; berries do not), the
  * Use button says Cook. Cook takes one piece: a roasting stick reaches out from your
  * hand towards the fire with it on the end (CONFIG.cook.push seconds), a ring round it fills while it cooks
@@ -55,20 +55,25 @@ export function createCooking({ scene, camera, st, inventory, items, fires, tex 
   document.body.appendChild(ring);
   const fill = ring.querySelector('.fill'), CIRC = 2 * Math.PI * 26; fill.style.strokeDasharray = CIRC;
 
-  /** The burning fire you can cook at, if any: the firepit you sit at, or the cabin's fireplace when you stand at it
-   *  looking in (CONFIG.cook.hearth m from it). */
-  const look = new V();
+  /** The burning fire you can cook at, if any: the firepit you sit at; or, standing, the cabin's fireplace (looking in,
+   *  CONFIG.cook.hearth m from it) or a firepit (looking at it, CONFIG.cook.stand m from it, across the ground). */
+  const look = new V(), to = new V();
   function pitFire() {
     const S = st.seat, lit = f => f && f.lit && f.k > 0.9 ? f : null;
     if (S) return S.seated && S.s.pit !== undefined ? lit(fires.fires.find(q => q.id === 'pit-' + FIREPITS[S.s.pit].name)) : null;
-    const fp = fires.fires.find(q => q.id === 'fireplace');
-    if (!fp || !st.walk || !st.grounded || st.aboard || st.inBed || st.chestOpen || !fp.near(st.pos) || st.pos.distanceTo(fp.at) > C.hearth) return null;
+    if (!st.walk || !st.grounded || st.aboard || st.inBed || st.chestOpen) return null;
     look.set(-Math.sin(st.yaw) * Math.cos(st.pitch), Math.sin(st.pitch), -Math.cos(st.yaw) * Math.cos(st.pitch));
-    return fp.at.clone().sub(st.pos).normalize().dot(look) > Math.cos(0.6) ? lit(fp) : null;
+    let best = null, bd = Math.cos(0.6);
+    for (const f of fires.fires) {
+      const pit = f.id.startsWith('pit-'); if (!pit && f.id !== 'fireplace') continue;
+      if (!f.near(st.pos) || (pit ? Math.hypot(f.at.x - st.pos.x, f.at.z - st.pos.z) > C.stand : st.pos.distanceTo(f.at) > C.hearth)) continue;
+      const a = to.copy(f.at).sub(st.pos).normalize().dot(look); if (a > bd) { bd = a; best = f; }
+    }
+    return lit(best);
   }
   let job = null, can = false;
   const canCook = kind => !job && !!KINDS[kind] && !!KINDS[kind].cook && !!pitFire();
-  inventory.useLabel = kind => canCook(kind) ? 'Cook' : null;
+  const label = inventory.useLabel; inventory.useLabel = kind => canCook(kind) ? 'Cook' : label(kind);   // (after app/fires.js: Burn)
   const eat = inventory.onUse;
   inventory.onUse = kind => canCook(kind) ? start(kind) : eat(kind);
 
@@ -88,7 +93,7 @@ export function createCooking({ scene, camera, st, inventory, items, fires, tex 
     if (food.isInstancedMesh && !food.instanceColor) food.setColorAt(0, new THREE.Color(1, 1, 1));   // vertex-coloured (a bolete): a tint to brown it with
     let raw = food.isInstancedMesh && food.instanceColor ? new THREE.Color().fromArray(food.instanceColor.array, 0) : null;
     if (!food.isInstancedMesh) { food.material = food.material.clone(); raw = food.material.color.clone(); }   // browns on its own
-    job = { kind, cooked, phase: 'in', t: 0, tip, dir, stick, food, raw, done: false, seated: !!S, from: st.pos.clone() };
+    job = { kind, cooked, fire: f, phase: 'in', t: 0, p: 0, tip, dir, stick, food, raw, done: false, seated: !!S, from: st.pos.clone() };
     place(0); inventory.refresh(); return true;   // true: the piece leaves the slot
   }
   /** Stick and food with the stick pushed out k 0..1 (eased). */
@@ -112,11 +117,12 @@ export function createCooking({ scene, camera, st, inventory, items, fires, tex 
     const c = !!pitFire(); if (c !== can) { can = c; inventory.refresh(); }
     if (!job) return;
     if (job.seated ? !st.seat || !st.seat.seated : st.pos.distanceTo(job.from) > 0.45 || st.seat || st.aboard) { finish(); return; }   // stood up or walked off: straight back to your hand
-    if (job.phase !== 'out' && !pitFire()) { job.phase = 'out'; job.t = 0; ring.classList.add('hide'); }   // the fire went out
+    if (job.phase !== 'out' && !(job.fire.lit && job.fire.k > 0.9)) { job.phase = 'out'; job.t = 0; ring.classList.add('hide'); }   // the fire went out (looking away is fine)
     job.t += dt; job.food.rotateOnWorldAxis(job.dir, dt * 0.6);
     if (job.phase === 'in') { place(Math.min(1, job.t / C.push)); if (job.t >= C.push) { job.phase = 'cook'; job.t = 0; ring.classList.remove('hide'); } }
-    else if (job.phase === 'cook') {
-      const k = Math.min(1, job.t / C.time); brown(k); fill.style.strokeDashoffset = CIRC * (1 - k);
+    else if (job.phase === 'cook') {   // a flared-up fire (fed a stick, app/fires.js) cooks faster
+      job.p = Math.min(1, job.p + dt * (job.fire.boost > 0 ? CONFIG.fire.boost.cook : 1) / C.time);
+      const k = job.p; brown(k); fill.style.strokeDashoffset = CIRC * (1 - k);
       if (k >= 1) { job.done = true; job.phase = 'out'; job.t = 0; ring.classList.add('hide'); }
     } else { place(Math.max(0, 1 - job.t / C.push)); if (job.t >= C.push) { finish(); return; } }
     if (job.phase === 'cook') {   // the ring stays round the food on screen

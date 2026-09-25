@@ -204,10 +204,10 @@ createSignposts(ctx);   // signposts at the forks of the paths (own random numbe
 const well = createWell(ctx), garden = createGarden(ctx);   // the well and the vegetable garden behind the cabin (own random numbers)
 const saplings = createSaplings(ctx, CONFIG.planting.max);   // the saplings you plant (own random numbers)
 const chestUI = createChestUI({ camera: ctx.camera, st, inventory, items, chests }); addTakeover(chestUI.hold);   // opening it, the storage screen
-const fires = createFires({ st, inventory, scene: ctx.scene, camera: ctx.camera, softDot: ctx.tex.softDot });   // lighting and putting out fires: the cabin's fireplace and the firepits
+const fires = createFires({ st, inventory, scene: ctx.scene, camera: ctx.camera, softDot: ctx.tex.softDot, items });   // lighting and putting out fires: the cabin's fireplace and the firepits
 {
   const hearth = cabin.fireLight.parent; hearth.updateWorldMatrix(true, false);
-  firepits.pits.forEach((p, i) => { const s = ambience.addFire(p.at); fires.add({ id: 'pit-' + p.P.name, at: p.at, near: () => true, fuel: { kinds: ['stick', 'cone', 'driftwood'], n: 3, text: 'You need 3 sticks, cones or driftwood' }, set: (k, e) => { firepits.set(i, k, e); ambience.setFireLevel(k, s); } }); });
+  firepits.pits.forEach((p, i) => { const s = ambience.addFire(p.at); fires.add({ id: 'pit-' + p.P.name, at: p.at, near: () => true, fuel: { kinds: ['stick', 'cone', 'driftwood'], n: 3, text: 'You need 3 sticks, cones or driftwood' }, set: (k, e, b = 0) => { firepits.set(i, k, e, b); ambience.setFireLevel(k * (1 + 0.3 * b), s); } }); });
   // every lamp, candle and lantern, on its own (#56); inside the cabin only from inside
   const inCabin = p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW;
   cabin.lamps.forEach((L, i) => {
@@ -216,7 +216,7 @@ const fires = createFires({ st, inventory, scene: ctx.scene, camera: ctx.camera,
     fires.add({ id: 'lamp-' + i, at, label: L.kind, small: L.kind === 'candle', reach: 2.2, quick: true, save: false, lit0: cabin.lightsOn, near: p => inside === inCabin(p), set: k => setLamp(L, k > 0.5) });
   });
   addEventListener('meadow-lights', e => fires.setAll('lamp-', e.detail));
-  fires.add({ id: 'fireplace', at: hearth.localToWorld(cabin.fireParts.hearth.clone()), near: p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW, set: (k, e) => { setFire(k, e); ambience.setFireLevel(k); } });
+  fires.add({ id: 'fireplace', at: hearth.localToWorld(cabin.fireParts.hearth.clone()), near: p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW, set: (k, e, b = 0) => { setFire(k, e, b); ambience.setFireLevel(k * (1 + 0.3 * b)); } });
 }
 const cooking = createCooking({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, fires, tex: ctx.tex });   // roasting food over a firepit
 const fishing = createFishing({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, boating, waterLife, clock, seasons });   // from the jetty's head or the anchored boat

@@ -136,6 +136,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       crank: () => { tone(310, 240, 0.18, 0.05); noise(0.16, 900, 4, 0.06); },
       dig: () => { noise(0.14, 700, 0.8, 0.18, 'lowpass'); noise(0.1, 1600, 1, 0.06, 'bandpass', 0.08); },
       pop: () => { tone(420, 260, 0.07, 0.14); noise(0.05, 1200, 1, 0.08); },
+      flare: () => { noise(0.7, 500, 0.5, 0.3, 'lowpass'); for (let i = 0; i < 6; i++) noise(0.04, 2600 + Math.random() * 1800, 3, 0.14, 'bandpass', 0.05 + i * 0.07 + Math.random() * 0.05); },
       throw: () => noise(0.16, 1400, 0.6, 0.07),
       splash: () => { noise(0.45, 900, 0.7, 0.28, 'lowpass'); noise(0.2, 2400, 1, 0.08, 'bandpass', 0.05); },
       thud: () => { tone(160, 90, 0.08, 0.18); noise(0.05, 700, 1, 0.08); },
