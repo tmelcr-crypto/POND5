@@ -17,7 +17,7 @@ export const FORAGE = {
   berryShare: 0.35, clusters: [5, 9],               // share of the bushes that bear berries, clusters per bush
   pebbles: { beach: 170, meadow: 90, size: [0.018, 0.04] },
   shells: { count: 80, size: [0.022, 0.036] },       // on the beaches (#18)
-  driftwood: { count: 22, length: [0.45, 0.85] },   // bleached branches along the beaches, burn at a firepit
+  driftwood: { count: 22, length: [0.55, 1.05] },   // bleached branches along the beaches, burn at a firepit
 };
 
 export function createForage(ctx, { scatter, undergrowth }) {
@@ -111,7 +111,7 @@ function shellGeo() {
 /** A piece of driftwood, 1 unit long along x: a bent, tapered, grooved branch with a snapped side stub, silver-grey
  *  (vertex colours; darker in the grooves and at the broken ends). */
 function driftwoodGeo(rnd) {
-  const main = new THREE.CylinderGeometry(0.036, 0.058, 1, 11, 14, false), stub = new THREE.CylinderGeometry(0.014, 0.026, 0.2, 7, 2, false);
+  const main = new THREE.CylinderGeometry(0.046, 0.075, 1, 11, 14, false), stub = new THREE.CylinderGeometry(0.014, 0.026, 0.2, 7, 2, false);
   stub.translate(0, 0.08, 0); stub.rotateZ(-0.8); stub.rotateY(0.6); stub.rotateZ(Math.PI / 2); stub.translate(0.18, 0, 0);
   main.rotateZ(Math.PI / 2);   // along x (the narrow end at -x, where the stub points)
   const ph = rnd() * 6.28, bend = (x, p, i) => { p.setY(i, p.getY(i) + 0.025 * Math.sin(x * 3.4 + ph)); p.setZ(i, p.getZ(i) + 0.07 * Math.sin(x * 2.6 + ph * 0.7)); };
@@ -123,7 +123,7 @@ function driftwoodGeo(rnd) {
   const sp = stub.attributes.position; for (let i = 0; i < sp.count; i++) bend(0.18, sp, i);
   main.computeVertexNormals(); stub.computeVertexNormals();   // smooth, before merging
   const g = mergeGeos([main, stub], ['position', 'normal']);
-  const p = g.attributes.position, c = new Float32Array(p.count * 3), pale = lin(0x9d958a), dark = lin(0x564e45), warm = lin(0x7d6c58), col = new THREE.Color();
+  const p = g.attributes.position, c = new Float32Array(p.count * 3), pale = lin(0x6f685e), dark = lin(0x37312b), warm = lin(0x5a4a3a), col = new THREE.Color();
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), a = Math.atan2(p.getZ(i), p.getY(i)), groove = Math.max(0, -Math.sin(a * 4 + x * 9));
     col.copy(pale).lerp(dark, 0.6 * groove * groove).lerp(warm, Math.min(1, Math.max(0, Math.abs(x) - 0.42) * 8 + 0.2 * Math.sin(x * 23 + a)));
