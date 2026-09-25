@@ -401,14 +401,17 @@ export const GARDEN = (() => {
     return { x, z: G.z, crop, base: Math.min(...hs) - 0.06, y: Math.max(...hs) + G.h };
   });
   const plots = beds.flatMap((b, bi) => [-1, 0, 1].map(k => ({ bed: bi, crop: b.crop, x: b.x, z: b.z + k * G.bedL / 3, y: b.y })));
-  return { ...G, beds, plots, half: [(3 * G.bedW + 2 * G.gap) / 2, G.bedL / 2] };
+  // the seed box at the path's end beside the first bed: three compartments along z, a kind of seed in each
+  const bx = -8.5, bz = 7.9, seedBox = { x: bx, z: bz, y: H(bx, bz), w: 0.34, l: 0.62, h: 0.46 };
+  const bins = ['carrotSeeds', 'seedPotato', 'pumpkinSeeds'].map((kind, i) => ({ kind, x: bx, z: bz + (i - 1) * 0.19, y: seedBox.y + seedBox.h + 0.02 }));
+  return { ...G, beds, plots, seedBox, bins, half: [(3 * G.bedW + 2 * G.gap) / 2, G.bedL / 2] };
 })();
 export const WELL = { x: -8.7, z: 5.1, r: 0.56, rim: 0.72, y: H(-8.7, 5.1) };
-/** Distance to the garden's beds (as one rectangle round them) or the well (< 0 inside). */
+/** Distance to the garden's beds (as one rectangle round them), its seed box, or the well (< 0 inside). */
 export function builtDist(x, z) {
-  const a = Math.abs(x - GARDEN.x) - GARDEN.half[0], b = Math.abs(z - GARDEN.z) - GARDEN.half[1];
-  const g = Math.max(a, b) < 0 ? Math.max(a, b) : Math.hypot(Math.max(a, 0), Math.max(b, 0));
-  return Math.min(g, Math.hypot(x - WELL.x, z - WELL.z) - WELL.r);
+  const rect = (cx, cz, hx, hz) => { const a = Math.abs(x - cx) - hx, b = Math.abs(z - cz) - hz; return Math.max(a, b) < 0 ? Math.max(a, b) : Math.hypot(Math.max(a, 0), Math.max(b, 0)); };
+  const S = GARDEN.seedBox;
+  return Math.min(rect(GARDEN.x, GARDEN.z, GARDEN.half[0], GARDEN.half[1]), rect(S.x, S.z, S.w / 2, S.l / 2), Math.hypot(x - WELL.x, z - WELL.z) - WELL.r);
 }
 /** Distance to the nearest signpost's foot (< 0 at it). */
 export function signDist(x, z) { let d = Infinity; for (const S of SIGNS) d = Math.min(d, Math.hypot(x - S.x, z - S.z) - 0.3); return d; }

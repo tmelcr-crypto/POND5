@@ -326,9 +326,11 @@ export function createRoseBush(ctx) {
   turns and creaks, a splash far down), winds it back up full, and a cup of fresh water goes into your quick slots
   (Use says Drink).
 - **Vegetable garden** (`GARDEN` in `world/layout.js`, `assets/cabin/garden.js`, `app/gardening.js`, `CONFIG.garden`):
-  three raised beds at the end of the garden path, carrots, potatoes and pumpkins, three plots each. Looking at a bare plot, the
-  icon sows it (no seeds to carry); it grows by itself over 2 / 3 / 4 in-game days (sleeping counts; nothing grows or
-  is sown in winter, when the beds are under snow), then the icon harvests it: 3 carrots (eaten raw), 3 potatoes or a
+  three raised beds at the end of the garden path, carrots, potatoes and pumpkins, three plots each. Seeds come from the
+  seed box at the path's end (carrot seeds, seed potatoes, pumpkin seeds; picked up like anything else, 6 of each a
+  day). With a bed's seeds selected (or a potato you dug up, for the potato bed), look at one of its bare plots and Use
+  says Sow; without them, a note says what the bed needs. It grows by itself over 2 / 3 / 4 in-game days (sleeping counts; nothing grows or
+  is sown in winter, when the beds are under snow), then an icon beside it (T) harvests it: 3 carrots (eaten raw), 3 potatoes or a
   pumpkin (both cooked on the stick into baked potatoes and roasted pumpkin). Saved in the browser.
 - **Planting** (`app/planting.js`, `assets/trees/sapling.js`, `CONFIG.planting`): with an apple or a spruce cone
   selected, look down at open ground close by (off paths, beaches, water, the plot, and clear of trees, rocks and other

@@ -24,7 +24,8 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Hunger meter (#1): note where it is; it slowly drains; it never reaches empty.
 - [ ] Well (#12, in the meadow west of the pond: follow the Garden & well signs off the forest path): the icon (or T) draws a bucket: crank, splash, the bucket comes up full; a cup of
       water in your slots, Use says Drink.
-- [ ] Garden (#8): sow every plot of the three beds next to the well; come back in step 6 to harvest (carrots raw,
+- [ ] Garden (#8): with nothing selected a bare plot only shows a note; take seeds from the seed box and sow
+      every plot of the three beds (Use says Sow with the bed's own seeds selected); come back in step 6 to harvest (carrots raw,
       potatoes and a pumpkin cooked at a fire).
 - [ ] Signposts (#19): at the three forks (bridge, jetty path, forest path) every board points along its path and the
       distances look right; walk round a post (it is solid); read a board from both sides.

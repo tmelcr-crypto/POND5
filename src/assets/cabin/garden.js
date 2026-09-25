@@ -4,6 +4,7 @@ import { mergeGeos, paint } from '../../core/geometry.js';
 import { canvasTex } from '../../core/canvasTexture.js';
 import { addWorldSway } from '../../core/shaderPatches.js';
 import { GARDEN } from '../../world/layout.js';
+import { obstacles } from '../../world/bounds.js';
 
 /**
  * The vegetable garden behind the cabin (#8; site: GARDEN in world/layout.js, sowing and harvest: app/gardening.js):
@@ -13,6 +14,7 @@ import { GARDEN } from '../../world/layout.js';
  *  - potatoes: 2 leafy plants a plot; ripe, they flower;
  *  - pumpkins: one vine of big leaves a plot; its pumpkin swells from green to orange.
  * Leaves sway with the wind and are gone in winter (role 'crop', world/seasonLooks.js); snow settles on the beds.
+ * A seed box stands at the path's end: carrot seed packets, seed potatoes and pumpkin seed packets to pick up.
  * produceModel(kind): the picked produce (carrot, potato, pumpkin and their cooked kinds) for the hand and the stick.
  * Its own random numbers.
  */
@@ -45,6 +47,24 @@ export function createGarden(ctx) {
     s.computeVertexNormals();
     paint(s, (c, x, y, z) => c.copy(lin(0x3b2a1e)).multiplyScalar(0.8 + 0.3 * Math.abs(Math.sin(x * 22)) + 0.1 * Math.sin(z * 17 + x * 5)));
     s.translate(b.x, cy, b.z); soil.push(s);
+  }
+  /* ---- the seed box at the path's end: a little crate on legs, three compartments (seeds to pick up: app/items.js) ---- */
+  {
+    const SB = G.seedBox, bw = SB.w, bl = SB.l, top = SB.y + SB.h, dp = 0.14;
+    const plank = (w, h, d, x, y, z) => {
+      const g = new THREE.BoxGeometry(w, h, d), uv = g.attributes.uv, o = rnd();
+      for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getY(k) * 0.3 + o, uv.getX(k) * Math.max(w, d) * 0.8 + o * 3);
+      paint(g, c => c.setScalar(rr(0.8, 1.02))); g.translate(x, y, z); frame.push(g);
+    };
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) plank(0.04, SB.h - dp + 0.03, 0.04, SB.x + sx * (bw / 2 - 0.03), SB.y + (SB.h - dp) / 2 - 0.01, SB.z + sz * (bl / 2 - 0.03));
+    plank(bw, 0.02, bl, SB.x, top - dp, SB.z);
+    for (const s of [-1, 1]) { plank(bw, dp, 0.02, SB.x, top - dp / 2, SB.z + s * bl / 2); plank(0.02, dp, bl, SB.x + s * bw / 2, top - dp / 2, SB.z); }
+    for (const dz of [-0.095, 0.095]) plank(bw - 0.02, dp * 0.8, 0.012, SB.x, top - dp * 0.55, SB.z + dz);
+    // what is in it: carrot and pumpkin seed packets standing in their compartments, seed potatoes between them
+    const packet = (x, z, lean, pic) => { const g = new THREE.BoxGeometry(0.055, 0.08, 0.008); paint(g, (c, px, py) => c.copy(lin(py > 0.012 ? 0xeee4cc : pic))); g.rotateX(lean); g.rotateY(rr(-0.2, 0.2)); g.translate(x, top - dp + 0.055, z); soil.push(g); };
+    for (let k = 0; k < 4; k++) { packet(SB.x + (k - 1.5) * 0.07, SB.z - 0.19 + rr(-0.02, 0.02), rr(-0.35, 0.35), 0xe07a24); packet(SB.x + (k - 1.5) * 0.07, SB.z + 0.19 + rr(-0.02, 0.02), rr(-0.35, 0.35), k % 2 ? 0xd9731c : 0x6a8a36); }
+    for (let k = 0; k < 6; k++) { const g = new THREE.SphereGeometry(1, 8, 6); g.scale(0.03, 0.022, 0.024); paint(g, c => c.copy(lin(0xa7865a)).multiplyScalar(rr(0.8, 1.1))); g.rotateY(rr(0, 6.28)); g.translate(SB.x + (k % 3 - 1) * 0.08 + rr(-0.01, 0.01), top - dp + 0.035 + Math.floor(k / 3) * 0.03, SB.z + (Math.floor(k / 3) - 0.5) * 0.05); soil.push(g); }
+    obstacles.add(SB.x, SB.z, 0.34, SB.y + 1.9);
   }
   const frameMat = new THREE.MeshStandardMaterial({ map: grain, vertexColors: true, roughness: 0.85, metalness: 0, userData: { season: 'roof' } });
   const soilMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, userData: { season: 'roof' } });
@@ -181,8 +201,8 @@ const PRODUCE = {
   potato: () => { const g = new THREE.SphereGeometry(0.035, 14, 10), p = g.attributes.position; for (let i = 0; i < p.count; i++) { const k = 1 + 0.08 * Math.sin(p.getX(i) * 90) * Math.cos(p.getZ(i) * 70); p.setXYZ(i, p.getX(i) * k * 1.3, p.getY(i) * k * 0.85, p.getZ(i) * k); } g.computeVertexNormals(); return paint(g, (c, x, y, z) => c.copy(lin(0xb58a55)).multiplyScalar(Math.sin(x * 140 + z * 90) > 0.93 ? 0.6 : 0.9 + 0.1 * Math.sin(y * 60))); },
   pumpkin: () => { const g = pumpkinGeo(); g.scale(0.75, 0.75, 0.75); g.translate(0, -0.05, 0); const c = g.attributes.color, o = lin(0xd9731c); for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * o.r, c.getY(i) * o.g, c.getZ(i) * o.b); return g; },
 };
-const COOKED = { bakedPotato: ['potato', 0x8a5a2e], roastedPumpkin: ['pumpkin', 0xa8501a] };
-export const PRODUCE_KINDS = { carrot: 1, potato: 1, pumpkin: 1, bakedPotato: 1, roastedPumpkin: 1 };
+const COOKED = { bakedPotato: ['potato', 0x8a5a2e], roastedPumpkin: ['pumpkin', 0xa8501a], seedPotato: ['potato', 0xd8c8b0] };
+export const PRODUCE_KINDS = { carrot: 1, potato: 1, pumpkin: 1, bakedPotato: 1, roastedPumpkin: 1, seedPotato: 1 };
 export function produceModel(kind) {
   const [raw, col] = COOKED[kind] || [kind, 0xffffff];
   return { geo: PRODUCE[raw](), mat: new THREE.MeshStandardMaterial({ vertexColors: true, color: new THREE.Color(col).convertSRGBToLinear(), roughness: 0.6, metalness: 0 }) };

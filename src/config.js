@@ -257,8 +257,8 @@ export const CONFIG = {
   // and up, and how long it then shows full
   well: { reach: 2.2, cone: 0.5, down: 2.2, fill: 0.8, up: 3.2, fullFor: 8 },
   // The vegetable garden (app/gardening.js): in-game days from sowing to ripe per crop, how close and how squarely you
-  // look at a plot
-  garden: { days: { carrot: 2, potato: 3, pumpkin: 4 }, reach: 2.0, cone: 0.3 },
+  // look at a plot, how many of each kind of seed the seed box gives a day
+  garden: { days: { carrot: 2, potato: 3, pumpkin: 4 }, reach: 2.0, cone: 0.3, seeds: 6 },   // seeds: of each kind the seed box gives a day
   // Planting saplings (app/planting.js): at most `max`, in-game days to full size, how far down you look (pitch, rad)
   // and how far away the ground may be, and how clear of the island's trees and of each other they must be (m)
   planting: { max: 12, days: 8, pitch: -0.6, reach: 2.4, clear: 2.2, apart: 1.6 },
