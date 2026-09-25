@@ -127,7 +127,7 @@ function frame(now) {
   worldGrass.update(camera.position);
   ocean.update(camera.position);
   camera.updateMatrixWorld(); scatter.update(camera, debug.on); undergrowth.update(camera, t, debug.on); detail.update(dt);
-  updateCabin(dt, t); benches.update(t); jetty.update(t); firepits.update(t, dt, camera);
+  updateCabin(dt, t); benches.update(t); jetty.update(t); firepits.update(t, dt, camera, skyUniforms.uNight.value);
   const nearDoor = camera.position.distanceTo(cabin.door.world) < 2.8;
   if (nearDoor !== st.nearDoor) { st.nearDoor = nearDoor; actEl.classList.toggle('hide', !(nearDoor && st.playing && !isTouch)); btnDoor.style.display = nearDoor && st.playing ? '' : 'none'; }
   if (plotBands.pads.on) for (let i = 0; i < pads.length; i++) { const p = pads[i]; p.position.y = WATER_Y + 0.006 + Math.sin(t * 1.3 + p.userData.ph) * 0.0035; p.rotation.y += Math.sin(t * 0.4 + p.userData.ph) * 0.0006; }

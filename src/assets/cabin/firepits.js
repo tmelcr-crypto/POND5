@@ -30,8 +30,13 @@ export function createFirepits(ctx) {
 
   /* ---- one atlas: bark (u 0-0.45), end grain (u 0.5-0.95), plain white (u 0.97-1) ---- */
   const atlas = canvasTex(256, 256, (g, w, h) => {
-    g.fillStyle = '#6b5846'; g.fillRect(0, 0, 118, h);
-    for (let i = 0; i < 260; i++) { const x = rnd() * 118, y = rnd() * h; g.fillStyle = rnd() < 0.7 ? `rgba(35,25,18,${rr(0.25, 0.6)})` : `rgba(170,160,130,${rr(0.15, 0.35)})`; g.fillRect(x, y, rr(1, 3), rr(10, 60)); }
+    g.fillStyle = '#76624f'; g.fillRect(0, 0, 118, h);
+    for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? '40,30,22' : '150,135,112'},${rr(0.06, 0.14)})`; g.fillRect(rnd() * 118, 0, rr(4, 14), h); }   // broad tone bands along the log
+    for (let i = 0; i < 520; i++) {   // fissures: long, thin, a little wavy
+      const x0 = rnd() * 118, y0 = rnd() * h, len = rr(30, 150), dark = rnd() < 0.75;
+      g.strokeStyle = dark ? `rgba(30,22,15,${rr(0.3, 0.6)})` : `rgba(170,158,132,${rr(0.15, 0.3)})`; g.lineWidth = rr(0.6, 1.6);
+      g.beginPath(); g.moveTo(x0, y0); for (let k = 1; k <= 4; k++) g.lineTo(x0 + rr(-1.5, 1.5), y0 + len * k / 4); g.stroke();
+    }
     g.fillStyle = '#c9a676'; g.fillRect(128, 0, 118, h);
     const cx = 186, cy = 128;
     for (let r = 52; r > 2; r -= rr(3, 6)) { g.strokeStyle = `rgba(120,80,45,${rr(0.35, 0.7)})`; g.lineWidth = rr(0.8, 1.8); g.beginPath(); g.arc(cx, cy, r, 0, 6.3); g.stroke(); }
@@ -73,10 +78,10 @@ export function createFirepits(ctx) {
     /* stones round the fire, half sunk, and the ash between them */
     for (let i = 0; i < F.stones; i++) {
       const a = i / F.stones * Math.PI * 2 + rr(-0.12, 0.12), r = P.ring + rr(-0.03, 0.04), s = rr(...F.stoneSize);
-      const x = P.x + Math.cos(a) * r, z = P.z + Math.sin(a) * r, g = new THREE.IcosahedronGeometry(1, 0);
+      const x = P.x + Math.cos(a) * r, z = P.z + Math.sin(a) * r, g = new THREE.IcosahedronGeometry(1, 1);
       const p = g.attributes.position; for (let k = 0; k < p.count; k++) p.setXYZ(k, p.getX(k) * rr(0.85, 1.15), p.getY(k) * rr(0.85, 1.15), p.getZ(k) * rr(0.85, 1.15));
       g.scale(s * 1.2, s * 0.7, s); g.rotateY(-a + rr(-0.3, 0.3)); g.translate(x, H(x, z) + s * 0.25, z);
-      parts.push(prep(g, tone([0x6d6862, 0x7c756c, 0x5a5650][i % 3], 0.8, 1.1), WHITE));
+      parts.push(prep(g, tone([0x57524c, 0x645d55, 0x4a4641][i % 3], 0.75, 1.05), WHITE));
     }
     const ash = new THREE.CircleGeometry(P.ring + 0.06, 20); ash.rotateX(-Math.PI / 2);
     { const p = ash.attributes.position; for (let k = 0; k < p.count; k++) { const x = P.x + p.getX(k), z = P.z + p.getZ(k); p.setXYZ(k, x, H(x, z) + 0.012, z); } }
@@ -108,16 +113,16 @@ export function createFirepits(ctx) {
     const hw = W.w / 2, hd = W.d / 2;
     for (const [lx, lz, top] of [[-hw, hd, PL.front], [hw, hd, PL.front], [-hw, -hd, PL.back], [hw, -hd, PL.back]]) {
       const p = at(lx, lz), g0 = H(p.x, p.z) - 0.1, g = new THREE.BoxGeometry(0.08, base + top - g0, 0.08);
-      g.translate(0, (base + top + g0) / 2, 0); parts.push(place(prep(g, tone(0x7a6452), BARK), p.x, 0, p.z, rt.clone(), 0));
+      g.translate(0, (base + top + g0) / 2, 0); parts.push(place(prep(g, tone(0xc9b6a2), BARK), p.x, 0, p.z, rt.clone(), 0));
     }
     // roof: planks from front to back, a little overhang
     const roofDir = new V().addScaledVector(fr, -(W.d + 0.36)).setY(PL.back - PL.front), nPl = 7;
     for (let i = 0; i < nPl; i++) {
       const lx = -hw - 0.1 + (i + 0.5) * (W.w + 0.2) / nPl, c = at(lx, 0), g = new THREE.BoxGeometry(roofDir.length(), 0.025, (W.w + 0.2) / nPl - 0.012);
-      parts.push(place(prep(g, tone(0x8a7866, 0.75, 1.05), WHITE), c.x, base + (PL.front + PL.back) / 2 + 0.035, c.z, roofDir.clone(), rr(-0.03, 0.03)));
+      parts.push(place(prep(g, tone(0xd8c7b2, 0.8, 1.05), BARK), c.x, base + (PL.front + PL.back) / 2 + 0.035, c.z, roofDir.clone(), rr(-0.03, 0.03)));
     }
-    for (const lz of [hd, -hd]) { const c = at(0, lz), g = new THREE.BoxGeometry(W.w + 0.1, 0.07, 0.07); parts.push(place(prep(g, tone(0x6f5a48), BARK), c.x, base + (lz > 0 ? PL.front : PL.back) - 0.03, c.z, rt.clone())); }   // beams
-    for (const lx of [-hw + 0.2, hw - 0.2]) { const c = at(lx, 0), g = new THREE.BoxGeometry(W.d - 0.1, 0.07, 0.08); parts.push(place(prep(g, tone(0x5f4c3d), BARK), c.x, base + 0.035, c.z, fr.clone())); }   // rails
+    for (const lz of [hd, -hd]) { const c = at(0, lz), g = new THREE.BoxGeometry(W.w + 0.1, 0.07, 0.07); parts.push(place(prep(g, tone(0xbfa892), BARK), c.x, base + (lz > 0 ? PL.front : PL.back) - 0.03, c.z, rt.clone())); }   // beams
+    for (const lx of [-hw + 0.2, hw - 0.2]) { const c = at(lx, 0), g = new THREE.BoxGeometry(W.d - 0.1, 0.07, 0.08); parts.push(place(prep(g, tone(0xa8927c), BARK), c.x, base + 0.035, c.z, fr.clone())); }   // rails
     // split logs stacked, end grain to the front
     for (let row = 0; row < PL.rows; row++) {
       const n = PL.perRow - (row === PL.rows - 1 ? 2 : 0), off = row % 2 ? 0.5 : 0;
@@ -150,24 +155,26 @@ export function createFirepits(ctx) {
     pits.push({ P, fire, flames, glow, pool, poolMat, sparks, sp, smoke, emberMat, k: 1, e: 1, at: new V(P.x, P.y + 0.3, P.z), pile: { x: W.x, y: base + 0.6, z: W.z, fx: W.fx, fz: W.fz, hw: W.w / 2 - 0.1, hd: W.d / 2 - 0.1 } });
   }
 
+  let night = 1;   // the warm pool and glow show at night, faintly by day (update() follows the sky)
+  const byNight = () => 0.12 + 0.88 * night;
   /** Show pit i burning k 0..1 with embers e 0..1. */
   function set(i, k, e) {
     const p = pits[i]; p.k = k; p.e = e;
     p.flames.forEach((g, j) => { const s = Math.min(1, k * (1.3 - j * 0.3)); g.visible = s > 0.01; g.scale.set(0.5 + 0.5 * s, Math.max(0.01, s), 0.5 + 0.5 * s); });
-    p.glow.visible = p.pool.visible = k > 0.01; p.glow.material.opacity = 0.35 * k;
-    p.poolMat.color.setRGB(...F.pool.color).multiplyScalar(F.pool.opacity * k);
+    p.glow.visible = p.pool.visible = k > 0.01; p.glow.material.opacity = 0.35 * k * (0.3 + 0.7 * night);
+    p.poolMat.color.setRGB(...F.pool.color).multiplyScalar(F.pool.opacity * k * byNight());
     p.emberMat.emissiveIntensity = 1.1 * Math.max(k, 0.45 * e * e);
     p.sparks.visible = k > 0.05;
   }
   const cam = new V();
-  function update(t, dt, camera) {
-    cam.copy(camera.position); const wd = U.uWindDir.value, ws = 0.4 + U.uWind.value;
+  function update(t, dt, camera, nightNow = 1) {
+    night = nightNow; cam.copy(camera.position); const wd = U.uWindDir.value, ws = 0.4 + U.uWind.value;
     for (const p of pits) {
       const hot = Math.max(p.k, p.e);
       p.smoke.forEach(s => { s.s.visible = hot > 0.02; });
       if (hot <= 0.02 || p.at.distanceTo(cam) > F.near) continue;
       const f = 0.85 + 0.09 * Math.sin(t * 9.3 + p.P.x) + 0.05 * Math.sin(t * 15.7 + 1.3) + 0.04 * (Math.random() - 0.5);
-      if (p.k > 0.01) { const g = F.glow * f; p.glow.scale.set(g, g, 1); p.poolMat.color.setRGB(...F.pool.color).multiplyScalar(F.pool.opacity * p.k * (0.8 + 0.25 * f)); }
+      if (p.k > 0.01) { const g = F.glow * f; p.glow.scale.set(g, g, 1); p.glow.material.opacity = 0.35 * p.k * (0.3 + 0.7 * night); p.poolMat.color.setRGB(...F.pool.color).multiplyScalar(F.pool.opacity * p.k * byNight() * (0.8 + 0.25 * f)); }
       p.emberMat.emissiveIntensity = (1.0 + (f - 0.85) * 2.5) * Math.max(p.k, 0.45 * p.e * p.e);
       p.smoke.forEach(s => {
         s.u += dt * 0.12; if (s.u > 1) s.u -= 1; const u = s.u;

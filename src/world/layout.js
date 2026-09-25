@@ -306,7 +306,7 @@ export function benchDist(x, z) {
  */
 const PIT = { logR: 1.7, logLen: 1.15, logRad: 0.19, ring: 0.5, pileW: 1.7, pileD: 1.0 };
 export const FIREPITS = [
-  { name: 'beach', x: 30, z: -23, logs: [45, 95, 145], pile: [130, 3.6] },
+  { name: 'beach', x: 30, z: -23, logs: [50, 110, 175], pile: [130, 3.6] },
   { name: 'forest', x: 22.5, z: 11.3, logs: [200, 320, 80], pile: [40, 4.2] },
   { name: 'hill', x: -19, z: -23.5, logs: [320, 80, 200], pile: [130, 3.0] },
 ].map(f => {
