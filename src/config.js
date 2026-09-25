@@ -183,7 +183,7 @@ export const CONFIG = {
   },
 
   // Storage chests (app/chestUI.js)
-  chest: { reach: 2, cone: 0.6, lidOpen: 1.9, longPress: 450 },   // m, rad (in view), rad (lid open), ms (a press that picks how many)
+  chest: { reach: 2.2, cone: 0.6, lidOpen: 1.69, longPress: 450 },   // lidOpen 97 degrees: the lid then reaches 0.20 m behind its hinge (keep the chest that far from a wall)   // m, rad (in view), rad (lid open), ms (a press that picks how many)
 
   // The sailboat (app/boating.js)
   boat: {

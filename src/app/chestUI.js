@@ -34,9 +34,9 @@ export function createChestUI({ camera, st, inventory, items, chests }) {
   const list = where => where === 'store' ? open.store : inventory.slots;
   function render() {
     if (!open) return;
-    const draw = (els, arr) => els.forEach((b, i) => { const s = arr[i]; b.innerHTML = s ? `${iconSvg(s.kind, 30)}<span class="n">${s.n}</span>` : ''; b.classList.toggle('empty', !s); b.title = s ? KINDS[s.kind].name : ''; b.setAttribute('aria-label', s ? `${KINDS[s.kind].name}, ${s.n}` : 'Empty'); });
+    const draw = (els, arr) => els.forEach((b, i) => { const s = arr[i]; b.innerHTML = s ? `${iconSvg(s.kind, 44)}<span class="n">${s.n}</span>` : ''; b.classList.toggle('empty', !s); b.title = s ? KINDS[s.kind].name : ''; b.setAttribute('aria-label', s ? `${KINDS[s.kind].name}, ${s.n}` : 'Empty'); });
     draw(storeEls, open.store); draw(quickEls, inventory.slots);
-    handEl.innerHTML = hand ? `${iconSvg(hand.kind, 22)}<span>${hand.n}</span>` : ''; handEl.classList.toggle('on', !!hand);
+    handEl.innerHTML = hand ? `${iconSvg(hand.kind, 30)}<span>${hand.n}</span>` : ''; handEl.classList.toggle('on', !!hand);
   }
   const commit = () => { save(open); inventory.refresh(); render(); };
   function drop(where, i) {   // put what is in hand onto a tile
