@@ -3,19 +3,52 @@ import { V, lin } from '../core/math.js';
 import { CONFIG } from '../config.js';
 import { FIREPITS } from '../world/layout.js';
 import { KINDS } from './itemKinds.js';
+import { mergeGeos } from '../core/geometry.js';
 
 /**
  * Cooking at a fire. Sitting on a log round a burning firepit, or standing at the cabin's burning fireplace looking in,
- * with a food that cooks selected (KINDS[kind].cook: apple to baked apple, fish to grilled fish; berries do not), the
+ * with a food that cooks selected (KINDS[kind].cook: apple to baked apple, fish to grilled fish, bolete to roasted bolete; berries do not), the
  * Use button says Cook. Cook takes one piece: a roasting stick reaches out from your
  * hand towards the fire with it on the end (CONFIG.cook.push seconds), a ring round it fills while it cooks
  * (CONFIG.cook.time seconds, browning as it goes), then the stick comes back the same way and the cooked piece is in
  * your inventory. Standing up (or walking off from the fireplace) or the fire going out stops it: the stick comes back and you keep the raw piece. The
  * stick is only shown; you need not carry one. One piece at a time.
  */
-export function createCooking({ scene, camera, st, inventory, items, fires }) {
-  const C = CONFIG.cook, up = new V(0, 1, 0);
-  const stickMat = new THREE.MeshStandardMaterial({ color: lin(0x7a5a3a), roughness: 0.85, metalness: 0 });
+export function createCooking({ scene, camera, st, inventory, items, fires, tex = {} }) {
+  const C = CONFIG.cook, up = new V(0, 1, 0), BROWN = { fish: 0.6, mushroom: 0.5 };   // how far each browns
+  const stickMat = new THREE.MeshStandardMaterial({ map: tex.barkTex || null, vertexColors: true, roughness: 0.9, metalness: 0 });
+  /**
+   * A roasting stick cut from a branch, len long, its tip (where the food goes) at the origin and the rest back along -y:
+   * a little crooked, thicker at the hand, the bark peeled to a pale whittled point that is charred at the very end, a
+   * few knots and the stubs of cut side twigs. Bark texture and vertex colours; a new one (its own wobble) each time.
+   */
+  function stickGeo(len) {
+    const rr = (a, b) => a + (b - a) * Math.random(), ph = rr(0, 6.28), ph2 = rr(0, 6.28), parts = [];
+    const bark = new THREE.Color(0.78, 0.66, 0.54), wood = new THREE.Color(0.95, 0.82, 0.6), char = new THREE.Color(0.16, 0.11, 0.08);
+    const at = t => new THREE.Vector3(0.011 * Math.sin(t * 5.2 + ph) * t + 0.006 * Math.sin(t * 13 + ph2) * t, -t * len, 0.01 * Math.sin(t * 4.1 + ph2) * t + 0.005 * Math.sin(t * 11 + ph) * t);
+    const rad = t => (0.0055 + 0.0055 * t) * (t < 0.06 ? 0.25 + 0.75 * t / 0.06 : 1);   // whittled to a point
+    const N = 40, R = 8, pos = [], uv = [], col = [], idx = [];
+    for (let i = 0; i <= N; i++) {
+      const t = i / N, c = at(t), r = rad(t), tint = t < 0.02 ? char : t < 0.075 ? wood.clone().lerp(char, Math.max(0, 0.035 - t) * 20) : t < 0.085 ? wood.clone().lerp(bark, (t - 0.075) * 100) : bark.clone().multiplyScalar(0.9 + 0.2 * Math.sin(t * 37 + ph));
+      for (let j = 0; j <= R; j++) { const a = j / R * Math.PI * 2; pos.push(c.x + Math.cos(a) * r, c.y, c.z + Math.sin(a) * r); uv.push(j / R, t * len * 3); col.push(tint.r, tint.g, tint.b); }
+    }
+    for (let i = 0; i < N; i++) for (let j = 0; j < R; j++) { const a = i * (R + 1) + j, b = a + R + 1; idx.push(a, a + 1, b, a + 1, b + 1, b); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+    parts.push(g);
+    const paint = (geo, c) => { const n = geo.attributes.position.count, a = new Float32Array(n * 3); for (let k = 0; k < n; k++) c.toArray(a, k * 3); geo.setAttribute('color', new THREE.BufferAttribute(a, 3)); return geo; };
+    for (const t of [0.34, 0.58, 0.8]) {   // cut side twigs, pointing back towards the hand, and a knot beside each
+      const c = at(t), r = rad(t), a = rr(0, 6.28), l = rr(0.035, 0.07), tw = new THREE.CylinderGeometry(r * 0.35, r * 0.5, l, 6); tw.translate(0, l / 2, 0);
+      const dirT = new THREE.Vector3(Math.cos(a), -0.9, Math.sin(a)).normalize();
+      tw.applyMatrix4(new THREE.Matrix4().compose(c.clone().add(new THREE.Vector3(Math.cos(a) * r * 0.6, 0, Math.sin(a) * r * 0.6)), new THREE.Quaternion().setFromUnitVectors(up, dirT), new THREE.Vector3(1, 1, 1)));
+      parts.push(paint(tw, bark.clone().multiplyScalar(0.85)));
+      const kn = new THREE.SphereGeometry(r * 0.55, 8, 6); kn.scale(1, 1.4, 1); const b = a + Math.PI * rr(0.6, 1.4); kn.translate(c.x + Math.cos(b) * r * 0.85, c.y - 0.03, c.z + Math.sin(b) * r * 0.85);
+      parts.push(paint(kn, bark.clone().multiplyScalar(0.7)));
+      const cut = new THREE.CircleGeometry(r * 0.35, 8); cut.rotateX(-Math.PI / 2); cut.translate(0, l, 0);   // the pale cut end of the twig
+      cut.applyMatrix4(new THREE.Matrix4().compose(c.clone().add(new THREE.Vector3(Math.cos(a) * r * 0.6, 0, Math.sin(a) * r * 0.6)), new THREE.Quaternion().setFromUnitVectors(up, dirT), new THREE.Vector3(1, 1, 1)));
+      parts.push(paint(cut, wood));
+    }
+    return mergeGeos(parts, ['position', 'normal', 'uv', 'color']);
+  }
   const note = document.getElementById('fireNote');
   const ring = document.createElement('div'); ring.id = 'cookRing'; ring.className = 'hide';
   ring.innerHTML = '<svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true"><circle class="track" cx="32" cy="32" r="26"/><circle class="fill" cx="32" cy="32" r="26"/></svg>';
@@ -49,9 +82,10 @@ export function createCooking({ scene, camera, st, inventory, items, fires }) {
     const hand = E.clone().addScaledVector(fw, C.hand[0]).addScaledVector(rt, C.hand[1]).addScaledVector(up, -C.hand[2]);
     const tip = f.at.clone().addScaledVector(fw, S ? -0.05 : -0.12); tip.y += S ? C.over : 0.05;
     const dir = tip.clone().sub(hand), len = dir.length() + 0.15; dir.normalize();
-    const g = new THREE.CylinderGeometry(0.007, 0.011, len, 6); g.translate(0, -len / 2, 0);   // the tip at its origin, the rest back along it
+    const g = stickGeo(len);   // the tip at its origin, the rest back along it
     const stick = new THREE.Mesh(g, stickMat); stick.quaternion.setFromUnitVectors(up, dir); stick.castShadow = true; scene.add(stick);
     const food = items.model(kind); food.castShadow = true;
+    if (food.isInstancedMesh && !food.instanceColor) food.setColorAt(0, new THREE.Color(1, 1, 1));   // vertex-coloured (a bolete): a tint to brown it with
     let raw = food.isInstancedMesh && food.instanceColor ? new THREE.Color().fromArray(food.instanceColor.array, 0) : null;
     if (!food.isInstancedMesh) { food.material = food.material.clone(); raw = food.material.color.clone(); }   // browns on its own
     job = { kind, cooked, phase: 'in', t: 0, tip, dir, stick, food, raw, done: false, seated: !!S, from: st.pos.clone() };
@@ -64,7 +98,7 @@ export function createCooking({ scene, camera, st, inventory, items, fires }) {
   }
   function brown(k) {
     const im = job.food; if (!job.raw) return;
-    const c = job.raw.clone().lerp(lin(0x5e2a12), k * (job.kind === 'fish' ? 0.6 : 1));
+    const c = job.raw.clone().lerp(lin(0x5e2a12), k * (BROWN[job.kind] || 1));
     if (im.isInstancedMesh) { im.setColorAt(0, c); im.instanceColor.needsUpdate = true; } else im.material.color.copy(c);
   }
   function finish() {

@@ -150,18 +150,19 @@ export function createLanternKit(ctx, rnd) {
     const cap = new THREE.ConeGeometry(0.095, 0.09, 4); cap.rotateY(Math.PI / 4); cap.translate(0, 0.15, 0); iron.push(cap);
     const ring = new THREE.TorusGeometry(0.025, 0.005, 5, 10); ring.translate(0, 0.21, 0); iron.push(ring);
     const im = new THREE.Mesh(mergeGeos(iron.map(q => q.index ? q.toNonIndexed() : q), ['position', 'normal']), ironMat); im.castShadow = true; im.receiveShadow = true; L.add(im);
-    [[0, 0.056, 0], [0, -0.056, 0], [0.056, 0, Math.PI / 2], [-0.056, 0, Math.PI / 2]].forEach(([px, pz, r]) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(0.105, 0.18), paneMat); p.position.set(px, 0, pz); p.rotation.y = r; L.add(p); });
+    const pm = paneMat.clone(); pm.userData.ei = paneMat.userData.ei;   // its own glass, so it can be lit on its own (app/fires.js)
+    [[0, 0.056, 0], [0, -0.056, 0], [0.056, 0, Math.PI / 2], [-0.056, 0, Math.PI / 2]].forEach(([px, pz, r]) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(0.105, 0.18), pm); p.position.set(px, 0, pz); p.rotation.y = r; L.add(p); });
     const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDot, color: 0xffc070, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
     flame.scale.set(0.05, 0.08, 1); flame.position.set(0, -0.045, 0); flame.renderOrder = 5; L.add(flame);
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDot, color: 0xffa050, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
     glow.scale.set(BL.lantern.glow, BL.lantern.glow, 1); glow.renderOrder = 5; L.add(glow);
     glows.push({ s: glow, f: flame, size: BL.lantern.glow, ph: rnd() * 10 });
     // a warm pool of light on the ground below, following the terrain
-    const P = BL.lantern.pool, wp = new V(x, y, z).applyMatrix4(frame), seg = 14, pg = new THREE.PlaneGeometry(P * 2, P * 2, seg, seg); pg.rotateX(-Math.PI / 2);
-    const pp = pg.attributes.position; for (let k = 0; k < pp.count; k++) { const px = wp.x + pp.getX(k), pz = wp.z + pp.getZ(k); pp.setXYZ(k, px, Math.max(H(px, pz), pool ? pool(px, pz) : -1e9) + 0.03, pz); }
-    const poolMesh = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ map: poolTex, color: new THREE.Color(...BL.lantern.poolColor).multiplyScalar(BL.lantern.poolOpacity), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const P = BL.lantern.pool, wp = new V(x, y, z).applyMatrix4(frame), seg = 24, pg = new THREE.PlaneGeometry(P * 2, P * 2, seg, seg); pg.rotateX(-Math.PI / 2);
+    const pp = pg.attributes.position; for (let k = 0; k < pp.count; k++) { const px = wp.x + pp.getX(k), pz = wp.z + pp.getZ(k); pp.setXYZ(k, px, Math.max(H(px, pz), pool ? pool(px, pz) : -1e9) + 0.045, pz); }
+    const poolMesh = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, map: poolTex, color: new THREE.Color(...BL.lantern.poolColor).multiplyScalar(BL.lantern.poolOpacity), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
     poolMesh.renderOrder = 3; poolMesh.userData.noShadow = true; scene.add(poolMesh);
-    const lamp = { light: { intensity: 0 }, base: 0, flames: [flame, glow, poolMesh], mats: [paneMat] };
+    const lamp = { light: { intensity: 0 }, base: 0, flames: [flame, glow, poolMesh], mats: [pm], kind: 'lantern' };
     lamps.push(lamp); return lamp;
   }
 

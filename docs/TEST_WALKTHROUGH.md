@@ -19,17 +19,19 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Curtains (#54): open and close each curtain; the light in the room changes.
 - [ ] Candles and lanterns one by one (#56): light and put out each; the Cabin lights switch still does them all.
 - [ ] Fireplace: light it (no items needed); chimney smoke (#55) starts; put it out, the smoke stops after the embers.
-- [ ] Carry the lantern (#22): take it from the cabin, walk outside at dusk, put it back in its place.
+- [ ] Carry the lantern (#22): take it from the porch bench (icon beside it, or T), walk outside at dusk: it swings in
+      your hand and lights the grass and ground round you; put it back on the bench. Reload while carrying: still carried.
 - [ ] Hunger meter (#1): note where it is; it slowly drains; it never reaches empty.
 - [ ] Well (#12): draw a bucket of water.
 - [ ] Garden (#8): sow a row behind the cabin (seeding only); come back in step 6 to see it grown.
-- [ ] Signposts (#19): at each path junction the signs point the right way (cabin, bridge, benches, jetty, firepits).
+- [ ] Signposts (#19): at the three forks (bridge, jetty path, forest path) every board points along its path and the
+      distances look right; walk round a post (it is solid); read a board from both sides.
 - [ ] The treasure map (#16) is found in the cabin; keep it for step 5.
 
 ## 2. Meadow and forest (midday)
 - [ ] Rabbits (#38) hop in the meadow and dart into bushes when you come close.
 - [ ] Squirrels (#39) run up the spruces and sometimes drop a cone you can pick up.
-- [ ] Mushrooms (#10) in the forest: pick some (note which season they appear in).
+- [ ] Mushrooms (#10) in the forest: pick brown boletes (fly agarics cannot be picked); none in winter.
 - [ ] Planting (#7): plant an apple core and a cone somewhere open; note the places.
 - [ ] Take 10 sticks from the forest woodpile; the 11th is refused. Light the forest firepit with 3 sticks.
 - [ ] Sit on a log, cook an apple and a mushroom (#4); stand up during a third cook: the raw one comes back.
@@ -47,7 +49,8 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Tides (#68): note where the waterline is on the beach; check again in an hour of game time; the jetty stairs
       and the boat's berth still work at high and low water.
 - [ ] Seagulls (#44) over the beach and on the jetty posts; their calls.
-- [ ] Beachcombing (#18): pick shells and driftwood; burn driftwood at the beach firepit (lights it like sticks).
+- [ ] Beachcombing (#18): pick shells and driftwood; throw a shell and a piece of driftwood; light the beach firepit
+      with 3 driftwood. (The nautilus is 1 in 10 000 shells: do not wait for it.)
 - [ ] Message in a bottle (#17): find one, read it; it goes into the album / journal.
 - [ ] Fishing from the jetty: cast, strike, catch; miss once on purpose; reel in empty once.
 - [ ] Board the boat, sail out to the islet (#26); anchor (#30) off it; fish from the boat; weigh anchor.

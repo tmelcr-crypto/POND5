@@ -5,9 +5,9 @@ import { fbm2 } from '../core/noise.js';
 import { addFlutter, addWorldSway, addDistanceFade, THIN_SMALL } from '../core/shaderPatches.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { H, WORLD_HALF, SEA_Y, forest, excluded, coastDist, walkwayDist } from './layout.js';
+import { H, WORLD_HALF, SEA_Y, forest, excluded, coastDist, walkwayDist, signDist } from './layout.js';
 import { obstacles, rockBodies } from './bounds.js';
-import { placer, plantGroups, updateGroups, bakeAtlas, billboards } from './scatter.js';
+import { placer, plantGroups, updateGroups, seasonalBillboards } from './scatter.js';
 import { createBushVariants } from '../assets/vegetation/bush.js';
 import { createRoseVariants } from '../assets/vegetation/roseBush.js';
 import { flowerGeometries, flowerTint } from '../assets/vegetation/meadowFlowers.js';
@@ -144,7 +144,7 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
   }
 
   /* ---- clear the walkways (paths, bridge, benches) of anything placed on them; nothing else moves ---- */
-  const off = m => it => { const e = it[0].elements; return walkwayDist(e[12], e[14]) > m; };
+  const off = m => it => { const e = it[0].elements; return Math.min(walkwayDist(e[12], e[14]), signDist(e[12], e[14])) > m; };   // (not the signposts through walkwayDist: the pebbles would move)
   const logClear = t => { const v = logSet.variants[t.variant], dx = Math.cos(t.rot - v.yaw), dz = -Math.sin(t.rot - v.yaw); for (let s = 0; s <= v.length; s += 0.4) if (walkwayDist(t.x + dx * s, t.z + dz * s) < 0.7) return false; return walkwayDist(t.x, t.z) > 0.7; };
   const keep = (list, ok) => { const k = list.filter(ok); list.length = 0; list.push(...k); };
   keep(logs, logClear); keep(bushes, t => walkwayDist(t.x, t.z) > 0.6 * t.s + 0.4); keep(roses, t => walkwayDist(t.x, t.z) > 0.6 * t.s + 0.4);
@@ -160,8 +160,8 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
 
   /* ---- meshes ---- */
   const groups = plantGroups(scene, bushes, bushV, 'bush').concat(plantGroups(scene, roses, roseV, 'rose'));
-  if (bushes.length) scene.add(billboards(bakeAtlas(renderer, bushV, 160), bushes, THIN_SMALL));
-  if (roses.length) scene.add(billboards(bakeAtlas(renderer, roseV, 160), roses, THIN_SMALL));
+  if (bushes.length) scene.add(seasonalBillboards(renderer, bushV, 160, bushes, THIN_SMALL));   // bare in winter too
+  if (roses.length) scene.add(seasonalBillboards(renderer, roseV, 160, roses, THIN_SMALL));
   const logParts = logSet.variants.map(v => ({ bounds: v.bounds, parts: [
     { geometry: v.near[0], material: logSet.barkMat, depth: logSet.nearDepth }, { geometry: v.near[1], material: logSet.woodMat, depth: logSet.nearDepth, castShadow: false }] }));
   const logGroups = plantGroups(scene, logs, logParts, 'log');
@@ -175,7 +175,7 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
   const depth = (map, alphaTest) => { const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map, alphaTest }); addDistanceFade(m, false); return m; };
   const fade = m => { addDistanceFade(m, false); return m; };
   const fMat = new THREE.MeshStandardMaterial({ map: fernTex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.75, envMapIntensity: 0.6 }); fMat.userData.season = 'leafVeg'; addFlutter(fMat, 0.012); fade(fMat);
-  const vcMat = fade(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 })), woodyMat = fade(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
+  const vcMat = fade(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, userData: { season: 'mushroom' } })), woodyMat = fade(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
   const { headGeo, stemGeo } = flowerGeometries();
   const hMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, side: THREE.DoubleSide }); addWorldSway(hMat, 0.7); fade(hMat);
   const sMat = new THREE.MeshStandardMaterial({ color: lin(0x4d7328), roughness: 0.8 }); addWorldSway(sMat, 0.7); fade(sMat);
@@ -270,5 +270,5 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
     butterflies.update(t, c);
     if (withStats) { stats.near = all.filter(e => e.g.visible).length; stats.small = smalls.reduce((s, k) => s + k.mesh.count, 0); stats.butterfliesDrawn = butterflies.drawn; }
   }
-  return { update, stats, bushes, roses, bushVariants: bushV, roseVariants: roseV, logs, logVariants: logSet.variants, groups: all, smalls, sticks: smalls[3], cones: smalls[4] };
+  return { update, stats, bushes, roses, bushVariants: bushV, roseVariants: roseV, logs, logVariants: logSet.variants, groups: all, smalls, boletes: smalls[1], sticks: smalls[3], cones: smalls[4] };
 }

@@ -68,7 +68,7 @@ body.touch .desk-only{display:none}
 #knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(240,196,105,.85)}
 #vbtns{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));display:none;flex-direction:column;gap:12px;z-index:4}
 body.touch.playing #vbtns{display:flex}
-body.playing:not(.touch) #vbtns{display:flex}body:not(.touch) #vbtns>:not(#btnSeat):not(#btnBoat):not(#btnBed1):not(#btnBed2):not(#btnBed3):not(#btnUse):not(#btnFire):not(#btnFish){display:none!important}   /* desktop: only the seat, boat, bed, use and fire buttons */
+body.playing:not(.touch) #vbtns{display:flex}body:not(.touch) #vbtns>:not(#btnSeat):not(#btnBoat):not(#btnBed1):not(#btnBed2):not(#btnBed3):not(#btnUse):not(#btnFish):not(#btnCurtain):not(#btnLapse){display:none!important}   /* desktop: only the seat, boat, bed, use and fire buttons */
 #quickbar{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:4;transition:opacity .3s}
 #quickbar.hide{opacity:0;pointer-events:none}body:not(.playing) #quickbar{display:none}
 .qslot{position:relative;width:54px;height:54px;border-radius:12px;display:grid;place-items:center;color:var(--ink);cursor:pointer;touch-action:none;padding:0}
@@ -104,13 +104,24 @@ body.touch.playing #touchHelp{display:block}
 }
 @media (prefers-reduced-motion: reduce){ #intro,#hint,#cross{transition:none} }
 
+.panel .saveBtns{display:flex;gap:6px}.panel .saveBtns button{font:inherit;font-weight:600;font-size:.74rem;color:#1d2415;background:var(--honey);border:0;border-radius:999px;padding:4px 10px;cursor:pointer}.panel .saveBtns #saveReset{background:#d9824a}
+#btnLapse.on{color:#ffd79a;transform:scale(1.08)}
+/* the loading screen (app/paintIntro.js): the painted island behind the card, the progress bar */
+#introArt{position:absolute;inset:0;width:100%;height:100%;z-index:-1;transition:opacity 1.6s ease}#introArt.done{opacity:0}#intro{isolation:isolate}
+#loadbar{height:4px;border-radius:2px;background:rgba(255,255,255,.18);overflow:hidden;margin:14px 0 12px}#loadbar span{display:block;height:100%;width:0;background:var(--honey);transition:width .3s}#loadbar.done{visibility:hidden}
+#flash{position:fixed;inset:0;background:#eef3ff;opacity:0;pointer-events:none;z-index:3}   /* lightning (world/skyWeather.js) */
 /* seasons (world/seasons.js): the panel picker, the name on waking */
 .panel .sw select{font:inherit;font-weight:600;font-size:.8rem;color:#1d2415;background:var(--honey);border:0;border-radius:999px;padding:4px 10px;cursor:pointer}
 #seasonName{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font-family:"Newsreader",Georgia,serif;font-size:3.2rem;color:#fff8e8;text-shadow:0 2px 18px rgba(0,0,0,.55);opacity:0;pointer-events:none;z-index:6}
 #seasonName.show{animation:seasonName 4.2s ease-in-out forwards}@keyframes seasonName{0%{opacity:0}25%{opacity:1}70%{opacity:1}100%{opacity:0}}
 /* fires (app/fires.js): the cost on the light button, the note when you lack it */
-#btnFire{position:relative}#btnFire .cost{position:absolute;right:5px;bottom:3px;font-size:.8rem;font-weight:700;color:#ffd79a}
+#fireIcon,#lanternIcon{position:fixed;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;display:grid;place-items:center;color:#fff3dc;border:0;z-index:4;cursor:pointer;touch-action:none;padding:0}
+#fireIcon .cost{position:absolute;right:4px;bottom:2px;font-size:.8rem;font-weight:700;color:#ffd79a}
 #fireNote{position:fixed;left:50%;top:62%;transform:translateX(-50%);padding:9px 16px;border-radius:12px;font-size:.95rem;z-index:4;pointer-events:none;white-space:nowrap}#fireNote.hide{display:none}
+/* body (app/body.js): the hunger bar under the quick slots, frost round the screen's edges */
+#hungerBar{position:fixed;top:calc(84px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);width:120px;height:5px;border-radius:3px;background:rgba(20,24,18,.45);overflow:hidden;z-index:4;pointer-events:none}
+#hungerBar .fill{display:block;height:100%;background:#e9c46a;transition:width .6s}#hungerBar.low .fill{background:#d9824a}body:not(.playing) #hungerBar{display:none}
+#frost{position:fixed;inset:0;pointer-events:none;z-index:2;opacity:0;background-size:100% 100%;-webkit-mask-image:radial-gradient(ellipse at center,transparent 45%,#000 85%);mask-image:radial-gradient(ellipse at center,transparent 45%,#000 85%)}
 /* fishing (app/fishing.js): the strike button pulses */
 #btnFish.pulse{animation:fishPulse .45s ease-in-out infinite alternate;color:#ffd79a}@keyframes fishPulse{to{transform:scale(1.12)}}
 /* cooking (app/cooking.js): the ring round the food, the Cook button */

@@ -53,6 +53,16 @@ A workflow is included in `.github/workflows/pages.yml`. Push to `main`, then en
 | `Shift`, mouse wheel | Speed slider | Boost, set speed |
 | `F` near the cabin door | Door button | Open / close the door |
 | `L` | Cabin lights switch | Cabin lights on / off |
+| `E` / click | Tap the item | Pick up what you aim at |
+| `F` / right click | Use button | Use the selected item (eat, throw, cook, place) |
+| `1`-`4`, wheel | Tap a slot | Select a quick slot |
+| `R` | Seat button | Sit down / stand up (benches, logs, the porch bench) |
+| `X` | Fire icon beside it | Light / put out a fire, lamp, candle or lantern |
+| `T` | Lantern icon beside it | Take the hand lantern from the porch bench / put it back |
+| `V` | Curtain button | Open / close the curtains of the window you look at |
+| `B` | Boat button | Board, anchor, weigh anchor, leave the boat |
+| `H` | Fish button | Cast, reel in; tap to strike |
+| hold `Z` | Hold the fast-forward button | Time-lapse while sitting or in bed |
 | `` ` `` | Stats button (top right) | Debug overlay: FPS, draw calls, triangles |
 | `Esc` | | Release the mouse |
 
@@ -236,13 +246,16 @@ export function createRoseBush(ctx) {
   Wind slider follows it too, and dragging it overrides the strength; the wind carries on changing from there.
 - **Items** (`app/items.js`, `app/inventory.js`, `app/itemKinds.js`, `assets/vegetation/forage.js`, `CONFIG.items`):
   - What you can pick up: apples (off the reference tree, under it, and windfalls under the island's apple trees),
-    spruce cones, sticks, berries (on some island bushes), rose petals (fallen, or a few a day off any rose bush) and
-    pebbles (in the stream, on the beaches and the meadow).
+    spruce cones, sticks, berries (on some island bushes), rose petals (fallen, or a few a day off any rose bush),
+    pebbles (in the stream, on the beaches and the meadow), boletes (the brown forest mushrooms; not the fly agarics,
+    none in winter), shells and driftwood (on the beaches). One shell in 10 000 (`CONFIG.items.rareShell`) is a
+    nautilus, a keepsake for the cabin's shelf.
   - Aim at one with the middle of the screen, within reach (crouching or reaching up), and tap, click or press E.
     It glows while aimed, flies to you and lands in one of four quick slots at the top (up to 10 each; keys 1-4 or the
     wheel select).
-  - Use (the button above Jump, right click or F) eats apples and berries, throws pebbles, cones and sticks (they
-    splash into water or lie where they land), and lets petals drift off on the wind.
+  - Use (the button above Jump, right click or F) eats apples, berries and cooked food, throws pebbles, shells, cones,
+    sticks and driftwood (they splash into water or lie where they land), lets petals drift off on the wind, and says
+    what to do with the rest (cook raw fish and boletes; put keepsakes on the shelf).
   - What you take comes back after an in-game day. The inventory and what is taken are saved in the browser.
 - **Chest** (`CHESTS` in `world/layout.js`, `assets/cabin/chest.js`, `app/chestUI.js`, `CONFIG.chest`):
   - A wooden sea chest by the woodpile on the cabin's west wall.
@@ -259,26 +272,28 @@ export function createRoseBush(ctx) {
 - **Sitting** (`app/controls.js`, `CONFIG.player.sit`): in front of a bench the seat button (R on desktop) turns you to
   it, walks you up, turns you round and sits you down; seated you can only look around; the stand button raises you and
   gives the controls back.
-- **Fires** (`app/fires.js`, `CONFIG.fire`): near a fire with it in view, the fire button (X on desktop) puts it out or
-  lights it. Lit, the flames catch over 4 s; put out, they die down over 1.6 s, and the embers glow (and the chimney
+- **Fires** (`app/fires.js`, `CONFIG.fire`): near a fire, lamp, candle or lantern and looking at it, it glows softly and
+  an icon floats beside it (as when picking things up); tap it (X on desktop) to put it out or light it. Lamps, candles
+  and lanterns go on and off at once, each on its own; the Lights switch still does them all. Lit, the flames catch over 4 s; put out, they die down over 1.6 s, and the embers glow (and the chimney
   smokes) for 45 s more. Flames, light, sparks, ember glow, smoke and crackle all follow. Each fire's state is remembered.
   Every fire registers with `fires.add()` in `main.js`: the cabin's fireplace and the three firepits.
-- **Firepits** (`assets/cabin/firepits.js`, sites `FIREPITS` in `world/layout.js`): one on the beach by the jetty, one
-  in a clearing of the east forest, one on the south-west hill. Each has a ring of stones round the fire, three cut logs
-  to sit on (the seat button, as at the benches) and a roofed woodpile within 5 m that gives up to 10 sticks a day
-  (`CONFIG.items.pileSticks`). They start cold; lighting one takes 3 sticks or cones from what you carry (the button
-  shows the cost, and a note says so when you lack them). You can light or put out a fire while sitting on a log.
-  No real lights: flames, a glow, a warm pool on the ground, sparks and smoke, and the crackle of the nearest lit fire.
-  A stepping-stone path leads from the bridge's east end to the forest firepit.
+- **Firepits** (`assets/cabin/firepits.js`, sites `FIREPITS` in `world/layout.js`): one on the beach by the jetty (just
+  a ring of stones on the sand), one in a clearing of the north-west woods, one on the south-west hill. The two inland
+  ones have three cut logs to sit on (the seat button, as at the benches) and a roofed woodpile within 5 m that gives up
+  to 10 sticks a day (`CONFIG.items.pileSticks`). They start cold; lighting one takes 3 sticks, cones or driftwood from
+  what you carry (the icon shows the cost, and a note says so when you lack them). You can light or put out a fire while
+  sitting on a log. No real lights: flames, a glow, a warm pool on the ground (dimmer by day), sparks and smoke, and the
+  crackle of the loudest lit fire. A stepping-stone path leads from the sunset path to the forest firepit.
 - **Fishing** (`app/fishing.js`, `CONFIG.fishing`): on the jetty's head, or aboard the anchored boat, looking out over
   deep water, the fish button (H) casts: the rod shows in your hand and the float lands 6 m out. After 5-25 s (half
   that around sunrise and sunset) it dips with a splash: tap Strike (or anywhere) within 1.1 s to hook the fish and
   reel it in; miss it and the float waits again. The button reels in empty while you wait. One catch in 100 is a
-  golden fish. Raw fish cooks into grilled fish (firepits, and now the cabin's fireplace, standing at it).
+  golden fish. 40 % of hooked fish slip off the hook (`CONFIG.fishing.fail`). Raw fish cooks into grilled fish.
 - **Anchor** (`app/boating.js`): out on open water, once the boat has nearly stopped, the boat button drops the anchor
   (a splash, a rope from the bow); the boat stays, swinging slowly bow into the wind. The same button weighs anchor.
 - **Keepsake shelf** (`app/shelf.js`, `SHELF` in `world/layout.js`): on the cabin's back wall above the nightstand.
-  With a keepsake selected (the golden fish), near it and looking at it, Use says Place and puts it there for good.
+  With a keepsake selected (the golden fish, the nautilus shell), near it and looking at it, Use says Place and puts it
+  there for good.
 - **Seasons** (`world/seasons.js`, `world/seasonLooks.js`, `world/weather.js`, `CONFIG.seasons`): spring, summer,
   autumn, winter, 10 in-game days each; a season only turns while you sleep (the first sleep after its days are up),
   and its name fades in as you wake. The panel's Season picker jumps to any season. Summer is the scene as it always
@@ -288,11 +303,41 @@ export function createRoseBush(ctx) {
   greyer sea, snowfall. Days are longer in summer and short in winter, with a lower sun. What you can collect follows
   too: apples in summer and autumn, berries in summer and autumn, rose petals in spring and summer. Materials take part
   by a role in `userData.season`; the shader side is `addSeason` in `core/shaderPatches.js`.
-- **Cooking** (`app/cooking.js`, `CONFIG.cook`): sitting on a log at a burning firepit with a food that cooks selected
-  (`cook` in `app/itemKinds.js`: the apple becomes a baked apple; berries do not cook), the Use button says Cook. A
-  roasting stick reaches out from your hand to the fire with the food on its end (2 s), a ring round it fills over 30 s
-  as it browns, the stick comes back (2 s) and the baked apple is in your inventory. One piece at a time; standing up
-  or the fire going out stops it and you keep the raw piece. The stick is only shown, you need not carry one.
+- **Cooking** (`app/cooking.js`, `CONFIG.cook`): sitting on a log at a burning firepit, or standing at the cabin's lit
+  fireplace looking in, with a food that cooks selected (`cook` in `app/itemKinds.js`: apple to baked apple, fish to
+  grilled fish, bolete to roasted bolete; berries do not cook), the Use button says Cook. A roasting stick (a crooked,
+  whittled branch) reaches out from your hand to the fire with the food on its end (2 s), a ring round it fills over
+  30 s as it browns, the stick comes back (2 s) and the cooked piece is in your inventory. One piece at a time; standing
+  up, walking off or the fire going out stops it and you keep the raw piece. The stick is only shown.
+- **Signposts** (`assets/cabin/signposts.js`, `SIGNS` in `world/layout.js`): at the three forks of the paths (the
+  bridge, where the jetty path leaves the sunrise path, where the forest path leaves the sunset path), a weathered post
+  with an arrow board for each place, pointing along the path, with the name and the distance along the paths burnt in
+  on both faces. One mesh and one texture for all of them.
+- **Hand lantern** (`app/lantern.js`, `assets/cabin/handLantern.js`, `CONFIG.lantern`): a hurricane lantern at the far
+  end of the porch bench. Looking at it, an icon beside it (T on desktop) takes it: it lights and hangs in your right
+  hand, swinging as you walk, and at night it lights the ground, grass, trees and rocks round you (one shader light,
+  `U.uHandLight`, added to every outdoor material in `engine/finalizeScene.js`; nothing by day). Back at the bench the
+  same icon puts it down. Whether you carry it is saved.
+- **Curtains** (`app/curtains.js`): inside, looking at a window, the curtain button (V) draws or opens its curtains.
+- **Hunger and frost** (`app/body.js`, `CONFIG.body`): a thin bar under the quick slots empties slowly (never below a
+  quarter) and eating fills it, cooked food more. In winter, a minute or more outdoors away from a fire frosts the
+  screen's edges; a fire, the cabin or hot food thaws it. Both are only shown, nothing happens when they are low.
+- **Footsteps** (`audio/footsteps.js`, `CONFIG.steps`): soft steps by what is underfoot (grass, sand, stone, wood, snow,
+  ice, shallow water).
+- **Music** (`audio/music.js`, `CONFIG.music`, off by default in the panel): a quiet generated piano and pads per season,
+  playing a while and resting a while, under the nature sounds.
+- **Weather** (`world/skyWeather.js`, `CONFIG.weather`): clear, rain or storms, decided each in-game hour; rain darkens
+  the sky, thickens the fog, falls in streaks (snow instead in winter), drums on the roof inside, and puts out the
+  firepits; storms add lightning and thunder. Some mornings are foggy, a rainbow can follow rain, and winter nights can
+  have northern lights. The panel's Weather picker forces any of them.
+- **Time-lapse** (`app/timelapse.js`, `CONFIG.time.lapse`): sitting or in bed, hold the fast-forward button (or Z) and the
+  day runs 40 times faster.
+- **Progress** (`app/saves.js`): the panel exports it to a file, imports such a file, or resets to a fresh island
+  (settings stay).
+- **Dynamic resolution** (`engine/dynamicRes.js`, `CONFIG.render.dynamic`): when the frame rate stays under 50 fps the
+  pixel ratio steps down (to 65 % at most), and back up when there is room.
+- **Loading screen** (`app/paintIntro.js`): a painted view of the island at golden hour behind the start card, with a
+  progress bar.
 - **Water life** (`assets/water/waterLife.js`, numbers in its `WATER` object): fish rises, a ring spreading about 1 m
   on the sea (0.45 m on the pond) and fading in 2 s, every 4-10 s on each water (sometimes two in a row); on the sea
   they appear 2.5-14 m out from the shore, 5-30 m in front of the camera. Three dragonflies dart and hover over the pond

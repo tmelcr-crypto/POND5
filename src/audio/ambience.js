@@ -404,6 +404,7 @@ export function createAmbience(ctx) {
   const want = { pond: false, fire: false, stream: false };
   // the fires heard: the fireplace first, then any outdoor fire added with addFire(); level: how much each burns (app/fires.js)
   const fires = [{ at: fireAt, level: 1, open: false }], fireBands = new Set();
+  let birdShare = 1;
   const fireBand = i => on => { if (on) fireBands.add(i); else fireBands.delete(i); const w = fireBands.size > 0; if (w === want.fire) return; want.fire = w; if (g) { if (w) g.startFire(); else g.stopFire(); } };
 
   // detail-manager bands: the pond and fire layers only exist near the pond / cabin
@@ -449,6 +450,8 @@ export function createAmbience(ctx) {
     /** The running audio context and the master gain (for short effects elsewhere, e.g. app/items.js), or null. */
     /** How much fire i burns, 0..1 (app/fires.js; 0 the fireplace). */
     setFireLevel(k, i = 0) { fires[i].level = k; },
+    /** How much birdsong the season keeps (world/seasons.js), 0..1. */
+    setBirdShare(k) { birdShare = k; },
     /** An outdoor fire at `at` ({ x, y, z }): heard near it while it burns. Returns its index for setFireLevel. */
     addFire(at) {
       const i = fires.push({ at: { x: at.x, y: at.y, z: at.z }, level: 0, open: true }) - 1;
@@ -460,7 +463,7 @@ export function createAmbience(ctx) {
       if (!ac || ac.state !== 'running') { stats.running = false; return; }
       stats.running = true; acc += dt; if (acc < A.update) return; acc = 0;
       const t0 = performance.now(), t = ac.currentTime, p = camera.position, onBoat = !!(ctx.boat && ctx.boat.onBoard);
-      const m = mixAt(p, skyUniforms.uNight.value, U.uWind.value, fireAt, onBoat); m.fire *= fires[0].level;
+      const m = mixAt(p, skyUniforms.uNight.value, U.uWind.value, fireAt, onBoat); m.fire *= fires[0].level; m.birds *= birdShare;
       let src = fires[0];   // the loudest fire is the one heard
       for (let i = 1; i < fires.length; i++) { const f = fires[i]; if (f.level <= 0) continue; const l = f.level * A.fire.openLevel * (1 - smooth(A.fire.open[0], A.fire.open[1], Math.hypot(p.x - f.at.x, p.y - f.at.y, p.z - f.at.z))); if (l > m.fire) { m.fire = l; src = f; } }
       m.fireOpen = src.open;

@@ -1,5 +1,6 @@
 import { V } from '../core/math.js';
 import { CONFIG } from '../config.js';
+import { HOUSE, CB } from '../world/layout.js';
 import { KINDS, iconSvg } from './itemKinds.js';
 
 /**
@@ -90,6 +91,7 @@ export function createChestUI({ camera, st, inventory, items, chests }) {
 
   /* ---- each frame: lids, the floating icon, the look-only camera while open ---- */
   const f = new V(), d = new V(), p = new V();
+  const inCabin = q => Math.abs(q.x - HOUSE.x) < CB.XW + CB.R && Math.abs(q.z - HOUSE.z) < CB.ZW + CB.R;   // within the log walls
   function update(dt) {
     near = null;
     const canUse = st.playing && st.walk && !st.aboard && !st.seat && !st.inBed;
@@ -97,7 +99,7 @@ export function createChestUI({ camera, st, inventory, items, chests }) {
     for (const s of state) {
       const top = s.c.top, dist = Math.hypot(camera.position.x - top.x, camera.position.z - top.z);
       const inView = d.copy(top).sub(camera.position).normalize().dot(f) > Math.cos(CC.cone);
-      const here = canUse && dist < CC.reach && inView;
+      const here = canUse && dist < CC.reach && inView && inCabin(camera.position) === inCabin(top);   // not through the cabin's wall
       if (here && !near) near = s;
       const want = open === s || (here && !open) ? 1 : 0;
       if (want !== s.want) { s.want = want; if (items) items.sfx(want ? 'creak' : 'clunk'); }

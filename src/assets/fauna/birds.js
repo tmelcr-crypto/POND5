@@ -122,7 +122,7 @@ export function createBirds(ctx) {
   }
   groups.forEach(g => place(g, true));
   const stats = { drawn: 0, minDist: Infinity, recycled: 0 };
-  let vis = 1;
+  let vis = 1, share = 1;   // share: how many of the birds the season keeps (setSeason)
 
   function update(dt) {
     vel.subVectors(cam, prevCam).divideScalar(Math.max(dt, 1e-3)); prevCam.copy(cam);
@@ -163,7 +163,7 @@ export function createBirds(ctx) {
         const d = P.distanceTo(cam); stats.minDist = Math.min(stats.minDist, d);
         M.compose(P, Q.setFromEuler(E.set(Math.sin(t * 1.3 + b.wob) * 0.05, hd, bank)), S);
         mesh.setMatrixAt(b.idx, M);
-        aFade[b.idx] = g.fade * vis * (1 - smooth(C.visible[0], C.visible[1], d));
+        aFade[b.idx] = g.fade * vis * (1 - smooth(C.visible[0], C.visible[1], d)) * (((b.idx * 0.618034) % 1) < share ? 1 : 0);
         if (aFade[b.idx] > 0) n++;
         if (d < C.visible[1]) seen++;
       }
@@ -171,5 +171,7 @@ export function createBirds(ctx) {
     }
     mesh.instanceMatrix.needsUpdate = true; fadeAttr.needsUpdate = true; stats.drawn = n;
   }
-  return { update, stats, groups, config: C };
+  /** The season (world/seasons.js): fewer birds in autumn, almost none in winter. */
+  const SHARE = { spring: 1, summer: 1, autumn: 0.55, winter: 0.12 };
+  return { update, stats, groups, config: C, setSeason(s) { share = SHARE[s] ?? 1; } };
 }

@@ -133,6 +133,7 @@ export const CONFIG = {
   },
   time: {
     dayMinutes: 18,         // real minutes for one 24 h day
+    lapse: 40,              // times faster while holding the time-lapse button (app/timelapse.js)
     start: 16.5,            // hour at load
     sunEvery: 0.2,          // s between sun / sky updates
     envEvery: [4, 15],      // s between rebuilds of the sky's environment map: around dawn and dusk, otherwise
@@ -140,7 +141,7 @@ export const CONFIG = {
   camera: { far: 150, fov: 72 },
 
   // Rendering
-  render: { maxPixelRatio: 1.25 },
+  render: { maxPixelRatio: 1.25, dynamic: { enabled: true, low: 50, high: 58, min: 0.65, step: 0.05, hold: 2, wait: 3 } },   // dynamic: engine/dynamicRes.js
 
   // Player
   player: {
@@ -170,6 +171,18 @@ export const CONFIG = {
     sun: { spring: [6, 18, 0.85], summer: [5, 19, 1], autumn: [6.5, 17.5, 0.75], winter: [8, 16, 0.5] },
   },
 
+  // The weather (world/skyWeather.js): chances per in-game hour of clear sky, by season
+  weather: {
+    rain: { spring: 0.07, summer: 0.04, autumn: 0.1, winter: 0.06 },     // clear -> rain (snow in winter)
+    storm: { spring: 0.2, summer: 0.4, autumn: 0.2, winter: 0 },         // of the rain, how much is a thunderstorm
+    rainHours: [1, 4], clearHold: [3, 8],                                 // in-game hours
+    fogChance: { spring: 0.2, summer: 0.08, autumn: 0.45, winter: 0.25 }, fogThick: 4,   // a fog morning; how much thicker
+    flashEvery: [7, 22],                                                  // s between lightning flashes in a storm
+    rainLevel: 0.22, thunderLevel: 0.5,                                   // of the master volume
+    rainbowChance: 0.7, rainbowHours: [0.4, 0.8], rainbowRadius: 110,
+    aurora: { chance: 0.6, radius: 125, height: 70, y: 55, arc: 2.2 },    // the northern lights: share of clear winter nights, the sky band
+  },
+
   // Lighting and putting out fires (app/fires.js)
   fire: {
     reach: 2.4, cone: 0.7,         // m from the fire, and how near the middle of the view it must be (rad)
@@ -177,6 +190,19 @@ export const CONFIG = {
     out: 1.6,                      // s for the flames to die down
     embers: 45,                    // s the embers keep glowing (and the chimney smoking) after it is out
   },
+
+  // How the body feels, shown only (app/body.js)
+  body: {
+    perDay: 0.75, floor: 0.25,     // hunger bar: drain per in-game day, never below this
+    food: { apple: 0.15, berry: 0.08, bakedApple: 0.3, grilledFish: 0.4, roastedMushroom: 0.22 },   // how much each fills it
+    warm: ['bakedApple', 'grilledFish', 'roastedMushroom'],   // cooked food that warms you
+    grace: 60, freeze: 180, melt: 25,      // s outdoors in winter before frost starts; s to full frost; s to melt it
+    fireWarm: 3.5,                 // m from a burning fire that warms you
+  },
+
+  // Footsteps (audio/footsteps.js) and the soundtrack (audio/music.js)
+  steps: { stride: 0.72, level: 0.09 },   // m between steps; loudness (subtle, under the ambience)
+  music: { level: 0.16, play: [2, 4], rest: [1, 3] },   // of the master volume (the nature sounds stay in front); minutes on / off
 
   // Fishing from the jetty's head or the anchored boat (app/fishing.js)
   fishing: {
@@ -187,6 +213,7 @@ export const CONFIG = {
     dawnDusk: 1.2, dawnDuskFactor: 0.5,   // hours either side of sunrise / sunset when bites come twice as fast
     window: 1.1,                   // s to strike once it bites
     golden: 0.01,                  // share of catches that are a golden fish
+    fail: 0.4,                     // share of hooked fish that slip off the hook while you reel in
   },
 
   // Cooking at a firepit (app/cooking.js)
@@ -217,7 +244,13 @@ export const CONFIG = {
     respawn: 24,                   // in-game hours before what you took is back
     rosePetals: 3,                 // petals a rose bush gives a day
     pileSticks: 10,                // sticks a firepit's woodpile gives a day
+    rareShell: 0.0001,             // the chance a shell you pick up is the nautilus (a keepsake for the cabin's shelf)
   },
+
+  // The hand lantern (app/lantern.js): where it waits (m from the cabin's centre, at the porch bench's far end; its
+  // height is the bench top above the pad), how close and how squarely you look to take or leave it, where it hangs in
+  // view when carried (camera space: right, down, forward) and how strong its light is at night
+  lantern: { home: [-0.62, 0.45, 0.5], homeTurn: 0.5, reach: 2.2, cone: 0.45, hand: [0.27, -0.47, -0.56], strength: 1.3 },
 
   // Storage chests (app/chestUI.js)
   chest: { reach: 2.2, cone: 0.6, lidOpen: 1.69, longPress: 450 },   // lidOpen 97 degrees: the lid then reaches 0.20 m behind its hinge (keep the chest that far from a wall)   // m, rad (in view), rad (lid open), ms (a press that picks how many)

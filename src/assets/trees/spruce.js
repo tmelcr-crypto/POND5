@@ -141,7 +141,7 @@ export function createSpruce(ctx) {
     const { bark, cards, cones } = buildSpruce(CON.x, CON.z, H(CON.x, CON.z), true);
     const barkMesh = new THREE.Mesh(mergeGeos(bark, ['position', 'normal', 'uv']), new THREE.MeshStandardMaterial({ map: barkTex, color: lin(0x8a6a52), roughness: 0.95 }));
     barkMesh.castShadow = barkMesh.receiveShadow = true; scene.add(barkMesh);
-    const nMat = new THREE.MeshStandardMaterial({ map: needleTex, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.85, envMapIntensity: 0.6 });
+    const nMat = new THREE.MeshStandardMaterial({ map: needleTex, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.85, envMapIntensity: 0.6 }); nMat.userData.season = 'needles';
     addFlutter(nMat, 0.01);
     const im = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), nMat, cards.length);
     cards.forEach(([m, c], i) => { im.setMatrixAt(i, m); im.setColorAt(i, c); });
@@ -165,7 +165,7 @@ export function createSpruce(ctx) {
 export function createSpruceVariants(ctx, count, seed) {
   const { barkTex, needleTex } = ctx.tex;
   const barkMat = new THREE.MeshStandardMaterial({ map: barkTex, color: lin(0x8a6a52), roughness: 0.95 });
-  const nMat = new THREE.MeshStandardMaterial({ map: needleTex, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.85, envMapIntensity: 0.6 });
+  const nMat = new THREE.MeshStandardMaterial({ map: needleTex, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.85, envMapIntensity: 0.6 }); nMat.userData.season = 'needles';
   addFlutter(nMat, 0.01);
   const coneMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82 });
   const depth = (map, alphaTest) => new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map, alphaTest });

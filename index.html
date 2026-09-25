@@ -39,9 +39,11 @@
       <dt><kbd>Seat</kbd></dt><dd>Appears in front of a bench to sit down or stand up</dd>
       <dt><kbd>Boat</kbd></dt><dd>Appears by the boat to board, dock or leave it; the left side then sails</dd>
     </dl>
+    <div id="loadbar" aria-hidden="true"><span></span></div>
     <button id="start">Start exploring</button>
   </div>
 </div>
+<script src="src/app/paintIntro.js"></script>
 
 <div id="hint" class="glass hide"></div>
 
@@ -53,9 +55,12 @@
   <div class="row"><label for="speed">Speed <b id="speedV">2.2 m/s</b></label><input id="speed" type="range" min="0.3" max="10" step="0.1" value="2.2"></div>
   <div class="row"><label for="volume">Volume <b id="volumeV">30%</b></label><input id="volume" type="range" min="0" max="1" step="0.01" value="0.3"></div>
   <div class="row sw"><span>Sound</span><button id="muteBtn" aria-pressed="true">On</button></div>
+  <div class="row sw"><span>Music</span><button id="musicBtn" aria-pressed="false">Off</button></div>
   <div class="row sw"><span>Day cycle</span><button id="cycleBtn" aria-pressed="true">On</button></div>
   <div class="row sw"><span>Cabin lights</span><button id="lightsBtn" aria-pressed="true">On</button></div>
   <div class="row sw"><span>Season</span><select id="seasonSel" aria-label="Season"><option value="spring">Spring</option><option value="summer">Summer</option><option value="autumn">Autumn</option><option value="winter">Winter</option></select></div>
+  <div class="row sw"><span>Weather</span><select id="weatherSel" aria-label="Weather"><option value="auto">By itself</option><option value="clear">Clear now</option><option value="rain">Rain</option><option value="storm">Storm</option><option value="fog">Fog</option><option value="rainbow">Rainbow</option><option value="aurora">Northern lights</option></select></div>
+  <div class="row sw"><span>Progress</span><span class="saveBtns"><button id="saveExport">Export</button><button id="saveImport">Import</button><button id="saveReset">Reset</button></span></div>
   <div class="row sw"><span>Movement</span><button id="modeBtn" aria-pressed="true">Walk</button></div>
   <div class="foot"><span id="posV">x 0.0 y 0.0 z 0.0</span><span id="fpsV">– fps</span></div>
 </div>

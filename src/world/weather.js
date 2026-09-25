@@ -8,11 +8,13 @@ import { H, APP } from './layout.js';
  * The season's weather (world/seasons.js), each one Points draw: in winter snow falls in a box that follows the
  * camera, drifting with the wind; in autumn leaves (yellow, orange, red) and in spring white-pink blossom petals come
  * off the apple trees near you (the plot's and the island's, within WEATHER.near m) and flutter down to the ground.
- * Summer has none. Every number is in WEATHER.
+ * Summer has none. Rain (setRain, world/skyWeather.js) falls as short streaks round the camera, slanted by the wind, as
+ * many as it rains hard; in winter it snows harder instead. Every number is in WEATHER.
  */
 export const WEATHER = {
   snow: { count: isTouch ? 900 : 1600, box: [26, 12, 26], fall: [0.55, 1.0], size: 0.05, drift: 0.8 },
   leaves: { count: 140, near: 25, fall: [0.3, 0.55], flutter: 0.35, size: 0.075, every: 0.09 },
+  rain: { count: isTouch ? 1100 : 2000, box: [22, 14, 22], fall: [8, 10.5], length: 0.28 },   // streaks while it rains (world/skyWeather.js)
 };
 
 export function createWeather(ctx, { apples = [] } = {}) {
@@ -33,12 +35,31 @@ export function createWeather(ctx, { apples = [] } = {}) {
   const leaves = new THREE.Points(lGeo, new THREE.PointsMaterial({ map: leafTex, vertexColors: true, size: L.size, alphaTest: 0.4, transparent: false }));
   leaves.frustumCulled = false; leaves.visible = false; scene.add(leaves);
 
+  /* ---- rain: streaks in a box that wraps round the camera ---- */
+  const RN = W.rain, rPos = new Float32Array(RN.count * 3), rFall = new Float32Array(RN.count), rDraw = new Float32Array(RN.count * 6);
+  for (let i = 0; i < RN.count; i++) { rPos[i * 3] = rr(0, RN.box[0]); rPos[i * 3 + 1] = rr(0, RN.box[1]); rPos[i * 3 + 2] = rr(0, RN.box[2]); rFall[i] = rr(...RN.fall); }
+  const rGeo = new THREE.BufferGeometry(); rGeo.setAttribute('position', new THREE.BufferAttribute(rDraw, 3));
+  const rain = new THREE.LineSegments(rGeo, new THREE.LineBasicMaterial({ color: 0xc9d4de, transparent: true, opacity: 0.35, depthWrite: false }));
+  rain.frustumCulled = false; rain.visible = false; scene.add(rain);
+  let wet = 0;
   let season = 'summer', spawn = 0;
   const cam = new THREE.Vector3();
   return {
-    setSeason(s) { season = s; snow.visible = s === 'winter'; leaves.visible = s === 'autumn' || s === 'spring'; lv.forEach(p => { p.on = false; }); lPos.fill(-50); lGeo.attributes.position.needsUpdate = true; },
+    /** How hard it rains, 0..1 (world/skyWeather.js); in winter the snow thickens instead. */
+    setRain(k) { wet = k; rain.visible = k > 0.01 && season !== 'winter'; rGeo.setDrawRange(0, Math.floor(RN.count * k) * 2); sGeo.setDrawRange(0, season === 'winter' ? Math.floor(S.count * (0.45 + 0.55 * k)) : S.count); },
+    setSeason(s) { season = s; snow.visible = s === 'winter'; leaves.visible = s === 'autumn' || s === 'spring'; lv.forEach(p => { p.on = false; }); lPos.fill(-50); lGeo.attributes.position.needsUpdate = true; this.setRain(wet); },
     update(dt, t) {
       cam.copy(camera.position); const wd = U.uWindDir.value, ws = U.uWind.value;
+      if (rain.visible) {   // streaks slanted by the wind
+        const sx = wd.x * ws * 2.2, sz = wd.y * ws * 2.2, n = Math.floor(RN.count * wet);
+        for (let i = 0; i < n; i++) {
+          const k = i * 3; rPos[k] += sx * dt; rPos[k + 2] += sz * dt; rPos[k + 1] -= rFall[i] * dt;
+          const x = ((rPos[k] - cam.x) % RN.box[0] + RN.box[0]) % RN.box[0] - RN.box[0] / 2, y = ((rPos[k + 1] - cam.y) % RN.box[1] + RN.box[1]) % RN.box[1] - RN.box[1] * 0.4, z = ((rPos[k + 2] - cam.z) % RN.box[2] + RN.box[2]) % RN.box[2] - RN.box[2] / 2;
+          const o = i * 6, l = RN.length / rFall[i];
+          rDraw[o] = cam.x + x; rDraw[o + 1] = cam.y + y; rDraw[o + 2] = cam.z + z; rDraw[o + 3] = cam.x + x - sx * l; rDraw[o + 4] = cam.y + y + rFall[i] * l; rDraw[o + 5] = cam.z + z - sz * l;
+        }
+        rGeo.attributes.position.needsUpdate = true;
+      }
       if (season === 'winter') {
         for (let i = 0; i < S.count; i++) {   // each flake keeps its place in a box that wraps round the camera
           const k = i * 3;

@@ -125,7 +125,7 @@ export function createJetty(ctx) {
 
   const geo = mergeGeos(parts.map(g => { if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); return g; }), ['position', 'normal', 'uv', 'color']);
   geo.computeBoundingSphere();
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: woodTex, vertexColors: true, roughness: 0.88, metalness: 0, envMapIntensity: 0.4 }));
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: woodTex, vertexColors: true, roughness: 0.88, metalness: 0, envMapIntensity: 0.4, userData: { season: 'ice' } }));   // iced over in winter
   for (const m of [mesh, ropeMesh, netMesh]) { m.castShadow = m.receiveShadow = true; scene.add(m); }
 
   // the lantern on the post: its warm pool falls on the deck and the water around

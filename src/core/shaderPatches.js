@@ -225,6 +225,8 @@ export function addCloudShadow(mat) {
  *  veg:  green vegetation colours turn fresher in spring, golden-brown in autumn, dry straw in winter (the less green a
  *        colour, the less it changes, so dirt, rock and sand stay as they are)
  *  leaf: tree leaves (instanced cards): white-pink blossom on some cards in spring, yellow / orange / red in autumn
+ *  basic: an unlit material (the billboard bake): after the colour, facing from the world normal
+ *  ice:  { lo, hi } a glaze of ice in winter on what faces up (pale, blue, glossy)
  *  snow: [lo, hi] how much a surface must face up to take snow in winter (1 flat), amount 0..1, minY: none below this
  *        height (the waterline); patchy at the edges
  * Applied just before the lighting, after textures and vertex colours.
@@ -246,14 +248,19 @@ export function addSeason(mat, o = {}) {
   mat.onBeforeCompile = (s, r) => {
     prev.call(mat, s, r);
     Object.assign(s.uniforms, { uSpring: U.uSpring, uAutumn: U.uAutumn, uWinter: U.uWinter, uSnow: U.uSnow });
+    if (o.foldInWinter) s.vertexShader = `attribute vec3 ${o.foldInWinter};\n` + s.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n if (uWinter > 0.5 && ${o.foldInWinter}.x > 0.5) transformed = vec3(0.0);`);
     const at = s.vertexShader.includes('#include <project_vertex>') ? '#include <project_vertex>' : '#include <fog_vertex>';
-    s.vertexShader = 'varying vec3 vSeasonW; varying float vSeasonH;\n' + s.vertexShader.replace(at, `${at}
+    s.vertexShader = 'uniform float uWinter; varying vec3 vSeasonW; varying float vSeasonH; varying vec3 vSeasonN;\n' + s.vertexShader.replace(at, `${at}
       #ifdef USE_INSTANCING
+        vSeasonN = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * normal);
         vSeasonW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
         vec3 sip = (modelMatrix * instanceMatrix[3]).xyz; vSeasonH = fract(sin(dot(sip, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
       #else
-        vSeasonW = (modelMatrix * vec4(transformed, 1.0)).xyz; vSeasonH = 0.5;
+        vSeasonN = normalize(mat3(modelMatrix) * normal); vSeasonW = (modelMatrix * vec4(transformed, 1.0)).xyz; vSeasonH = 0.5;
       #endif`);
+    // how much the surface faces up: the lit normal for standard materials, the vertex's world normal for unlit ones (basic:
+    // the billboard bake in world/scatter.js, which has no lighting)
+    const UP = o.basic ? 'normalize(vSeasonN).y' : 'dot(normalize(normal), normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz))';
     let frag = '';
     if (o.veg) frag += 'diffuseColor.rgb = seasonVeg(diffuseColor.rgb);\n';
     if (o.leaf) frag += `{
@@ -264,13 +271,17 @@ export function addSeason(mat, o = {}) {
         diffuseColor.rgb = mix(diffuseColor.rgb, aut * clamp(l, 0.25, 1.0), uAutumn);
       }\n`;
     if (snow) frag += `{
-        vec3 upV = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
-        float up = dot(normalize(normal), upV) + (sNoise(vSeasonW.xz * 2.3) - 0.5) * 0.3 + (sNoise(vSeasonW.xz * 0.35) - 0.5) * 0.2;
+        float up = ${UP} + (sNoise(vSeasonW.xz * 2.3) - 0.5) * 0.3 + (sNoise(vSeasonW.xz * 0.35) - 0.5) * 0.2;
         float sn = uSnow * ${(snow.amount ?? 1).toFixed(3)} * smoothstep(${snow.lo.toFixed(3)}, ${snow.hi.toFixed(3)}, up) * smoothstep(${(snow.minY ?? -1e4).toFixed(3)}, ${((snow.minY ?? -1e4) + 0.12).toFixed(3)}, vSeasonW.y);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.8, 0.84, 0.9) * (0.92 + 0.12 * sNoise(vSeasonW.xz * 9.0)), sn);
-        roughnessFactor = mix(roughnessFactor, 0.75, sn);
+        ${o.basic ? '' : 'roughnessFactor = mix(roughnessFactor, 0.75, sn);'}
       }\n`;
-    s.fragmentShader = SEASON_GLSL + '\n' + s.fragmentShader.replace('#include <lights_physical_fragment>', frag + '#include <lights_physical_fragment>');
+    if (o.ice) frag += `{   // a glaze of ice on what faces up: pale, blue, glossy
+        float ic = uWinter * smoothstep(${o.ice.lo.toFixed(3)}, ${o.ice.hi.toFixed(3)}, ${UP} + (sNoise(vSeasonW.xz * 3.1) - 0.5) * 0.3);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.6, 0.7, 0.8) * (0.85 + 0.25 * sNoise(vSeasonW.xz * 11.0)), ic * 0.72);
+        ${o.basic ? '' : 'roughnessFactor = mix(roughnessFactor, 0.16, ic);'}
+      }\n`;
+    s.fragmentShader = SEASON_GLSL + '\nvarying vec3 vSeasonN;\n' + (o.basic ? s.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + frag) : s.fragmentShader.replace('#include <lights_physical_fragment>', frag + '#include <lights_physical_fragment>'));
   };
   return mat;
 }

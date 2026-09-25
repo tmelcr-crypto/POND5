@@ -46,7 +46,7 @@ export function makeFlame(parent, x, y, z, w, h, seed, amp = 1, gain = 1.5, n = 
 export function createCabin(ctx) {
   const { scene, camera, maxAniso } = ctx;
   const { barkTex, leafTex, softDot } = ctx.tex;
-  const cabin = { fireK: 1, emberK: 1, fireParts: null, lamps: [], glows: [], windows: [], lightsOn: true, door: null, boxes: [], fireLight: null, emberMat: null, sparks: null, smoke: [], hands: null, pendulum: null, group: null };
+  const cabin = { fireK: 1, emberK: 1, fireParts: null, curtains: [], lamps: [], glows: [], windows: [], lightsOn: true, door: null, boxes: [], fireLight: null, emberMat: null, sparks: null, smoke: [], hands: null, pendulum: null, group: null };
   {
     const { FL, R, S, XW, ZW, EAVE, PITCH } = CB;
     const house = new THREE.Group(); house.position.set(HOUSE.x, PAD_H, HOUSE.z); scene.add(house); cabin.group = house;
@@ -226,10 +226,11 @@ export function createCabin(ctx) {
     function candle(parent, x, y, z, h) {
       mk(cyl(0.05, 0.055, 0.012, 20), M.brass, x, y + 0.006, z, parent);
       mk(cyl(0.017, 0.018, h, 14), M.wax, x, y + 0.012 + h / 2, z, parent);
-      flame(parent, x, y + 0.012 + h + 0.003, z, 0.028, 0.058, rng() * 10, 1.6, 1.7, 2);
-      glow(parent, x, y + h + 0.05, z, 0.22, 0xffa050, 0.32);
+      const f = flame(parent, x, y + 0.012 + h + 0.003, z, 0.028, 0.058, rng() * 10, 1.6, 1.7, 2);
+      const g = glow(parent, x, y + h + 0.05, z, 0.22, 0xffa050, 0.32);
+      addLamp({ intensity: 0 }, 0, [f, g], [], 'candle');   // lit and put out with the lamps (and one by one, app/fires.js)
     }
-    const addLamp = (light, base, flames, mats) => { cabin.lamps.push({ light, base, flames, mats }); };
+    const addLamp = (light, base, flames, mats, kind = 'lamp') => { cabin.lamps.push({ light, base, flames, mats, kind }); };
 
     /* ---- walls of logs ---- */
     const logs = [], caps = [];
@@ -558,7 +559,7 @@ export function createCabin(ctx) {
       const lf = flame(lan, 0, -0.028, 0, 0.03, 0.065, 5.5, 1.6, 1.8, 2);
       const lg2 = glow(lan, 0, 0.0, 0, 0.45, 0xffa050, 0.3);
       const L = new THREE.PointLight(0xffb86b, 1.7, 4.8, 1.5); L.position.set(0, 0.0, 0); lan.add(L);
-      addLamp(L, 1.7, [lf, lg2], [pane]);
+      addLamp(L, 1.7, [lf, lg2], [pane], 'lantern');
     }
 
     /* ---- wall clock ---- */
@@ -595,15 +596,18 @@ export function createCabin(ctx) {
     /* ---- curtains ---- */
     function curtains(w, op) {
       const h = op.top - op.bottom + 0.2, yc = (op.top + op.bottom) / 2 + 0.07, off = w.c - w.n * 0.28;
-      const mkPanel = (u) => {
+      const C = { panels: [], t: 0, target: 0, center: w.axis === 'x' ? new V((op.lo + op.hi) / 2, yc, off) : new V(off, yc, (op.lo + op.hi) / 2) };
+      const mid = (op.lo + op.hi) / 2, half = (op.hi - op.lo) / 2;
+      const mkPanel = (u, uc) => {   // open at u; closed it covers its half of the window, centred on uc (app/curtains.js)
         const g = new THREE.PlaneGeometry(0.28, h, 16, 1), p = g.attributes.position;
         for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin((p.getX(i) + 0.14) / 0.28 * Math.PI * 4) * 0.018);
         g.computeVertexNormals();
         const m = new THREE.Mesh(g, M.curtain);
         if (w.axis === 'x') m.position.set(u, yc, off); else { m.position.set(off, yc, u); m.rotation.y = Math.PI / 2; }
-        house.add(m);
+        house.add(m); C.panels.push({ m, u, uc, s: (half + 0.06) / 0.28, axis: w.axis });
       };
-      mkPanel(op.lo - 0.05); mkPanel(op.hi + 0.05);
+      mkPanel(op.lo - 0.05, (op.lo - 0.03 + mid + 0.01) / 2); mkPanel(op.hi + 0.05, (mid - 0.01 + op.hi + 0.03) / 2);
+      cabin.curtains.push(C);
       const rod = new THREE.Mesh(cyl(0.01, 0.01, op.hi - op.lo + 0.5, 8), M.brass);
       if (w.axis === 'x') { rod.rotation.z = Math.PI / 2; rod.position.set((op.lo + op.hi) / 2, yc + h / 2 + 0.01, off); } else { rod.rotation.x = Math.PI / 2; rod.position.set(off, yc + h / 2 + 0.01, (op.lo + op.hi) / 2); }
       house.add(rod);
@@ -629,7 +633,7 @@ export function createCabin(ctx) {
       const pg = glow(pl, 0, -0.02, 0, 0.4, 0xffa050, 0.35);
       const SL2 = new THREE.SpotLight(0xffc27a, 1.7, 7, 1.05, 0.7, 1.4); SL2.position.set(0, -0.02, 0.02); pl.add(SL2);
       const tg = new THREE.Object3D(); tg.position.set(-0.4, -2.1, 1.3); pl.add(tg); SL2.target = tg;
-      addLamp(SL2, 1.7, [pf, pg], [pane]);
+      addLamp(SL2, 1.7, [pf, pg], [pane], 'lantern');
       // bench under the front window
       boxB(-0.72, 0.32, 0.38, 0.45, ZW + 0.36, ZW + 0.66, M.board, 0.6);
       [-0.58, 0.18].forEach(x => { mk(cyl(0.09, 0.1, 0.38, 14), M.logP, x, 0.19, ZW + 0.51); const c = mk(new THREE.CircleGeometry(0.09, 14), M.end, x, 0.382, ZW + 0.51); c.rotation.x = -Math.PI / 2; });
@@ -671,9 +675,15 @@ export function createCabin(ctx) {
     B(XW - TT, XW + TT, -0.6, 3.5, -ZW - 0.28, ZW + 0.28); B(-XW - TT, -XW + TT, -0.6, 3.5, -ZW - 0.28, ZW + 0.28);
     B(-1.62, -1.12, -0.6, 4.3, -0.48, 0.48); B(-1.62, -0.95, -0.6, FL + 1.3, -0.64, 0.64);
   }
+  /** One lamp, candle or lantern on or off (its light, flame and glow, its glass). */
+  function setLamp(L, on) {
+    L.on = on; L.light.intensity = on ? L.base : 0; L.flames.forEach(f => f.visible = on);
+    L.mats.forEach(m => { if (m.userData.basic) m.color.set(on ? 0xfff0c8 : 0x6a6258); else m.emissiveIntensity = on ? m.userData.ei : 0; });
+  }
   function setLights(on) {
     cabin.lightsOn = on;
-    cabin.lamps.forEach(L => { L.light.intensity = on ? L.base : 0; L.flames.forEach(f => f.visible = on); L.mats.forEach(m => { if (m.userData.basic) m.color.set(on ? 0xfff0c8 : 0x6a6258); else m.emissiveIntensity = on ? m.userData.ei : 0; }); });
+    cabin.lamps.forEach(L => setLamp(L, on));
+    dispatchEvent(new CustomEvent('meadow-lights', { detail: on }));   // app/fires.js keeps each lamp's own switch in step
     const b = document.getElementById('lightsBtn'); if (b) { b.textContent = on ? 'On' : 'Off'; b.setAttribute('aria-pressed', String(on)); }
   }
   /** The fireplace's state (app/fires.js): k 0..1 how much it burns (flames, light, sparks), e 0..1 how hot the embers
@@ -687,6 +697,12 @@ export function createCabin(ctx) {
   function toggleDoor() { const d = cabin.door; if (camera.position.distanceTo(d.world) < 2.8) d.target = d.target > 0.5 ? 0 : 1.75; }
   const _sp = new V();
   function cabinUpdate(dt, t) {
+    for (const C of cabin.curtains) {   // curtains sliding open or shut (app/curtains.js sets target)
+      if (C.t === C.target) continue;
+      C.t += Math.sign(C.target - C.t) * Math.min(Math.abs(C.target - C.t), dt * 1.4);
+      const e = C.t * C.t * (3 - 2 * C.t);
+      for (const P of C.panels) { const u = P.u + (P.uc - P.u) * e; if (P.axis === 'x') P.m.position.x = u; else P.m.position.z = u; P.m.scale.x = 1 + (P.s - 1) * e; }
+    }
     const dr = cabin.door; dr.angle += (dr.target - dr.angle) * (1 - Math.exp(-dt * 4)); dr.pivot.rotation.y = dr.angle;
     const wd = U.uWindDir.value, ws = 0.5 + U.uWind.value;
     cabin.smoke.forEach(s => {
@@ -714,5 +730,5 @@ export function createCabin(ctx) {
     cabin.hands.h.rotation.z = -hr / 12 * Math.PI * 2; cabin.hands.m.rotation.z = -mn / 60 * Math.PI * 2; cabin.hands.s.rotation.z = -Math.floor(sc2) / 60 * Math.PI * 2;
     cabin.pendulum.rotation.z = Math.sin(sc2 * Math.PI) * 0.2;
   }
-  return { cabin, setLights, setFire, toggleDoor, update: cabinUpdate };
+  return { cabin, setLights, setLamp, setFire, toggleDoor, update: cabinUpdate };
 }

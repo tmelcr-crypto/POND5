@@ -30,7 +30,7 @@ function displayColor(out, c, exposure) {
 export function createTimeOfDay(ctx) {
   const { renderer, scene, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin, setLights } = ctx, TC = CONFIG.time;
   const sunDir = new V();
-  let SUN = [6, 18, 1];   // sunrise, sunset (hours) and how high the sun climbs: the season's (setSeasonSun)
+  let SUN = [6, 18, 1], SKY = null, OVER = 0;   // OVER: how overcast (world/skyWeather.js), 0 clear .. 1 a storm   // SKY: the season's tint (setSeasonSky), null in summer   // sunrise, sunset (hours) and how high the sun climbs: the season's (setSeasonSun)
   const moonDir = new V(-0.35, 0.72, 0.6).normalize();
   function setSun(hours) {
     const tt = (hours - SUN[0]) / (SUN[1] - SUN[0]), sN = Math.sin(Math.PI * tt), el = Math.max(0.035, sN * 1.05 * SUN[2]), az = Math.PI * clamp(tt, 0, 1);
@@ -47,6 +47,15 @@ export function createTimeOfDay(ctx) {
     const zD = new THREE.Color(0.12, 0.2, 0.42).lerp(new THREE.Color(0.17, 0.38, 0.8), k), hD = new THREE.Color(0.95, 0.56, 0.38).lerp(new THREE.Color(0.66, 0.79, 0.92), k);
     skyUniforms.uZenith.value.setRGB(0.004, 0.008, 0.026).lerp(zD, day);
     skyUniforms.uHorizon.value.setRGB(0.02, 0.03, 0.06).lerp(hD, day);
+    if (SKY) {   // the season's light: winter pale and cool, autumn golden, spring clear
+      skyUniforms.uZenith.value.lerp(SKY.zen, SKY.zenK * day); skyUniforms.uHorizon.value.lerp(SKY.hor, SKY.horK * day * k);
+      sun.color.lerp(SKY.sun, SKY.sunK); sun.intensity *= SKY.sunI; skyUniforms.uSunCol.value.lerp(SKY.sun, SKY.sunK * vis);
+    }
+    if (OVER > 0) {   // grey cloud over everything: a flat grey sky, much less sun, softer light
+      skyUniforms.uZenith.value.lerp(new THREE.Color(0.33, 0.36, 0.4).multiplyScalar(0.25 + 0.75 * day), OVER * 0.85);
+      skyUniforms.uHorizon.value.lerp(new THREE.Color(0.5, 0.53, 0.57).multiplyScalar(0.25 + 0.75 * day), OVER * 0.8);
+      sun.intensity *= 1 - 0.78 * OVER; skyUniforms.uSunCol.value.multiplyScalar(1 - 0.85 * OVER); CLOUD.uCloudStrength.value *= 1 - OVER;
+    }
     skyUniforms.uNight.value = 1 - day;
     hemi.color.copy(skyUniforms.uZenith.value).lerp(new THREE.Color(1, 1, 1), 0.4); hemi.intensity = (0.06 + 0.16 * day + 0.3 * k) * CONFIG.light.hemiIntensity;
     renderer.toneMappingExposure = 0.92 + 0.25 * (1 - k) + 0.3 * (1 - day);
@@ -58,7 +67,7 @@ export function createTimeOfDay(ctx) {
   let envTimer = null;
   function scheduleEnv(now) { clearTimeout(envTimer); if (now) rebuildEnv(); else envTimer = setTimeout(rebuildEnv, 120); envAcc = 0; }
 
-  const clock = { hours: 12, running: true };
+  const clock = { hours: 12, running: true, rate: 1 };   // rate: the time-lapse (app/timelapse.js)
   let sunAcc = 0, envAcc = 0, dark = null;
   const stats = { envMs: 0, envBuilds: 0 };
   function lightsFor(night) { const d = night > 0.5; if (d !== dark) { if (dark !== null && setLights) setLights(d); dark = d; } }
@@ -66,13 +75,22 @@ export function createTimeOfDay(ctx) {
   function setHours(h) { clock.hours = ((h % 24) + 24) % 24; setSun(clock.hours); dark = skyUniforms.uNight.value > 0.5; }
   function update(dt) {
     if (!clock.running) return;
-    clock.hours = (clock.hours + dt * 24 / (TC.dayMinutes * 60)) % 24;
-    sunAcc += dt; envAcc += dt;
-    if (sunAcc >= TC.sunEvery) { sunAcc = 0; setSun(clock.hours); lightsFor(skyUniforms.uNight.value); }
+    clock.hours = (clock.hours + dt * clock.rate * 24 / (TC.dayMinutes * 60)) % 24;
+    sunAcc += dt; envAcc += dt * Math.min(4, clock.rate);
+    if (sunAcc >= TC.sunEvery / clock.rate) { sunAcc = 0; setSun(clock.hours); lightsFor(skyUniforms.uNight.value); }
     const n = skyUniforms.uNight.value, changing = n > 0.02 && n < 0.98;   // dawn and dusk: the sky changes fast
     if (envAcc >= (changing ? TC.envEvery[0] : TC.envEvery[1])) { envAcc = 0; const t0 = performance.now(); rebuildEnv(); stats.envMs = performance.now() - t0; stats.envBuilds++; }
   }
   /** The season's day: [sunrise, sunset, height] (world/seasons.js, CONFIG.seasons.sun). */
+  const SKIES = {
+    winter: { zen: new THREE.Color(0.3, 0.42, 0.62), zenK: 0.45, hor: new THREE.Color(0.82, 0.86, 0.92), horK: 0.4, sun: new THREE.Color(1, 0.97, 0.93), sunK: 0.5, sunI: 0.85 },
+    autumn: { zen: new THREE.Color(0.2, 0.36, 0.7), zenK: 0.2, hor: new THREE.Color(0.98, 0.78, 0.52), horK: 0.3, sun: new THREE.Color(1, 0.84, 0.62), sunK: 0.3, sunI: 1 },
+    spring: { zen: new THREE.Color(0.12, 0.36, 0.92), zenK: 0.25, hor: new THREE.Color(0.7, 0.84, 0.96), horK: 0.2, sun: new THREE.Color(1, 0.98, 0.94), sunK: 0.2, sunI: 1.03 },
+  };
+  /** How overcast the sky is, 0..1 (world/skyWeather.js). */
+  function setOvercast(k) { if (Math.abs(k - OVER) < 0.01 && k !== 0) return; OVER = k; setSun(clock.hours); }
+  /** The season's sky and light (world/seasons.js); summer keeps the scene's own. */
+  function setSeasonSky(s) { SKY = SKIES[s] || null; setSun(clock.hours); }
   function setSeasonSun(s) { SUN = s; setSun(clock.hours); dark = skyUniforms.uNight.value > 0.5; }
-  return { setSun, scheduleEnv, clock, setHours, update, stats, setSeasonSun };
+  return { setSun, scheduleEnv, clock, setHours, update, stats, setSeasonSun, setSeasonSky, setOvercast, get overcast() { return OVER; } };
 }
