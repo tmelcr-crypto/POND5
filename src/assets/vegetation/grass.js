@@ -41,7 +41,7 @@ export function createGrass(ctx) {
       if (rng() > p) continue;
       const tall = (0.16 + 0.27 * rng()) * (0.75 + 0.55 * clamp(patch + 0.5)) * (0.6 + 0.4 * smooth(0.02, 0.2, above)) * (0.65 + 0.35 * smooth(0.5, 1.8, dc));
       off[n * 4] = x; off[n * 4 + 1] = H(x, z) - 0.01; off[n * 4 + 2] = z; off[n * 4 + 3] = rng() * Math.PI * 2;
-      scl[n * 3] = rr(0.03, 0.058); const fp = footpathDist(x, z); scl[n * 3 + 1] = streamDist(x, z) < 0.12 || fp < 0.01 || chestDist(x, z) < 0.04 ? 0 : tall * (0.3 + 0.7 * smooth(0.01, 0.45, fp)); scl[n * 3 + 2] = rr(0.3, 1.3);   // (none in the stream or on the path stones, shorter around them)
+      scl[n * 3] = rr(0.03, 0.058); const fp = footpathDist(x, z); const cd = chestDist(x, z); scl[n * 3 + 1] = streamDist(x, z) < 0.12 || fp < 0.01 || cd < 0.2 ? 0 : tall * (0.3 + 0.7 * smooth(0.01, 0.45, fp)) * (0.35 + 0.65 * smooth(0.2, 0.6, cd));   // none in or right by a chest (they sway), shorter around it scl[n * 3 + 2] = rr(0.3, 1.3);   // (none in the stream or on the path stones, shorter around them)
       tc.copy(tA).lerp(tB, clamp(rng() * 0.8 + patch * 0.6 + 0.2)); if (rng() < 0.07) tc.lerp(tDry, 0.7);
       tc.multiplyScalar(0.85 + rng() * 0.3);
       tint[n * 3] = tc.r; tint[n * 3 + 1] = tc.g; tint[n * 3 + 2] = tc.b;
