@@ -171,6 +171,18 @@ export const CONFIG = {
     sun: { spring: [6, 18, 0.85], summer: [5, 19, 1], autumn: [6.5, 17.5, 0.75], winter: [8, 16, 0.5] },
   },
 
+  // The weather (world/skyWeather.js): chances per in-game hour of clear sky, by season
+  weather: {
+    rain: { spring: 0.07, summer: 0.04, autumn: 0.1, winter: 0.06 },     // clear -> rain (snow in winter)
+    storm: { spring: 0.2, summer: 0.4, autumn: 0.2, winter: 0 },         // of the rain, how much is a thunderstorm
+    rainHours: [1, 4], clearHold: [3, 8],                                 // in-game hours
+    fogChance: { spring: 0.2, summer: 0.08, autumn: 0.45, winter: 0.25 }, fogThick: 4,   // a fog morning; how much thicker
+    flashEvery: [7, 22],                                                  // s between lightning flashes in a storm
+    rainLevel: 0.22, thunderLevel: 0.5,                                   // of the master volume
+    rainbowChance: 0.7, rainbowHours: [0.4, 0.8], rainbowRadius: 110,
+    aurora: { chance: 0.6, radius: 125, height: 70, y: 55, arc: 2.2 },    // the northern lights: share of clear winter nights, the sky band
+  },
+
   // Lighting and putting out fires (app/fires.js)
   fire: {
     reach: 2.4, cone: 0.7,         // m from the fire, and how near the middle of the view it must be (rad)

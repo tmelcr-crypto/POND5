@@ -20,6 +20,7 @@ import { createTimeOfDay } from './world/timeOfDay.js';
 import { createSeasons } from './world/seasons.js';
 import { createSeasonLooks } from './world/seasonLooks.js';
 import { createWeather } from './world/weather.js';
+import { createSkyWeather } from './world/skyWeather.js';
 import { createPond, createOcean } from './assets/water/pond.js';
 import { createGrass } from './assets/vegetation/grass.js';
 import { createSpruce } from './assets/trees/spruce.js';
@@ -151,7 +152,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); dynRes.update(rawDt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
+  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
@@ -212,12 +213,13 @@ const timelapse = createTimelapse({ st, clock });   // hold to let time run whil
 const dynRes = createDynamicRes(renderer);   // softer when the frame rate drops, sharper when there is room
 const seasonLooks = createSeasonLooks(scene, seasons);   // the season's colours, snow and what comes and goes (before finalizeScene)
 const weather = createWeather(ctx, { apples: scatter.apple });   // snowfall, autumn leaves, spring blossom
+const skyWeather = createSkyWeather({ scene: ctx.scene, camera: ctx.camera, clock, seasons, tod, atmosphere, weather, fires, ambience, sun });   // rain, storms, fog days, rainbow, northern lights
 let bakedFor = 'summer';   // the far trees' billboards are baked as they look in summer; again for each season
 seasons.on(s => { if (s !== bakedFor) { bakedFor = s; scatter.rebake(s); } items.season(s); moments.setSeason(s); weather.setSeason(s); birds.setSeason(s); ambience.setBirdShare({ autumn: 0.55, winter: 0.12 }[s] ?? 1); tod.setSeasonSky(s); });   // what can be picked
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);

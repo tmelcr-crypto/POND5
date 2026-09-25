@@ -123,15 +123,17 @@ export function createAtmosphere(ctx) {
     if (wins.length) { const bx = new THREE.Box3(); wins.forEach(w => bx.expandByPoint(w.c)); detail.band('moths', { min: bx.min, max: bx.max }, MO.band, b => { on.moths = b; }); }
   }
 
-  let t = 0;
+  let t = 0, fogK = 1;
   const sunC = new THREE.Color();
   return {
     stats, mist, star, moths,
+    /** Extra fog on top of the hour's haze (world/skyWeather.js): 1 none. */
+    setFog(k) { fogK = k; },
     update(dt) {
       t += dt;
       const h = clock.hours, night = skyUniforms.uNight.value;
       // haze
-      if (scene.fog) { scene.fog.density = CONFIG.fog.density * hazeAt(h); stats.fog = scene.fog.density; }
+      if (scene.fog) { scene.fog.density = CONFIG.fog.density * hazeAt(h) * fogK; stats.fog = scene.fog.density; }   // fogK: fog days and rain (world/skyWeather.js)
       // mist
       const MH = A.mist.hours, env = smooth(MH[0], MH[1], h) * (1 - smooth(MH[2], MH[3], h));
       stats.mist = env;

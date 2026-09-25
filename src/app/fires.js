@@ -79,6 +79,8 @@ export function createFires({ st, inventory, scene, camera, softDot }) {
       return f;
     },
     toggle,
+    /** Put out every burning fire whose id starts with prefix (rain on the firepits, world/skyWeather.js). */
+    douse(prefix) { let n = 0; fires.forEach(f => { if (f.id.startsWith(prefix) && f.lit) { f.lit = false; n++; } }); if (n) { save(); shown = null; } return n; },
     /** Lamps switched all together (the Cabin lights, dusk): their own switches follow. */
     setAll(prefix, on) { fires.forEach(f => { if (f.id.startsWith(prefix)) f.lit = on; }); shown = null; },
     update(dt) {
