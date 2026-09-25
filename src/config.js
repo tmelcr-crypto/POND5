@@ -188,6 +188,7 @@ export const CONFIG = {
     maxThrown: 16,                 // thrown things lying about (the oldest goes)
     respawn: 24,                   // in-game hours before what you took is back
     rosePetals: 3,                 // petals a rose bush gives a day
+    pileSticks: 10,                // sticks a firepit's woodpile gives a day
   },
 
   // Storage chests (app/chestUI.js)

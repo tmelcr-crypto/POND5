@@ -21,7 +21,7 @@ export const AMB = {
   ocean: { level: 0.75, waveEvery: [6.5, 11], near: -4, far: 26, inland: 0.1, file: null },
   stream: { level: 0.135, range: [0.5, 12], rush: 0.075, babbleEvery: [0.04, 0.13], band: 16 },   // the stream: babble, and a rush by the rapids
   pond: { enabled: false, level: 1.5, range: [1, 13], lapEvery: [0.35, 1.3], plipEvery: [1.5, 5], band: 16, file: null },
-  fire: { level: 1.3, range: [0.8, 7], outside: [1.2, 4.5], outsideLevel: 0.15, wallCutoff: 1500, crackles: 9, band: 18 },
+  fire: { level: 1.3, range: [0.8, 7], outside: [1.2, 4.5], outsideLevel: 0.15, wallCutoff: 1500, crackles: 9, band: 18, open: [1.2, 13], openLevel: 0.85 },   // open: an outdoor fire (the firepits), heard unmuffled
   birds: {
     level: 0.22, night: [0.2, 0.65], file: null,
     flock: ['blackbird', 'blackbird', 'chaffinch', 'greattit', 'robin', 'chiffchaff', 'woodpigeon'],   // one singer each (SONGS)
@@ -324,7 +324,7 @@ export function createAmbienceGraph(ac) {
       glide(oceanG.gain, A.ocean.level * m.ocean, t, 0.5);
       if (pond) glide(pond.g.gain, A.pond.level * m.pond, t, 0.3);
       if (stream) { glide(stream.g.gain, A.stream.level * (m.stream || 0), t, 0.3); glide(stream.rush.gain, A.stream.rush * (m.streamRapid || 0), t, 0.5); }
-      if (fire) { glide(fire.g.gain, A.fire.level * m.fire, t, 0.3); glide(fire.wall.frequency, m.inside ? OPEN : A.fire.wallCutoff, t, 0.2); }
+      if (fire) { glide(fire.g.gain, A.fire.level * m.fire, t, 0.3); glide(fire.wall.frequency, m.inside || m.fireOpen ? OPEN : A.fire.wallCutoff, t, 0.2); }
       glide(birdBus.gain, A.birds.level * m.birds, t, 1); glide(cricketBus.gain, A.crickets.level * m.crickets, t, 1);
       glide(boatBus.gain, A.boat.level * m.boat, t, 0.3);
       glide(indoorLP.frequency, m.inside ? A.indoor.cutoff : OPEN, t, 0.15); glide(outdoor.gain, m.inside ? A.indoor.level : 1, t, 0.15);
@@ -352,7 +352,7 @@ export function createAmbienceGraph(ac) {
       if (fire) {
         if (nextCrackle < t0) nextCrackle = t0;
         while (nextCrackle < t1) {
-          const t = nextCrackle, s = ac.createBufferSource(), pop = mix.inside && Math.random() < 0.1, dur = pop ? rr(0.01, 0.03) : rr(0.003, 0.02), g = gain(0);   // pops: a sharp snap, only heard inside
+          const t = nextCrackle, s = ac.createBufferSource(), pop = (mix.inside || mix.fireOpen) && Math.random() < 0.1, dur = pop ? rr(0.01, 0.03) : rr(0.003, 0.02), g = gain(0);   // pops: a sharp snap, only heard inside
           s.buffer = white; chain(s, filt('bandpass', pop ? rr(900, 1800) : rr(1500, 5000), 0.9), g, fire.bus);
           g.gain.setValueAtTime(pop ? rr(0.4, 0.7) : rr(0.15, 0.6), t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
           s.start(t, Math.random() * 3.5, dur + 0.01);
@@ -402,13 +402,16 @@ export function createAmbience(ctx) {
   const fireAt = { x: 0, y: 0, z: 0 };
   if (cabin && cabin.fireLight) { cabin.fireLight.updateWorldMatrix(true, false); const e = cabin.fireLight.matrixWorld.elements; fireAt.x = e[12]; fireAt.y = e[13]; fireAt.z = e[14]; }
   const want = { pond: false, fire: false, stream: false };
+  // the fires heard: the fireplace first, then any outdoor fire added with addFire(); level: how much each burns (app/fires.js)
+  const fires = [{ at: fireAt, level: 1, open: false }], fireBands = new Set();
+  const fireBand = i => on => { if (on) fireBands.add(i); else fireBands.delete(i); const w = fireBands.size > 0; if (w === want.fire) return; want.fire = w; if (g) { if (w) g.startFire(); else g.stopFire(); } };
 
   // detail-manager bands: the pond and fire layers only exist near the pond / cabin
   if (detail) {
     const V3 = camera.position.constructor;
     if (A.pond.enabled) detail.band('pond sound', { min: new V3(LAKE.x - 2.4, -1, LAKE.z - 2.4), max: new V3(LAKE.x + 2.4, 1, LAKE.z + 2.4) }, A.pond.band, on => { want.pond = on; if (g) { if (on) g.startPond(); else g.stopPond(); } });
     { const xs = STREAM.pts.map(q => q.x), zs = STREAM.pts.map(q => q.z); detail.band('stream sound', { min: new V3(Math.min(...xs), -2, Math.min(...zs)), max: new V3(Math.max(...xs), 2, Math.max(...zs)) }, A.stream.band, on => { want.stream = on; if (g) { if (on) g.startStream(); else g.stopStream(); } }); }
-    detail.band('fire sound', { min: new V3(fireAt.x, fireAt.y, fireAt.z) }, A.fire.band, on => { want.fire = on; if (g) { if (on) g.startFire(); else g.stopFire(); } });
+    detail.band('fire sound', { min: new V3(fireAt.x, fireAt.y, fireAt.z) }, A.fire.band, fireBand(0));
   } else { want.pond = A.pond.enabled; want.fire = want.stream = true; }
 
   function applyVolume() { if (g) g.master.gain.setTargetAtTime(muted ? 0 : volume, ac.currentTime, 0.05); }
@@ -441,20 +444,28 @@ export function createAmbience(ctx) {
   showUI();
 
   const fwd = new camera.position.constructor(), stats = { updateMs: 0, running: false };
-  let fireLevel = 1;   // how much the fireplace burns (app/fires.js): 0 out, silent
   return {
     stats,
     /** The running audio context and the master gain (for short effects elsewhere, e.g. app/items.js), or null. */
-    /** How much the fireplace burns, 0..1 (app/fires.js). */
-    setFireLevel(k) { fireLevel = k; },
+    /** How much fire i burns, 0..1 (app/fires.js; 0 the fireplace). */
+    setFireLevel(k, i = 0) { fires[i].level = k; },
+    /** An outdoor fire at `at` ({ x, y, z }): heard near it while it burns. Returns its index for setFireLevel. */
+    addFire(at) {
+      const i = fires.push({ at: { x: at.x, y: at.y, z: at.z }, level: 0, open: true }) - 1;
+      if (detail) detail.band('fire sound ' + i, { min: new camera.position.constructor(at.x, at.y, at.z) }, A.fire.band, fireBand(i)); else fireBand(i)(true);
+      return i;
+    },
     get audio() { return ac && g && ac.state === 'running' ? { ac, out: g.master } : null; },
     update(dt) {
       if (!ac || ac.state !== 'running') { stats.running = false; return; }
       stats.running = true; acc += dt; if (acc < A.update) return; acc = 0;
       const t0 = performance.now(), t = ac.currentTime, p = camera.position, onBoat = !!(ctx.boat && ctx.boat.onBoard);
-      const m = mixAt(p, skyUniforms.uNight.value, U.uWind.value, fireAt, onBoat); m.fire *= fireLevel;
+      const m = mixAt(p, skyUniforms.uNight.value, U.uWind.value, fireAt, onBoat); m.fire *= fires[0].level;
+      let src = fires[0];   // the loudest fire is the one heard
+      for (let i = 1; i < fires.length; i++) { const f = fires[i]; if (f.level <= 0) continue; const l = f.level * A.fire.openLevel * (1 - smooth(A.fire.open[0], A.fire.open[1], Math.hypot(p.x - f.at.x, p.y - f.at.y, p.z - f.at.z))); if (l > m.fire) { m.fire = l; src = f; } }
+      m.fireOpen = src.open;
       g.setMix(m, t); g.schedule(t, t + A.lookahead);
-      camera.getWorldDirection(fwd); g.setListener(p, fwd, t); g.setPond(p, t); g.setFire(fireAt, t); g.setStream(m, t);
+      camera.getWorldDirection(fwd); g.setListener(p, fwd, t); g.setPond(p, t); g.setFire(src.at, t); g.setStream(m, t);
       stats.updateMs = performance.now() - t0;
     },
   };
