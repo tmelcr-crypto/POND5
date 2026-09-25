@@ -111,6 +111,10 @@ body.touch.playing #touchHelp{display:block}
 /* fires (app/fires.js): the cost on the light button, the note when you lack it */
 #btnFire{position:relative}#btnFire .cost{position:absolute;right:5px;bottom:3px;font-size:.8rem;font-weight:700;color:#ffd79a}
 #fireNote{position:fixed;left:50%;top:62%;transform:translateX(-50%);padding:9px 16px;border-radius:12px;font-size:.95rem;z-index:4;pointer-events:none;white-space:nowrap}#fireNote.hide{display:none}
+/* body (app/body.js): the hunger bar under the quick slots, frost round the screen's edges */
+#hungerBar{position:fixed;top:calc(84px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);width:120px;height:5px;border-radius:3px;background:rgba(20,24,18,.45);overflow:hidden;z-index:4;pointer-events:none}
+#hungerBar .fill{display:block;height:100%;background:#e9c46a;transition:width .6s}#hungerBar.low .fill{background:#d9824a}body:not(.playing) #hungerBar{display:none}
+#frost{position:fixed;inset:0;pointer-events:none;z-index:2;opacity:0;background-size:100% 100%;-webkit-mask-image:radial-gradient(ellipse at center,transparent 45%,#000 85%);mask-image:radial-gradient(ellipse at center,transparent 45%,#000 85%)}
 /* fishing (app/fishing.js): the strike button pulses */
 #btnFish.pulse{animation:fishPulse .45s ease-in-out infinite alternate;color:#ffd79a}@keyframes fishPulse{to{transform:scale(1.12)}}
 /* cooking (app/cooking.js): the ring round the food, the Cook button */

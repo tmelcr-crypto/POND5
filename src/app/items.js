@@ -218,7 +218,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   function use(kind) {
     const K = KINDS[kind], busy = st.aboard || st.seat || st.inBed;
     camera.getWorldDirection(dir);
-    if (K.use === 'eat') { sfx('crunch'); return true; }
+    if (K.use === 'eat') { sfx('crunch'); dispatchEvent(new CustomEvent('meadow-eat', { detail: kind })); return true; }   // app/body.js fills the hunger bar
     if (K.hint) { const n = document.getElementById('fireNote'); if (n) { n.textContent = K.hint; n.classList.remove('hide'); clearTimeout(use.t); use.t = setTimeout(() => n.classList.add('hide'), 2200); } return false; }   // cook it first / a keepsake
     if (K.use === 'throw') {
       const m = model(kind), p = camera.position.clone().addScaledVector(dir, 0.35); p.y -= 0.12; m.position.copy(p);

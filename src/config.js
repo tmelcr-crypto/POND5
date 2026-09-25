@@ -178,6 +178,19 @@ export const CONFIG = {
     embers: 45,                    // s the embers keep glowing (and the chimney smoking) after it is out
   },
 
+  // How the body feels, shown only (app/body.js)
+  body: {
+    perDay: 0.75, floor: 0.25,     // hunger bar: drain per in-game day, never below this
+    food: { apple: 0.15, berry: 0.08, bakedApple: 0.3, grilledFish: 0.4 },   // how much each fills it
+    warm: ['bakedApple', 'grilledFish'],   // cooked food that warms you
+    grace: 60, freeze: 180, melt: 25,      // s outdoors in winter before frost starts; s to full frost; s to melt it
+    fireWarm: 3.5,                 // m from a burning fire that warms you
+  },
+
+  // Footsteps (audio/footsteps.js) and the soundtrack (audio/music.js)
+  steps: { stride: 0.72, level: 0.09 },   // m between steps; loudness (subtle, under the ambience)
+  music: { level: 0.16, play: [2, 4], rest: [1, 3] },   // of the master volume (the nature sounds stay in front); minutes on / off
+
   // Fishing from the jetty's head or the anchored boat (app/fishing.js)
   fishing: {
     cast: 6, depth: 0.5,           // m out the float lands; water it needs under it
