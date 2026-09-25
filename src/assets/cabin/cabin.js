@@ -15,7 +15,7 @@ import { HOUSE, PAD_H, CB, roofY } from '../../world/layout.js';
 export function createCabin(ctx) {
   const { scene, camera, maxAniso } = ctx;
   const { barkTex, leafTex, softDot } = ctx.tex;
-  const cabin = { lamps: [], glows: [], windows: [], lightsOn: true, door: null, boxes: [], fireLight: null, emberMat: null, sparks: null, smoke: [], hands: null, pendulum: null, group: null };
+  const cabin = { fireK: 1, emberK: 1, fireParts: null, lamps: [], glows: [], windows: [], lightsOn: true, door: null, boxes: [], fireLight: null, emberMat: null, sparks: null, smoke: [], hands: null, pendulum: null, group: null };
   {
     const { FL, R, S, XW, ZW, EAVE, PITCH } = CB;
     const house = new THREE.Group(); house.position.set(HOUSE.x, PAD_H, HOUSE.z); scene.add(house); cabin.group = house;
@@ -354,10 +354,11 @@ export function createCabin(ctx) {
     lg(-1.26, FL + 0.18, 0, Math.PI / 2, 0, 0.1, 0.05, 0.44);
     lg(-1.18, FL + 0.19, 0.02, Math.PI / 2, 0.5, 0.05, 0.045, 0.4);
     lg(-1.25, FL + 0.27, -0.02, Math.PI / 2, -0.6, 0.35, 0.04, 0.38);
-    flame(house, -1.23, FL + 0.15, 0, 0.36, 0.46, 1.0, 1, 1.45, 3);
-    flame(house, -1.2, FL + 0.16, 0.12, 0.2, 0.3, 7.0, 1.2, 1.3, 2);
-    flame(house, -1.2, FL + 0.16, -0.12, 0.2, 0.28, 13.0, 1.15, 1.3, 2);
-    glow(house, -1.15, FL + 0.35, 0, 0.9, 0xff7a30, 0.32);
+    const fireFlames = [flame(house, -1.23, FL + 0.15, 0, 0.36, 0.46, 1.0, 1, 1.45, 3),
+      flame(house, -1.2, FL + 0.16, 0.12, 0.2, 0.3, 7.0, 1.2, 1.3, 2),
+      flame(house, -1.2, FL + 0.16, -0.12, 0.2, 0.28, 13.0, 1.15, 1.3, 2)];
+    const fireGlow = glow(house, -1.15, FL + 0.35, 0, 0.9, 0xff7a30, 0.32);
+    cabin.fireParts = { flames: fireFlames, glow: fireGlow, hearth: new V(-1.23, FL + 0.2, 0) };   // for setFire (app/fires.js lights and puts it out)
     const fireLight = new THREE.PointLight(0xff8a3a, 2.8, 6, 1.6); fireLight.position.set(-0.92, FL + 0.42, 0); house.add(fireLight);
     if (!isTouch) { fireLight.castShadow = true; fireLight.shadow.mapSize.set(512, 512); fireLight.shadow.camera.near = 0.05; fireLight.shadow.camera.far = 5; fireLight.shadow.bias = -0.004; }
     cabin.fireLight = fireLight;
@@ -669,6 +670,14 @@ export function createCabin(ctx) {
     cabin.lamps.forEach(L => { L.light.intensity = on ? L.base : 0; L.flames.forEach(f => f.visible = on); L.mats.forEach(m => { if (m.userData.basic) m.color.set(on ? 0xfff0c8 : 0x6a6258); else m.emissiveIntensity = on ? m.userData.ei : 0; }); });
     const b = document.getElementById('lightsBtn'); if (b) { b.textContent = on ? 'On' : 'Off'; b.setAttribute('aria-pressed', String(on)); }
   }
+  /** The fireplace's state (app/fires.js): k 0..1 how much it burns (flames, light, sparks), e 0..1 how hot the embers
+   *  still are after it went out (their glow, the chimney smoke). The flicker in update() rides on top of these. */
+  function setFire(k, e) {
+    cabin.fireK = k; cabin.emberK = e; const F = cabin.fireParts;
+    F.flames.forEach((g, i) => { const s = Math.min(1, k * (1.4 - i * 0.2)); g.visible = s > 0.01; g.scale.set(0.45 + 0.55 * s, Math.max(0.01, s), 0.45 + 0.55 * s); });
+    F.glow.visible = k > 0.01; F.glow.material.opacity = 0.32 * k;
+    cabin.fireLight.intensity = 2.8 * 0.85 * k; cabin.emberMat.emissiveIntensity = 1.05 * Math.max(k, 0.45 * e * e);
+  }
   function toggleDoor() { const d = cabin.door; if (camera.position.distanceTo(d.world) < 2.8) d.target = d.target > 0.5 ? 0 : 1.75; }
   const _sp = new V();
   function cabinUpdate(dt, t) {
@@ -678,17 +687,18 @@ export function createCabin(ctx) {
       s.u += dt * 0.085; if (s.u > 1) s.u -= 1; const u = s.u;
       s.sp.position.set(s.top.x + wd.x * u * 1.8 * ws + Math.sin(u * 6 + s.ph) * 0.1, s.top.y + u * 2.6, s.top.z + wd.y * u * 1.8 * ws + Math.cos(u * 5 + s.ph) * 0.1);
       const sc = 0.3 + 1.3 * u; s.sp.scale.set(sc, sc, 1);
-      s.sp.material.opacity = 0.3 * Math.sin(Math.PI * Math.min(1, u * 1.25)) * cabin.smokeF; s.sp.material.rotation = s.ph + u * 1.5;
+      s.sp.material.opacity = 0.3 * Math.sin(Math.PI * Math.min(1, u * 1.25)) * cabin.smokeF * Math.max(cabin.fireK, cabin.emberK); s.sp.material.rotation = s.ph + u * 1.5;
     });
     if (cabin.detailNear === false) return;   // far from the cabin (detail manager): fire flicker, sparks, clock paused
     const f = 0.82 + 0.1 * Math.sin(t * 9.1) + 0.06 * Math.sin(t * 15.3 + 1.3) + 0.05 * Math.sin(t * 23.7 + 0.4) + 0.04 * (Math.random() - 0.5);
-    cabin.fireLight.intensity = 2.8 * f;
-    cabin.emberMat.emissiveIntensity = 1.0 + (f - 0.8) * 2.5;
+    const fk = cabin.fireK, ek = Math.max(fk, 0.45 * cabin.emberK * cabin.emberK);   // lit (flames) and glowing (embers), app/fires.js
+    cabin.fireLight.intensity = 2.8 * f * fk;
+    cabin.emberMat.emissiveIntensity = (1.0 + (f - 0.8) * 2.5) * ek;
     cabin.glows.forEach(g => { const k = 0.9 + 0.12 * Math.sin(t * 11 + g.ph) + 0.05 * Math.sin(t * 23 + g.ph * 2); g.s.scale.set(g.size * k, g.size * k, 1); });
     const sp = cabin.sparks, pa = sp.pts.geometry.attributes.position;
     for (let i = 0; i < sp.life.length; i++) {
       sp.life[i] -= dt;
-      if (sp.life[i] <= 0) { if (Math.random() < 0.03) { sp.life[i] = rr(0.4, 1.2); pa.setXYZ(i, -1.24 + rr(-0.08, 0.08), sp.FL + 0.2, rr(-0.12, 0.12)); sp.vel[i].set(rr(-0.06, 0.1), rr(0.35, 0.8), rr(-0.08, 0.08)); } else { pa.setY(i, -50); continue; } }
+      if (sp.life[i] <= 0) { if (Math.random() < 0.03 * cabin.fireK) { sp.life[i] = rr(0.4, 1.2); pa.setXYZ(i, -1.24 + rr(-0.08, 0.08), sp.FL + 0.2, rr(-0.12, 0.12)); sp.vel[i].set(rr(-0.06, 0.1), rr(0.35, 0.8), rr(-0.08, 0.08)); } else { pa.setY(i, -50); continue; } }
       const y = pa.getY(i) + sp.vel[i].y * dt; sp.vel[i].x += Math.sin(t * 7 + i) * dt * 0.3;
       if (y > sp.FL + 0.8) { sp.life[i] = 0; pa.setY(i, -50); continue; }
       pa.setXYZ(i, pa.getX(i) + sp.vel[i].x * dt, y, pa.getZ(i) + sp.vel[i].z * dt);
@@ -698,5 +708,5 @@ export function createCabin(ctx) {
     cabin.hands.h.rotation.z = -hr / 12 * Math.PI * 2; cabin.hands.m.rotation.z = -mn / 60 * Math.PI * 2; cabin.hands.s.rotation.z = -Math.floor(sc2) / 60 * Math.PI * 2;
     cabin.pendulum.rotation.z = Math.sin(sc2 * Math.PI) * 0.2;
   }
-  return { cabin, setLights, toggleDoor, update: cabinUpdate };
+  return { cabin, setLights, setFire, toggleDoor, update: cabinUpdate };
 }

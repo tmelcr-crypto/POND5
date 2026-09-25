@@ -162,6 +162,14 @@ export const CONFIG = {
     strength: [0.2, 1.6, 0.7],     // range, and the power on a uniform random number (< 1 leans strong: mean ~1.0)
   },
 
+  // Lighting and putting out fires (app/fires.js)
+  fire: {
+    reach: 2.4, cone: 0.7,         // m from the fire, and how near the middle of the view it must be (rad)
+    catch: 4,                      // s from a spark to a full fire
+    out: 1.6,                      // s for the flames to die down
+    embers: 45,                    // s the embers keep glowing (and the chimney smoking) after it is out
+  },
+
   // Sleeping in the cabin's bed (app/sleeping.js)
   sleep: {
     reach: 2.6, cone: 0.6,         // m from the bed, and how near the middle of the view it must be (rad)

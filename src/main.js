@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { isTouch } from './core/env.js';
 import { U } from './core/uniforms.js';
-import { WATER_Y, SEA_Y } from './world/layout.js';
+import { WATER_Y, SEA_Y, HOUSE, CB } from './world/layout.js';
 import { createEngine } from './engine/createEngine.js';
 import { finalizeScene } from './engine/finalizeScene.js';
 import { mergeStatic } from './engine/mergeStatic.js';
@@ -49,6 +49,7 @@ import { createInventory } from './app/inventory.js';
 import { createItems } from './app/items.js';
 import { createChests } from './assets/cabin/chest.js';
 import { createChestUI } from './app/chestUI.js';
+import { createFires } from './app/fires.js';
 import { createControls } from './app/controls.js';
 import { createDebugOverlay } from './app/debugOverlay.js';
 
@@ -87,7 +88,7 @@ await step(14);
 const plotOutcrop = added(() => createRockOutcrop(ctx)).objs;
 const plotRose = added(() => createRoseBush(ctx)).objs;
 await step(20);
-const { cabin, setLights, toggleDoor, update: updateCabin } = createCabin(ctx);
+const { cabin, setLights, setFire, toggleDoor, update: updateCabin } = createCabin(ctx);
 const { pollen, update: updatePollen } = createPollen(ctx);
 const plotObjects = ctx.scene.children.length;
 await step(25);
@@ -133,7 +134,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); wind.update(); items.update(dt); chestUI.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
+  tod.update(dt); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
@@ -166,10 +167,15 @@ const inventory = createInventory({ st });   // the four quick slots and the Use
 const items = createItems({ scene: ctx.scene, camera: ctx.camera, st, clock, inventory, ambience, waterLife, moments, undergrowth, stream, forage, softDot: ctx.tex.softDot }); addTakeover(items.pickUpdate);   // picking up and using
 const chests = createChests(ctx);   // the storage chest by the woodpile
 const chestUI = createChestUI({ camera: ctx.camera, st, inventory, items, chests }); addTakeover(chestUI.hold);   // opening it, the storage screen
+const fires = createFires({ st });   // lighting and putting out fires: the cabin's fireplace (any other fire: one more add)
+{
+  const hearth = cabin.fireLight.parent; hearth.updateWorldMatrix(true, false);
+  fires.add({ id: 'fireplace', at: hearth.localToWorld(cabin.fireParts.hearth.clone()), near: p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW, set: (k, e) => { setFire(k, e); ambience.setFireLevel(k); } });
+}
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);
