@@ -194,7 +194,7 @@ const fires = createFires({ st, inventory, scene: ctx.scene, camera: ctx.camera,
   // every lamp, candle and lantern, on its own (#56); inside the cabin only from inside
   const inCabin = p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW;
   cabin.lamps.forEach((L, i) => {
-    const o = L.flames[0]; o.updateWorldMatrix(true, false); const at = o.getWorldPosition(new THREE.Vector3()); if (L.kind !== 'candle') at.y += 0.05;
+    const o = L.flames[0] || L.light; o.updateWorldMatrix(true, false); const at = o.getWorldPosition(new THREE.Vector3()); if (L.kind !== 'candle') at.y += 0.05;   // (the table lamp has no flame: its bulb's light)
     const inside = inCabin(at);
     fires.add({ id: 'lamp-' + i, at, label: L.kind, small: L.kind === 'candle', reach: 2.2, quick: true, save: false, lit0: cabin.lightsOn, near: p => inside === inCabin(p), set: k => setLamp(L, k > 0.5) });
   });
