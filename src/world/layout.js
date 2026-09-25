@@ -266,6 +266,8 @@ const FOOTPATH_ROUTES = [
   // off the sunset path north through the open strip west of the plot to the forest firepit (route picked offline round
   // every tree and rock; it ends between two of the logs)
   { course: [[-9, -15.5], [-9.5, -13], [-9.5, -10.5], [-11, -8], [-12, -5.5], [-12, -3], [-12, -0.5], [-12, 2], [-12, 4.5], [-12.5, 7], [-13, 9.5], [-14.5, 12], [-16.5, 14], [-18.5, 16.5], [-19.7, 17.0]], from: 0.6 },
+  // off the forest path east into the meadow, to the well and the garden (clear of every tree, rock and bush; picked offline)
+  { course: [[-12.0, 4.75], [-11.0, 5.05], [-10.0, 5.6], [-9.0, 6.3], [-8.0, 6.75]], from: 0.6 },
 ];
 export const FOOTPATH = (() => {
   let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }, rr = (a, b) => a + (b - a) * rnd();
@@ -338,8 +340,9 @@ export function firepitDist(x, z) {
   return d;
 }
 /*
- * Signposts at the three forks of the paths (#19; meshes: assets/cabin/signposts.js): by the bridge, where the jetty path
- * leaves the sunrise path, and where the forest path leaves the sunset path, each in the fork, clear of the path stones,
+ * Signposts at the forks of the paths (#19; meshes: assets/cabin/signposts.js): by the bridge, where the jetty path leaves
+ * the sunrise path, where the forest path leaves the sunset path and where the garden path leaves the forest path, each
+ * in the fork, clear of the path stones,
  * trees and rocks (sites picked offline). A board's `way`: the points along the paths from the sign to the place; the
  * board points at the way a few metres on, and says how far it is in all (to the metre under 20 m, else to 5 m).
  */
@@ -366,7 +369,13 @@ export const SIGNS = [
     { text: 'Sunset bench', way: onFrom(course(2), -10, -16.0) },
     { text: 'Hill fire', way: [...upTo(onFrom(course(2), -10, -16.0), -19.5, -16.4), pitAt('hill')] },
     { text: 'Cabin', way: [...rev(upTo(course(2), -10, -16.0)), ...toCabin] },
+    { text: 'Garden & well', way: [...upTo(course(4), -12, 4.5), ...course(5)] },
   ] },
+  { x: -11.4, z: 5.85, boards: [   // where the garden path leaves the forest path
+    { text: 'Garden & well', way: onFrom(course(5), -11.0, 5.05) },
+    { text: 'Forest fire', way: [...onFrom(course(4), -12.5, 7), pitAt('forest')] },
+    { text: 'Sunset bench', way: [...rev(upTo(course(4), -12, 4.5)), ...onFrom(course(2), -10, -16.0)] },
+  ] },   // (no Cabin board: across the pond it is in sight, much nearer than round by the paths)
 ].map(S => ({ ...S, y: H(S.x, S.z), boards: S.boards.map(b => {
   const pts = [[S.x, S.z], ...b.way]; let len = 0, aim = null;
   for (let i = 1; i < pts.length; i++) {
@@ -378,13 +387,14 @@ export const SIGNS = [
   return { text: b.text, metres: len < 20 ? Math.round(len) : Math.round(len / 5) * 5, angle: Math.atan2(aim[1] - S.z, aim[0] - S.x) };   // angle: of the way from +x towards +z
 }) }));
 /*
- * Behind the cabin (sites picked offline on clear, level ground): the vegetable garden (#8; meshes:
- * assets/cabin/garden.js, sowing and harvest: app/gardening.js), three raised beds side by side, their long side along z,
- * each with its crop in three plots; and the well (#12; assets/cabin/well.js, app/drawWater.js), hidden from the pond by
- * the cabin. y: the top of a bed's soil / the ground at the well.
+ * In the open meadow west of the pond, at the end of a path off the forest path (sites picked offline on the island's
+ * largest clear, level ground): the vegetable garden (#8; meshes: assets/cabin/garden.js, sowing and harvest:
+ * app/gardening.js), three raised beds side by side, their long side along z, each with its crop in three plots; and
+ * the well (#12; assets/cabin/well.js, app/drawWater.js) beside the path. y: the top of a bed's soil / the ground at
+ * the well.
  */
 export const GARDEN = (() => {
-  const G = { x: -0.5, z: -8.2, bedW: 0.9, bedL: 2.2, gap: 0.6, h: 0.2, crops: ['carrot', 'potato', 'pumpkin'] };
+  const G = { x: -5.8, z: 8.2, bedW: 0.9, bedL: 2.2, gap: 0.6, h: 0.2, crops: ['carrot', 'potato', 'pumpkin'] };
   const beds = G.crops.map((crop, b) => {
     const x = G.x + (b - 1) * (G.bedW + G.gap), hs = [];
     for (const dx of [-G.bedW / 2, G.bedW / 2]) for (const dz of [-G.bedL / 2, 0, G.bedL / 2]) hs.push(H(x + dx, G.z + dz));
@@ -393,7 +403,7 @@ export const GARDEN = (() => {
   const plots = beds.flatMap((b, bi) => [-1, 0, 1].map(k => ({ bed: bi, crop: b.crop, x: b.x, z: b.z + k * G.bedL / 3, y: b.y })));
   return { ...G, beds, plots, half: [(3 * G.bedW + 2 * G.gap) / 2, G.bedL / 2] };
 })();
-export const WELL = { x: 3.3, z: -7.6, r: 0.56, rim: 0.72, y: H(3.3, -7.6) };
+export const WELL = { x: -8.7, z: 5.1, r: 0.56, rim: 0.72, y: H(-8.7, 5.1) };
 /** Distance to the garden's beds (as one rectangle round them) or the well (< 0 inside). */
 export function builtDist(x, z) {
   const a = Math.abs(x - GARDEN.x) - GARDEN.half[0], b = Math.abs(z - GARDEN.z) - GARDEN.half[1];
