@@ -7,7 +7,7 @@ import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
 import { H, WORLD_HALF, SEA_Y, forest, excluded, coastDist, walkwayDist, signDist } from './layout.js';
 import { obstacles, rockBodies } from './bounds.js';
-import { placer, plantGroups, updateGroups, bakeAtlas, billboards } from './scatter.js';
+import { placer, plantGroups, updateGroups, seasonalBillboards } from './scatter.js';
 import { createBushVariants } from '../assets/vegetation/bush.js';
 import { createRoseVariants } from '../assets/vegetation/roseBush.js';
 import { flowerGeometries, flowerTint } from '../assets/vegetation/meadowFlowers.js';
@@ -160,8 +160,8 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
 
   /* ---- meshes ---- */
   const groups = plantGroups(scene, bushes, bushV, 'bush').concat(plantGroups(scene, roses, roseV, 'rose'));
-  if (bushes.length) scene.add(billboards(bakeAtlas(renderer, bushV, 160), bushes, THIN_SMALL));
-  if (roses.length) scene.add(billboards(bakeAtlas(renderer, roseV, 160), roses, THIN_SMALL));
+  if (bushes.length) scene.add(seasonalBillboards(renderer, bushV, 160, bushes, THIN_SMALL));   // bare in winter too
+  if (roses.length) scene.add(seasonalBillboards(renderer, roseV, 160, roses, THIN_SMALL));
   const logParts = logSet.variants.map(v => ({ bounds: v.bounds, parts: [
     { geometry: v.near[0], material: logSet.barkMat, depth: logSet.nearDepth }, { geometry: v.near[1], material: logSet.woodMat, depth: logSet.nearDepth, castShadow: false }] }));
   const logGroups = plantGroups(scene, logs, logParts, 'log');

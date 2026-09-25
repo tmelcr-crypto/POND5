@@ -141,6 +141,17 @@ export function bakeAtlas(renderer, protos, tile, season = null) {   // season: 
  * its vertical axis and showing the atlas tile of its variant from the nearest of the 8 baked angles. Hidden (collapsed)
  * nearer than the fade; inside the fade it takes the pixels the dissolving tree gives up (same dither, complementary).
  */
+/** Billboards that follow the season: baked now as in summer, and again by rebakeBillboards(season) (main.js, on each
+ *  change; bakeAtlas leaves out and recolours parts by their seasonal role): the island's trees, its bushes and roses,
+ *  the plot's reference trees and rose (world/undergrowth.js, world/plotDetail.js). */
+const BAKES = [];
+export function seasonalBillboards(renderer, protos, tile, list, uniforms) {
+  const a = bakeAtlas(renderer, protos, tile), bb = billboards(a, list, uniforms);
+  BAKES.push({ renderer, protos, tile, bb, rt: a.rt }); return bb;
+}
+export function rebakeBillboards(season) {
+  for (const b of BAKES) { const a = bakeAtlas(b.renderer, b.protos, b.tile, season); b.bb.material.map = a.texture; b.rt.dispose(); b.rt = a.rt; }
+}
 export function billboards(atlas, list, uniforms = THIN) {
   const q = new THREE.PlaneGeometry(1, 1); q.translate(0, 0.5, 0);
   const bbData = new Float32Array(list.length * 2); list.forEach((t, i) => { bbData[i * 2] = t.rot; bbData[i * 2 + 1] = t.variant; });
@@ -236,11 +247,11 @@ export function createScatter(ctx) {
 
   /* ---- tree meshes: one small group per tree, everything shared with its variant ---- */
   const trees = plantGroups(scene, spruce, spruceV, 'spruce').concat(plantGroups(scene, apple, appleV, 'apple'));
-  const bbs = [], bakes = [];
-  if (spruce.length) { const a = bakeAtlas(renderer, spruceV, TC.billboardTile); bbs.push(billboards(a, spruce)); bakes.push({ protos: spruceV, bb: bbs[bbs.length - 1], rt: a.rt }); }
-  if (apple.length) { const a = bakeAtlas(renderer, appleV, TC.billboardTile); bbs.push(billboards(a, apple)); bakes.push({ protos: appleV, bb: bbs[bbs.length - 1], rt: a.rt }); }
-  /** Bake the billboards again as the trees look in this season (world/seasons.js). */
-  function rebake(season) { for (const b of bakes) { const a = bakeAtlas(renderer, b.protos, TC.billboardTile, season); b.bb.material.map = a.texture; b.rt.dispose(); b.rt = a.rt; } }
+  const bbs = [];
+  if (spruce.length) bbs.push(seasonalBillboards(renderer, spruceV, TC.billboardTile, spruce));
+  if (apple.length) bbs.push(seasonalBillboards(renderer, appleV, TC.billboardTile, apple));
+  /** Bake every seasonal billboard again as it looks in this season (world/seasons.js): trees, bushes, the plot's. */
+  const rebake = rebakeBillboards;
   bbs.forEach(b => scene.add(b));
 
   /* ---- rocks: full-detail mesh per rock near the camera, one instanced far mesh per variant, cross-faded like the trees ---- */

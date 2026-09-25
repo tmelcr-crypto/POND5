@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { addDistanceFade, addRegionFade, fadeRegion } from '../core/shaderPatches.js';
 import { boundsOf, drawables } from '../engine/detailManager.js';
-import { bakeAtlas, billboards } from './scatter.js';
+import { seasonalBillboards } from './scatter.js';
 
 /**
  * The original plot's assets on the detail manager, with the island's rules (CONFIG.trees.fade: full detail within
@@ -61,8 +61,7 @@ export function registerPlotDetail(ctx, detail, plot) {
     const box = boundsOf(meshes), base = new THREE.Vector3((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
     const W = 2 * Math.max(base.x - box.min.x, box.max.x - base.x, base.z - box.min.z, box.max.z - base.z) + 0.1, Hh = box.max.y - base.y + 0.1;
     const parts = meshes.map(m => ({ geometry: m.geometry, material: m.material, instances: m.isInstancedMesh ? { matrix: m.instanceMatrix, color: m.instanceColor, count: m.count } : null }));
-    const atlas = bakeAtlas(renderer, [{ width: W, height: Hh, origin: base, parts }], tile);
-    const bb = billboards(atlas, [{ x: base.x, y: base.y + 0.05, z: base.z, s: 1, rot: 0, variant: 0 }]);
+    const bb = seasonalBillboards(renderer, [{ width: W, height: Hh, origin: base, parts }], tile, [{ x: base.x, y: base.y + 0.05, z: base.z, s: 1, rot: 0, variant: 0 }]);   // follows the season
     scene.add(bb);
     // same point and range as the billboard's own fade (its quad sits at y - 0.05), complementary dither
     const region = fadeRegion(base, base, TC.fade), patch = m => addRegionFade(m, region);
