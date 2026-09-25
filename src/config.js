@@ -247,6 +247,11 @@ export const CONFIG = {
     rareShell: 0.0001,             // the chance a shell you pick up is the nautilus (a keepsake for the cabin's shelf)
   },
 
+  // The hand lantern (app/lantern.js): where it waits (m from the cabin's centre, at the porch bench's far end; its
+  // height is the bench top above the pad), how close and how squarely you look to take or leave it, where it hangs in
+  // view when carried (camera space: right, down, forward) and how strong its light is at night
+  lantern: { home: [-0.62, 0.45, 0.5], homeTurn: 0.5, reach: 2.2, cone: 0.45, hand: [0.27, -0.56, -0.55], strength: 1.3 },
+
   // Storage chests (app/chestUI.js)
   chest: { reach: 2.2, cone: 0.6, lidOpen: 1.69, longPress: 450 },   // lidOpen 97 degrees: the lid then reaches 0.20 m behind its hinge (keep the chest that far from a wall)   // m, rad (in view), rad (lid open), ms (a press that picks how many)
 
