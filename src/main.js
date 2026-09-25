@@ -60,6 +60,9 @@ import { createCurtains } from './app/curtains.js';
 import { createBody } from './app/body.js';
 import { createFootsteps } from './audio/footsteps.js';
 import { createMusic } from './audio/music.js';
+import { createSaves } from './app/saves.js';
+import { createTimelapse } from './app/timelapse.js';
+import { createDynamicRes } from './engine/dynamicRes.js';
 import { createFirepits } from './assets/cabin/firepits.js';
 import { createControls } from './app/controls.js';
 import { createDebugOverlay } from './app/debugOverlay.js';
@@ -70,7 +73,8 @@ if (isTouch) document.body.classList.add('touch');
 // progress (on a slow machine, or a browser running scripts without its JIT, building takes many seconds).
 const startBtn = document.getElementById('start'), startLabel = startBtn.dataset.label || startBtn.textContent;   // index.html may already say "Loading"
 startBtn.disabled = true;
-const step = (pct, what = 'Building the island') => { startBtn.textContent = `${what}\u2026 ${Math.round(pct)}%`; return new Promise(r => setTimeout(r, 0)); };
+const loadFill = document.querySelector('#loadbar span');
+const step = (pct, what = 'Building the island') => { startBtn.textContent = `${what}\u2026 ${Math.round(pct)}%`; if (loadFill) loadFill.style.width = pct + '%'; return new Promise(r => setTimeout(r, 0)); };
 
 (async () => { try {
 // Engine + shared resources
@@ -130,7 +134,7 @@ document.getElementById('lightsBtn').addEventListener('click', () => setLights(!
 const posV = document.getElementById('posV'), fpsV = document.getElementById('fpsV');
 let last = performance.now(), fAcc = 0, fN = 0, tAcc = 0;
 function frame(now) {
-  const dt = Math.min(Math.max((now - last) / 1000, 0), 0.05); last = now;
+  const rawDt = Math.max((now - last) / 1000, 0), dt = Math.min(rawDt, 0.05); last = now;   // rawDt: the real frame time (dynamic resolution)
   const t = (U.uTime.value += dt);
   move(dt);
   sky.position.copy(camera.position);
@@ -147,7 +151,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt); body.update(dt); footsteps.update(); music.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
+  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); dynRes.update(rawDt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
@@ -203,6 +207,9 @@ const curtains = createCurtains({ st, cabin });   // opening and closing the cab
 const body = createBody({ st, clock, seasons, fires });   // hunger bar and winter frost, shown only
 const footsteps = createFootsteps({ st, ambience, seasons });   // steps by what is underfoot
 const music = createMusic({ ambience, seasons, skyUniforms });   // a soft soundtrack, off by default
+const saves = createSaves();   // Export / Import / Reset in the panel
+const timelapse = createTimelapse({ st, clock });   // hold to let time run while sitting
+const dynRes = createDynamicRes(renderer);   // softer when the frame rate drops, sharper when there is room
 const seasonLooks = createSeasonLooks(scene, seasons);   // the season's colours, snow and what comes and goes (before finalizeScene)
 const weather = createWeather(ctx, { apples: scatter.apple });   // snowfall, autumn leaves, spring blossom
 let bakedFor = 'summer';   // the far trees' billboards are baked as they look in summer; again for each season
@@ -210,14 +217,14 @@ seasons.on(s => { if (s !== bakedFor) { bakedFor = s; scatter.rebake(s); } items
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);
 await step(95, 'Preparing graphics');
 renderer.compile(scene, camera);   // every program now (everything is still visible), so nothing hitches when it first appears
 requestAnimationFrame(frame);
-startBtn.textContent = startLabel; startBtn.disabled = false;
+startBtn.textContent = startLabel; startBtn.disabled = false; if (loadFill) loadFill.parentNode.classList.add('done'); const art = document.getElementById('introArt'); if (art) art.classList.add('done');   // the painting gives way to the island itself
 } catch (e) {
   // show why it did not start instead of looking frozen
   startBtn.textContent = 'Could not start: ' + (e && e.message ? e.message : e); window.console.error(e);

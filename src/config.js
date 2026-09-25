@@ -133,6 +133,7 @@ export const CONFIG = {
   },
   time: {
     dayMinutes: 18,         // real minutes for one 24 h day
+    lapse: 40,              // times faster while holding the time-lapse button (app/timelapse.js)
     start: 16.5,            // hour at load
     sunEvery: 0.2,          // s between sun / sky updates
     envEvery: [4, 15],      // s between rebuilds of the sky's environment map: around dawn and dusk, otherwise
@@ -140,7 +141,7 @@ export const CONFIG = {
   camera: { far: 150, fov: 72 },
 
   // Rendering
-  render: { maxPixelRatio: 1.25 },
+  render: { maxPixelRatio: 1.25, dynamic: { enabled: true, low: 50, high: 58, min: 0.65, step: 0.05, hold: 2, wait: 3 } },   // dynamic: engine/dynamicRes.js
 
   // Player
   player: {
