@@ -200,6 +200,7 @@ export const CONFIG = {
     dawnDusk: 1.2, dawnDuskFactor: 0.5,   // hours either side of sunrise / sunset when bites come twice as fast
     window: 1.1,                   // s to strike once it bites
     golden: 0.01,                  // share of catches that are a golden fish
+    fail: 0.4,                     // share of hooked fish that slip off the hook while you reel in
   },
 
   // Cooking at a firepit (app/cooking.js)

@@ -8,7 +8,8 @@ import { H, SEA_Y, JETTY, jettyDeckY, jettyDist } from '../world/layout.js';
  * the fish button casts: a rod appears in your hand, the float flies out and settles on the water. After a while (the
  * wait is shorter around sunrise and sunset) it bobs and dips with a splash: tap Strike (the button, a tap anywhere, or
  * H) within CONFIG.fishing.window seconds and the fish is hooked and reeled in to your hand; miss it and it swims off
- * and the float waits again. Pressing the button while you wait reels in empty; walking away does too. A catch is a
+ * and the float waits again. Even hooked, CONFIG.fishing.fail of the fish slip off while you reel in. Pressing the button
+ * while you wait reels in empty; walking away does too. A catch is a
  * fish, or once in a while (CONFIG.fishing.golden) a golden fish. The rod is only shown; you need not carry one.
  */
 const svg = p => `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
@@ -65,6 +66,7 @@ export function createFishing({ scene, camera, st, inventory, items, boating, wa
     if (job.phase === 'bite') {
       const kind = Math.random() < FC.golden ? 'goldenFish' : 'fish';
       if (!inventory.canAdd(kind)) { say('No room to carry it; you let it go'); job.phase = 'wait'; job.t = 0; job.wait = waitTime(); return; }
+      if (Math.random() < FC.fail) { job.phase = 'reel'; job.t = 0; job.kind = null; job.lost = true; job.start = flo.position.clone(); if (waterLife && waterLife.splash) waterLife.splash(job.target.x, SEA_Y + 0.002, job.target.z, 0.4); return; }   // hooked, but it slips off
       job.phase = 'reel'; job.t = 0; job.kind = kind; job.fish = items.model(kind); job.fish.castShadow = true; job.start = flo.position.clone();
       if (items.sfx) items.sfx('stick');
     } else if (job.phase === 'wait' || job.phase === 'cast') { job.phase = 'reel'; job.t = 0; job.kind = null; job.start = flo.position.clone(); }   // reel in empty
@@ -104,8 +106,9 @@ export function createFishing({ scene, camera, st, inventory, items, boating, wa
       drawLine(tipP, flo.position, 0.05 * (1 - k));
       if (job.fish) { job.fish.position.copy(flo.position).add(new V(0, -0.1, 0)); job.fish.rotation.set(0, job.yaw + Math.PI / 2, Math.sin(job.t * 18) * 0.5 - 1.2); }
       if (k >= 1) {
-        const kind = job.kind; end();
+        const kind = job.kind, lost = job.lost; end();
         if (kind) { inventory.add(kind); say(kind === 'goldenFish' ? 'A golden fish!' : 'You caught a fish'); if (items.sfx) items.sfx('apple'); }
+        else if (lost) say('It slipped off the hook');
       }
     }
     setBtn(!job ? (spot() ? 'cast' : '') : job.phase === 'bite' ? 'strike' : job.phase === 'reel' ? '' : 'reel');

@@ -196,7 +196,7 @@ const fires = createFires({ st, inventory, scene: ctx.scene, camera: ctx.camera,
   addEventListener('meadow-lights', e => fires.setAll('lamp-', e.detail));
   fires.add({ id: 'fireplace', at: hearth.localToWorld(cabin.fireParts.hearth.clone()), near: p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW, set: (k, e) => { setFire(k, e); ambience.setFireLevel(k); } });
 }
-const cooking = createCooking({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, fires });   // roasting food over a firepit
+const cooking = createCooking({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, fires, tex: ctx.tex });   // roasting food over a firepit
 const fishing = createFishing({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, boating, waterLife, clock, seasons });   // from the jetty's head or the anchored boat
 const shelf = createShelf({ scene: ctx.scene, camera: ctx.camera, st, inventory, items });   // the keepsake shelf in the cabin
 const curtains = createCurtains({ st, cabin });   // opening and closing the cabin's curtains
