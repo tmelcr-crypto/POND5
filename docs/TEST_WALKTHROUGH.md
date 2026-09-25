@@ -22,9 +22,9 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Carry the lantern (#22): take it from the porch bench (icon beside it, or T), walk outside at dusk: it swings in
       your hand and lights the grass and ground round you; put it back on the bench. Reload while carrying: still carried.
 - [ ] Hunger meter (#1): note where it is; it slowly drains; it never reaches empty.
-- [ ] Well (#12, behind the cabin): the icon (or T) draws a bucket: crank, splash, the bucket comes up full; a cup of
+- [ ] Well (#12, in the meadow west of the pond: follow the Garden & well signs off the forest path): the icon (or T) draws a bucket: crank, splash, the bucket comes up full; a cup of
       water in your slots, Use says Drink.
-- [ ] Garden (#8): sow every plot of the three beds behind the cabin; come back in step 6 to harvest (carrots raw,
+- [ ] Garden (#8): sow every plot of the three beds next to the well; come back in step 6 to harvest (carrots raw,
       potatoes and a pumpkin cooked at a fire).
 - [ ] Signposts (#19): at the three forks (bridge, jetty path, forest path) every board points along its path and the
       distances look right; walk round a post (it is solid); read a board from both sides.
@@ -39,6 +39,8 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
       beach or next to a tree); note the places; they grow over the next days.
 - [ ] Take 10 sticks from the forest woodpile; the 11th is refused. Light the forest firepit with 3 sticks.
 - [ ] Sit on a log, cook an apple and a mushroom (#4); stand up during a third cook: the raw one comes back.
+- [ ] Standing at the burning firepit (no log), cook an apple. Toss a stick in (Use says Burn): the fire flares up
+      bigger for 30 s and the next apple cooks in about 19 s instead of 30. Same at the fireplace.
 - [ ] God rays (#92) through the trees; sun-ray look again in the morning mist in step 7.
 - [ ] Lie down at a view spot (#99): only at the 5 spots (lower grass there), only lying, no sleep; get up again.
 - [ ] Time-lapse (#79) while sitting or lying: hold it; the sun and clouds move; letting go returns to normal speed.

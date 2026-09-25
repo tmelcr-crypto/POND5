@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CONFIG } from '../../config.js';
 import { V, lin } from '../../core/math.js';
 import { mergeGeos } from '../../core/geometry.js';
 import { canvasTex } from '../../core/canvasTexture.js';
@@ -167,10 +168,11 @@ export function createFirepits(ctx) {
   const roofMat = woodMat.clone(); roofMat.userData.season = 'roof';
   const roof = new THREE.Mesh(mergeGeos(roofs, ['position', 'normal', 'uv', 'color']), roofMat); roof.castShadow = true; roof.receiveShadow = true; scene.add(roof);
 
-  /** Show pit i burning k 0..1 with embers e 0..1. */
-  function set(i, k, e) {
-    const p = pits[i]; p.k = k; p.e = e;
-    p.flames.forEach((g, j) => { const s = Math.min(1, k * (1.3 - j * 0.3)); g.visible = s > 0.01; g.scale.set(0.5 + 0.5 * s, Math.max(0.01, s), 0.5 + 0.5 * s); });
+  /** Show pit i burning k 0..1 with embers e 0..1, flared up b 0..1 (fed a stick: CONFIG.fire.boost.size bigger). */
+  const flare = CONFIG.fire.boost.size - 1;
+  function set(i, k, e, b = 0) {
+    const p = pits[i]; p.k = k; p.e = e; p.b = b; const big = 1 + flare * b;
+    p.flames.forEach((g, j) => { const s = Math.min(1, k * (1.3 - j * 0.3)); g.visible = s > 0.01; g.scale.set((0.5 + 0.5 * s) * big, Math.max(0.01, s) * big, (0.5 + 0.5 * s) * big); });
     p.glow.visible = p.pool.visible = k > 0.01; p.glow.material.opacity = 0.35 * k * (0.3 + 0.7 * night);
     p.poolMat.color.setRGB(...F.pool.color).multiplyScalar(F.pool.opacity * k * byNight());
     p.emberMat.emissiveIntensity = 1.1 * Math.max(k, 0.45 * e * e);
@@ -184,7 +186,7 @@ export function createFirepits(ctx) {
       p.smoke.forEach(s => { s.s.visible = hot > 0.02; });
       if (hot <= 0.02 || p.at.distanceTo(cam) > F.near) continue;
       const f = 0.85 + 0.09 * Math.sin(t * 9.3 + p.P.x) + 0.05 * Math.sin(t * 15.7 + 1.3) + 0.04 * (Math.random() - 0.5);
-      if (p.k > 0.01) { const g = F.glow * f; p.glow.scale.set(g, g, 1); p.glow.material.opacity = 0.35 * p.k * (0.3 + 0.7 * night); p.poolMat.color.setRGB(...F.pool.color).multiplyScalar(F.pool.opacity * p.k * byNight() * (0.8 + 0.25 * f)); }
+      if (p.k > 0.01) { const big = 1 + flare * (p.b || 0), g = F.glow * f * big; p.glow.scale.set(g, g, 1); p.glow.material.opacity = 0.35 * p.k * (0.3 + 0.7 * night); p.poolMat.color.setRGB(...F.pool.color).multiplyScalar(F.pool.opacity * p.k * byNight() * (0.8 + 0.25 * f) * big); }
       p.emberMat.emissiveIntensity = (1.0 + (f - 0.85) * 2.5) * Math.max(p.k, 0.45 * p.e * p.e);
       p.smoke.forEach(s => {
         s.u += dt * 0.12; if (s.u > 1) s.u -= 1; const u = s.u;
@@ -195,7 +197,7 @@ export function createFirepits(ctx) {
       const S = p.sp, pa = p.sparks.geometry.attributes.position;
       for (let i = 0; i < S.life.length; i++) {
         S.life[i] -= dt;
-        if (S.life[i] <= 0) { if (Math.random() < 0.04 * p.k) { S.life[i] = 0.5 + Math.random(); pa.setXYZ(i, (Math.random() - 0.5) * 0.2, 0.25, (Math.random() - 0.5) * 0.2); S.vel[i].set((Math.random() - 0.5) * 0.2 + wd.x * 0.2 * ws, 0.6 + Math.random() * 0.8, (Math.random() - 0.5) * 0.2 + wd.y * 0.2 * ws); } else { pa.setY(i, -50); continue; } }
+        if (S.life[i] <= 0) { if (Math.random() < 0.04 * p.k * (1 + 3 * (p.b || 0))) { S.life[i] = 0.5 + Math.random(); pa.setXYZ(i, (Math.random() - 0.5) * 0.2, 0.25, (Math.random() - 0.5) * 0.2); S.vel[i].set((Math.random() - 0.5) * 0.2 + wd.x * 0.2 * ws, 0.6 + Math.random() * 0.8, (Math.random() - 0.5) * 0.2 + wd.y * 0.2 * ws); } else { pa.setY(i, -50); continue; } }
         const y = pa.getY(i) + S.vel[i].y * dt; S.vel[i].x += Math.sin(t * 7 + i) * dt * 0.3;
         if (y > 1.8) { S.life[i] = 0; pa.setY(i, -50); continue; }
         pa.setXYZ(i, pa.getX(i) + S.vel[i].x * dt, y, pa.getZ(i) + S.vel[i].z * dt);
