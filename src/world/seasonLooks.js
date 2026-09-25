@@ -14,13 +14,14 @@ import { WATER_Y, SEA_Y } from './layout.js';
  *  bark                 apple branches: a little snow on top in winter; their fine twigs folded away (they would float
  *                       without the leaves)
  *  twig                 the plot apple tree's fine twigs: gone in winter
- *  roof                 the cabin's and the woodpiles' roofs: snow in winter
+ *  roof                 roofs (cabin, woodpiles, well), signposts, the garden beds: snow in winter
  *  needles              the spruces: a light dusting of snow on the upper sides in winter
  *  fruit                apples on the trees and windfalls: summer and autumn
  *  berries              summer and autumn
  *  bloom                rose flowers: spring and summer
  *  pond                 lily pads and flowers: gone under the ice in winter
  *  mushroom / flower    the forest floor's mushrooms, the plot's meadow flowers round the pond: gone in winter
+ *  crop                 the garden's carrots, potatoes and pumpkins: gone under the snow in winter
  *  ice                  the jetty: a glaze of ice on its deck and rails in winter
  *  fungi                the fallen logs: their mushrooms and shelf fungi folded away in winter (a 'fungus' attribute)
  */
@@ -35,7 +36,7 @@ export const PATCH = {
   ice: { ice: { lo: 0.55, hi: 0.85 } },                      // the jetty: a glaze of ice                          // the fallen logs' mushrooms and shelf fungi
 };
 export const SHOWN = {
-  grass: s => s !== 'winter', leaf: s => s !== 'winter', twig: s => s !== 'winter', mushroom: s => s !== 'winter', flower: s => s !== 'winter', leafVeg: s => s !== 'winter', pond: s => s !== 'winter',
+  grass: s => s !== 'winter', leaf: s => s !== 'winter', twig: s => s !== 'winter', mushroom: s => s !== 'winter', crop: s => s !== 'winter', flower: s => s !== 'winter', leafVeg: s => s !== 'winter', pond: s => s !== 'winter',
   fruit: s => s === 'summer' || s === 'autumn', berries: s => s === 'summer' || s === 'autumn', bloom: s => s === 'spring' || s === 'summer',
 };
 

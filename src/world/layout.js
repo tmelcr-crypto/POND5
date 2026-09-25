@@ -377,6 +377,29 @@ export const SIGNS = [
   aim = aim || pts[pts.length - 1];
   return { text: b.text, metres: len < 20 ? Math.round(len) : Math.round(len / 5) * 5, angle: Math.atan2(aim[1] - S.z, aim[0] - S.x) };   // angle: of the way from +x towards +z
 }) }));
+/*
+ * Behind the cabin (sites picked offline on clear, level ground): the vegetable garden (#8; meshes:
+ * assets/cabin/garden.js, sowing and harvest: app/gardening.js), three raised beds side by side, their long side along z,
+ * each with its crop in three plots; and the well (#12; assets/cabin/well.js, app/drawWater.js), hidden from the pond by
+ * the cabin. y: the top of a bed's soil / the ground at the well.
+ */
+export const GARDEN = (() => {
+  const G = { x: -0.5, z: -8.2, bedW: 0.9, bedL: 2.2, gap: 0.6, h: 0.2, crops: ['carrot', 'potato', 'pumpkin'] };
+  const beds = G.crops.map((crop, b) => {
+    const x = G.x + (b - 1) * (G.bedW + G.gap), hs = [];
+    for (const dx of [-G.bedW / 2, G.bedW / 2]) for (const dz of [-G.bedL / 2, 0, G.bedL / 2]) hs.push(H(x + dx, G.z + dz));
+    return { x, z: G.z, crop, base: Math.min(...hs) - 0.06, y: Math.max(...hs) + G.h };
+  });
+  const plots = beds.flatMap((b, bi) => [-1, 0, 1].map(k => ({ bed: bi, crop: b.crop, x: b.x, z: b.z + k * G.bedL / 3, y: b.y })));
+  return { ...G, beds, plots, half: [(3 * G.bedW + 2 * G.gap) / 2, G.bedL / 2] };
+})();
+export const WELL = { x: 3.3, z: -7.6, r: 0.56, rim: 0.72, y: H(3.3, -7.6) };
+/** Distance to the garden's beds (as one rectangle round them) or the well (< 0 inside). */
+export function builtDist(x, z) {
+  const a = Math.abs(x - GARDEN.x) - GARDEN.half[0], b = Math.abs(z - GARDEN.z) - GARDEN.half[1];
+  const g = Math.max(a, b) < 0 ? Math.max(a, b) : Math.hypot(Math.max(a, 0), Math.max(b, 0));
+  return Math.min(g, Math.hypot(x - WELL.x, z - WELL.z) - WELL.r);
+}
 /** Distance to the nearest signpost's foot (< 0 at it). */
 export function signDist(x, z) { let d = Infinity; for (const S of SIGNS) d = Math.min(d, Math.hypot(x - S.x, z - S.z) - 0.3); return d; }
 /** Distance to anything built to walk on or sit at (path stones, bridge, benches, jetty, firepits): the island's scatter is cleared off these. */

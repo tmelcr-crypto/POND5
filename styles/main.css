@@ -115,7 +115,7 @@ body.touch.playing #touchHelp{display:block}
 #seasonName{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font-family:"Newsreader",Georgia,serif;font-size:3.2rem;color:#fff8e8;text-shadow:0 2px 18px rgba(0,0,0,.55);opacity:0;pointer-events:none;z-index:6}
 #seasonName.show{animation:seasonName 4.2s ease-in-out forwards}@keyframes seasonName{0%{opacity:0}25%{opacity:1}70%{opacity:1}100%{opacity:0}}
 /* fires (app/fires.js): the cost on the light button, the note when you lack it */
-#fireIcon,#lanternIcon{position:fixed;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;display:grid;place-items:center;color:#fff3dc;border:0;z-index:4;cursor:pointer;touch-action:none;padding:0}
+#fireIcon,#lanternIcon,.actIcon{position:fixed;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;display:grid;place-items:center;color:#fff3dc;border:0;z-index:4;cursor:pointer;touch-action:none;padding:0}
 #fireIcon .cost{position:absolute;right:4px;bottom:2px;font-size:.8rem;font-weight:700;color:#ffd79a}
 #fireNote{position:fixed;left:50%;top:62%;transform:translateX(-50%);padding:9px 16px;border-radius:12px;font-size:.95rem;z-index:4;pointer-events:none;white-space:nowrap}#fireNote.hide{display:none}
 /* body (app/body.js): the hunger bar under the quick slots, frost round the screen's edges */

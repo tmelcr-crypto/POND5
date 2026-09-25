@@ -6,6 +6,7 @@ import { H, WATER_Y, SEA_Y, ROSE, lakeD, streamAt, jettyDeckY, bridgeDeckY } fro
 import { KINDS, iconSvg } from './itemKinds.js';
 import { fishModel } from '../assets/water/fishModel.js';
 import { rareShellModel } from '../assets/vegetation/forage.js';
+import { produceModel, PRODUCE_KINDS } from '../assets/cabin/garden.js';
 import { SHOWN } from '../world/seasonLooks.js';
 
 /**
@@ -100,6 +101,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     }
     if (!models[kind] && kind in FISHES) models[kind] = fishModel(kind);   // assets/water/fishModel.js
     if (!models[kind] && kind === 'rareShell') models[kind] = rareShellModel();   // assets/vegetation/forage.js
+    if (!models[kind] && kind in PRODUCE_KINDS) models[kind] = produceModel(kind);   // assets/cabin/garden.js
     if (!models[kind]) {
       const K = KINDS[kind], mat = new THREE.MeshStandardMaterial({ color: lin(K.color), roughness: kind === 'goldenFish' ? 0.3 : 0.6, metalness: kind === 'goldenFish' ? 0.6 : 0, side: kind === 'petal' ? THREE.DoubleSide : THREE.FrontSide, flatShading: kind === 'pebble' });
       const geo = kind === 'cone' ? new THREE.ConeGeometry(0.028, 0.08, 8).rotateX(Math.PI / 2) : kind === 'stick' ? new THREE.CylinderGeometry(0.009, 0.012, 0.3, 5).rotateZ(Math.PI / 2)
@@ -130,6 +132,10 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       driftwood: () => { noise(0.07, 1200, 2, 0.2); tone(300, 180, 0.06, 0.08); },
       petal: () => noise(0.22, 6200, 0.7, 0.05, 'highpass'),
       crunch: () => { for (let i = 0; i < 3; i++) noise(0.07, 1800, 0.6, 0.2, 'lowpass', i * 0.12); },
+      drink: () => { for (let i = 0; i < 3; i++) { noise(0.12, 520, 1.2, 0.16, 'lowpass', i * 0.32); tone(180, 120, 0.08, 0.05, i * 0.32 + 0.04); } },
+      crank: () => { tone(310, 240, 0.18, 0.05); noise(0.16, 900, 4, 0.06); },
+      dig: () => { noise(0.14, 700, 0.8, 0.18, 'lowpass'); noise(0.1, 1600, 1, 0.06, 'bandpass', 0.08); },
+      pop: () => { tone(420, 260, 0.07, 0.14); noise(0.05, 1200, 1, 0.08); },
       throw: () => noise(0.16, 1400, 0.6, 0.07),
       splash: () => { noise(0.45, 900, 0.7, 0.28, 'lowpass'); noise(0.2, 2400, 1, 0.08, 'bandpass', 0.05); },
       thud: () => { tone(160, 90, 0.08, 0.18); noise(0.05, 700, 1, 0.08); },
@@ -222,7 +228,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   function use(kind) {
     const K = KINDS[kind], busy = st.aboard || st.seat || st.inBed;
     camera.getWorldDirection(dir);
-    if (K.use === 'eat') { sfx('crunch'); dispatchEvent(new CustomEvent('meadow-eat', { detail: kind })); return true; }   // app/body.js fills the hunger bar
+    if (K.use === 'eat') { sfx(K.sound || 'crunch'); dispatchEvent(new CustomEvent('meadow-eat', { detail: kind })); return true; }   // app/body.js fills the hunger bar
     if (K.hint) { note(K.hint); return false; }   // cook it first / a keepsake
     if (K.use === 'throw') {
       const m = model(kind), p = camera.position.clone().addScaledVector(dir, 0.35); p.y -= 0.12; m.position.copy(p);
