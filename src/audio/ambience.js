@@ -19,7 +19,7 @@ export const AMB = {
   // soft pink-noise whoosh with the low rumble cut (lowCut, Hz) so gusts never thump; gust: how much gusts swell it
   wind: { level: 0.2, lowCut: 160, cutoff: [420, 950], gust: 0.3, gustPeriod: [9, 23], leaves: 0.35, whistle: 0.03, shoreBoost: 0.3 },
   ocean: { level: 0.75, waveEvery: [6.5, 11], near: -4, far: 26, inland: 0.1, file: null },
-  stream: { level: 0.9, range: [0.5, 12], rush: 0.5, babbleEvery: [0.04, 0.13], band: 16 },   // the stream: babble, and a rush by the rapids
+  stream: { level: 0.135, range: [0.5, 12], rush: 0.075, babbleEvery: [0.04, 0.13], band: 16 },   // the stream: babble, and a rush by the rapids
   pond: { enabled: false, level: 1.5, range: [1, 13], lapEvery: [0.35, 1.3], plipEvery: [1.5, 5], band: 16, file: null },
   fire: { level: 1.3, range: [0.8, 7], outside: [1.2, 4.5], outsideLevel: 0.15, wallCutoff: 1500, crackles: 9, band: 18 },
   birds: {
