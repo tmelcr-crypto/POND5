@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { V } from '../../core/math.js';
+import { V, clamp, lin } from '../../core/math.js';
+import { fbm3 } from '../../core/noise.js';
 import { mergeGeos } from '../../core/geometry.js';
 import { canvasTex } from '../../core/canvasTexture.js';
 import { CHESTS, H } from '../../world/layout.js';
@@ -11,7 +12,7 @@ import { obstacles } from '../../world/bounds.js';
  * Built in the chest's frame (x along its front, +z out of the front, y up from its base) and set on the ground; solid
  * for the player (circles in the obstacle grid). Its own random numbers. Every number is in CHEST_LOOK.
  */
-export const CHEST_LOOK = { lidRise: 0.16, wall: 0.035 };
+export const CHEST_LOOK = { lidRise: 0.16, wall: 0.035, stone: { margin: 0.36, top: 0.035, thick: 0.16 } };   // stone: the slab under it (m past the chest, above the ground, below its top)
 
 export function createChests(ctx) {
   const { scene, maxAniso } = ctx, CL = CHEST_LOOK;
@@ -33,7 +34,26 @@ export function createChests(ctx) {
 
   return CHESTS.map(C => {
     const L = C.length, D = C.depth, Hh = C.height, T = CL.wall, R = D / 2, rise = CL.lidRise;
-    const group = new THREE.Group(); group.position.set(C.x, H(C.x, C.z) - 0.02, C.z); group.rotation.y = C.rot; scene.add(group);
+    // a flat sandstone slab under it, a little wider all round, its edges sunk into the ground (the grass grows up to them)
+    const ST = CL.stone, sa = L / 2 + ST.margin, sb = D / 2 + ST.margin - 0.08, off = 0.08, cr = Math.cos(C.rot), sr = Math.sin(C.rot), M = 28;   // shifted forward: less margin at the back (the wall)
+    const toWorld = (lx, lz) => [C.x + lx * cr + lz * sr, C.z - lx * sr + lz * cr];
+    let gMax = -Infinity; for (let k = 0; k < M; k++) { const a = k / M * 6.283, [x, z] = toWorld(Math.cos(a) * sa, Math.sin(a) * sb + off); gMax = Math.max(gMax, H(x, z)); }
+    const slabTop = Math.max(gMax - 0.01, H(C.x, C.z) + ST.top), ph = rr(0, 6.28), rad = Array.from({ length: M }, (_, k) => 1 + 0.05 * Math.sin(k / M * 6.283 * 3 + ph) + rr(-0.03, 0.03));
+    const edge = (k, f) => { const a = k / M * 6.283, c = Math.cos(a), s = Math.sin(a), e = Math.pow(Math.pow(Math.abs(c), 4) + Math.pow(Math.abs(s), 4), -0.25);   // a rounded rectangle
+      return [c * e * sa * f * rad[k], s * e * sb * f * rad[k] + off]; };
+    const rings = [[0.0, 0.006], [0.6, 0.004], [0.93, 0], [1.0, -0.025], [1.05, -ST.thick]], pos = [], idx = [];
+    rings.forEach(([f, y]) => { const n = f ? M : 1; for (let k = 0; k < n; k++) { const [lx, lz] = f ? edge(k, f) : [0, off]; pos.push(lx, slabTop + y + (f && f < 1 ? 0.004 * Math.sin(lx * 23 + lz * 17) : 0), lz); } });
+    for (let k = 0; k < M; k++) idx.push(0, 1 + (k + 1) % M, 1 + k);
+    for (let r = 0; r < rings.length - 2; r++) for (let k = 0; k < M; k++) { const a = 1 + r * M + k, b = 1 + r * M + (k + 1) % M; idx.push(a, b, a + M, b, b + M, a + M); }
+    const slab = new THREE.BufferGeometry(); slab.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); slab.setIndex(idx); slab.computeVertexNormals();
+    if (slab.attributes.normal.getY(0) < 0) { for (let k = 0; k < idx.length; k += 3) [idx[k + 1], idx[k + 2]] = [idx[k + 2], idx[k + 1]]; slab.setIndex(idx); slab.computeVertexNormals(); }
+    { const p = slab.attributes.position, col = new Float32Array(p.count * 3), cc = new THREE.Color(), base = lin(0x635c53), moss = lin(0x4f6a26), dirt = lin(0x4a3e31);   // the path stones' tones (lighter reads white in the sun)
+      for (let k = 0; k < p.count; k++) { const x = p.getX(k), y = p.getY(k), z = p.getZ(k), rim = clamp(Math.hypot(x / sa, (z - off) / sb) - 0.7);
+        cc.copy(base).multiplyScalar(0.7 + 0.4 * clamp(fbm3(x * 5 + C.x, y * 5, z * 5 + C.z) + 0.5)).multiplyScalar(0.9 + 0.2 * Math.sin(x * 41 + z * 37)); cc.lerp(moss, clamp(fbm3(x * 8, 3, z * 8) * 2 + rim * 1.4 - 0.9) * 0.5); cc.lerp(dirt, clamp((slabTop - y) / 0.05) * 0.7);
+        col.set([cc.r, cc.g, cc.b], k * 3); } slab.setAttribute('color', new THREE.BufferAttribute(col, 3)); }
+    const stone = new THREE.Mesh(slab, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }));
+    stone.position.set(C.x, 0, C.z); stone.rotation.y = C.rot; stone.receiveShadow = true; scene.add(stone);
+    const group = new THREE.Group(); group.position.set(C.x, slabTop, C.z); group.rotation.y = C.rot; scene.add(group);
     // the box: four walls and a floor (open at the top), the dark inside, iron corners and bands
     const walls = [box(L, Hh, T, 0, Hh / 2, D / 2 - T / 2), box(L, Hh, T, 0, Hh / 2, -D / 2 + T / 2), box(T, Hh, D - 2 * T, L / 2 - T / 2, Hh / 2, 0), box(T, Hh, D - 2 * T, -L / 2 + T / 2, Hh / 2, 0), box(L - 2 * T, T, D - 2 * T, 0, T / 2, 0)];
     walls.forEach(g => { const uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * L, uv.getY(k) * Hh * 1.6); });
