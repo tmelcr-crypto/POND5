@@ -31,8 +31,9 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] The treasure map (#16) is found in the cabin; keep it for step 5.
 
 ## 2. Meadow and forest (midday)
-- [ ] Rabbits (#38) hop in the meadow and dart into bushes when you come close.
-- [ ] Squirrels (#39) run up the spruces and sometimes drop a cone you can pick up.
+- [ ] Rabbits (#38) nibble and hop in the meadow; walk towards one: it bolts in long hops and is gone.
+- [ ] Squirrels (#39) forage under their spruce and run up it when you come close; wait nearby: now and then one
+      drops a cone you can pick up.
 - [ ] Mushrooms (#10) in the forest: pick brown boletes (fly agarics cannot be picked); none in winter.
 - [ ] Planting (#7): with an apple, then a cone selected, look down at open meadow: Use says Plant (not on a path, the
       beach or next to a tree); note the places; they grow over the next days.
@@ -51,7 +52,8 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 ## 4. The beach and the sea (late afternoon)
 - [ ] Tides (#68): note where the waterline is on the beach; check again in an hour of game time; the jetty stairs
       and the boat's berth still work at high and low water.
-- [ ] Seagulls (#44) over the beach and on the jetty posts; their calls.
+- [ ] Seagulls (#44) on the jetty's bollards, crate and the sand; their calls; walk up: they take off, circle,
+      and land again once you are away.
 - [ ] Beachcombing (#18): pick shells and driftwood; throw a shell and a piece of driftwood; light the beach firepit
       with 3 driftwood. (The nautilus is 1 in 10 000 shells: do not wait for it.)
 - [ ] Message in a bottle (#17): find one, read it; it goes into the album / journal.
@@ -63,7 +65,7 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 ## 5. Evening and night
 - [ ] Treasure (#16): follow the map to the dirt pile, interact, open the chest.
 - [ ] Daily tasks (#15): finish today's; the stamp appears in the journal; leave one unfinished (nothing happens).
-- [ ] Frogs (#40) croak at dusk at the pond and jump in as you pass.
+- [ ] Frogs (#40) on the lily pads and the pond's bank croak from dusk (throat puffing) and jump in as you pass.
 - [ ] Cook a fish at a firepit at night; eat it; the hunger meter rises.
 - [ ] Sleep in the bed. On waking: the day has moved on, tasks are new.
 

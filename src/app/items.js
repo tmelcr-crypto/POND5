@@ -311,5 +311,10 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       if (dirty) { dirty = false; try { localStorage.setItem(KEY, JSON.stringify({ total, taken })); } catch (err) { void err; } }
     }
   }
-  return { update, pickUpdate, use, sfx, model: kind => model(kind), season: s => { season = s; }, get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
+  /** Something falls from `at` (a Vector3) and lies where it lands, to be picked up (a squirrel's cone). */
+  function drop(kind, at) {
+    const m = model(kind); m.position.copy(at);
+    thrown.push({ kind, mesh: m, v: new V(Math.random() * 0.6 - 0.3, 0, Math.random() * 0.6 - 0.3), spin: new V(Math.random() * 6 - 3, Math.random() * 6 - 3, Math.random() * 6 - 3), rest: false, bounced: false });
+  }
+  return { update, pickUpdate, use, sfx, drop, model: kind => model(kind), season: s => { season = s; }, get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
 }

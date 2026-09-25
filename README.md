@@ -332,6 +332,14 @@ export function createRoseBush(ctx) {
   saplings) and Use says Plant. A seedling comes up and grows over 8 in-game days into a young apple tree or spruce
   (leaves by season, a little snow in winter). Up to 12, saved in the browser. What grows counts in-game hours with
   sleep (`world/gameHours.js`).
+- **Animals** (`assets/fauna/rabbits.js`, `squirrels.js`, `frogs.js`, `gulls.js`, shared bits in `animalKit.js`,
+  `CONFIG.animals`): rabbits in the meadows nibble, sit up and hop about, and bolt when you come within ~5 m (paler coats
+  in winter); red squirrels keep to a spruce each, forage round it, chatter from the bark, dash up it when you come
+  close and now and then drop a cone you can pick up; frogs sit on the lily pads and the pond's bank, croak from dusk
+  (a throat sac puffs) and leap into the water with a splash when you pass (asleep in winter); gulls stand on the
+  jetty's bollards, the crate, the head's edge and the sand, call now and then, and take off with an alarm call when
+  you come close, circle and land again. Procedural, instanced (one draw call per kind, the gulls' wings one more),
+  with short positional sounds.
 - **Curtains** (`app/curtains.js`): inside, looking at a window, the curtain button (V) draws or opens its curtains.
 - **Hunger and frost** (`app/body.js`, `CONFIG.body`): a thin bar under the quick slots empties slowly (never below a
   quarter) and eating fills it, cooked food more. In winter, a minute or more outdoors away from a fire frosts the
