@@ -65,6 +65,7 @@ import { createSaves } from './app/saves.js';
 import { createTimelapse } from './app/timelapse.js';
 import { createDynamicRes } from './engine/dynamicRes.js';
 import { createFirepits } from './assets/cabin/firepits.js';
+import { createSignposts } from './assets/cabin/signposts.js';
 import { createControls } from './app/controls.js';
 import { createDebugOverlay } from './app/debugOverlay.js';
 
@@ -186,6 +187,7 @@ const firepits = createFirepits(ctx);   // three firepits with logs to sit on an
 const inventory = createInventory({ st });   // the four quick slots and the Use button
 const items = createItems({ scene: ctx.scene, camera: ctx.camera, st, clock, inventory, ambience, waterLife, moments, undergrowth, stream, forage, scatter, piles: firepits.pits.map(p => p.pile).filter(Boolean), softDot: ctx.tex.softDot }); addTakeover(items.pickUpdate);   // picking up and using
 const chests = createChests(ctx);   // the storage chest by the woodpile
+createSignposts(ctx);   // signposts at the forks of the paths (own random numbers)
 const chestUI = createChestUI({ camera: ctx.camera, st, inventory, items, chests }); addTakeover(chestUI.hold);   // opening it, the storage screen
 const fires = createFires({ st, inventory, scene: ctx.scene, camera: ctx.camera, softDot: ctx.tex.softDot });   // lighting and putting out fires: the cabin's fireplace and the firepits
 {

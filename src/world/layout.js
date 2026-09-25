@@ -337,6 +337,48 @@ export function firepitDist(x, z) {
   }
   return d;
 }
+/*
+ * Signposts at the three forks of the paths (#19; meshes: assets/cabin/signposts.js): by the bridge, where the jetty path
+ * leaves the sunrise path, and where the forest path leaves the sunset path, each in the fork, clear of the path stones,
+ * trees and rocks (sites picked offline). A board's `way`: the points along the paths from the sign to the place; the
+ * board points at the way a few metres on, and says how far it is in all (to the metre under 20 m, else to 5 m).
+ */
+const course = i => FOOTPATH_ROUTES[i].course, rev = a => a.slice().reverse();
+const nearestAt = (c, x, z) => c.reduce((b, p, i) => Math.hypot(p[0] - x, p[1] - z) < Math.hypot(c[b][0] - x, c[b][1] - z) ? i : b, 0);
+const upTo = (c, x, z) => c.slice(0, nearestAt(c, x, z) + 1), onFrom = (c, x, z) => c.slice(nearestAt(c, x, z));
+const pitAt = name => { const f = FIREPITS.find(q => q.name === name); return [f.x, f.z]; };
+const toCabin = rev(course(0)), overBridge = [BRIDGE_W, BRIDGE_E];
+export const SIGNS = [
+  { x: 6.55, z: -9.5, boards: [   // the bridge's west end: up to the cabin, west along the sunset path, east over the bridge
+    { text: 'Cabin', way: toCabin },
+    { text: 'Sunrise bench', way: [BRIDGE_W, ...course(1)] },
+    { text: 'Jetty', way: [BRIDGE_W, ...upTo(course(1), 19.6, -19.1), ...course(3)] },
+    { text: 'Sunset bench', way: course(2) },
+  ] },
+  { x: 21.0, z: -18.25, boards: [   // the jetty path's start, on the sunrise path
+    { text: 'Jetty', way: course(3) },
+    { text: 'Beach fire', way: [...course(3), pitAt('beach')] },
+    { text: 'Sunrise bench', way: onFrom(course(1), 22.2, -18.7) },
+    { text: 'Cabin', way: [...rev(upTo(course(1), 19.6, -19.1)), ...rev(overBridge), ...toCabin] },
+  ] },
+  { x: -9.9, z: -15.1, boards: [   // the forest path's start, on the sunset path
+    { text: 'Forest fire', way: [...course(4), pitAt('forest')] },
+    { text: 'Sunset bench', way: onFrom(course(2), -10, -16.0) },
+    { text: 'Hill fire', way: [...upTo(onFrom(course(2), -10, -16.0), -19.5, -16.4), pitAt('hill')] },
+    { text: 'Cabin', way: [...rev(upTo(course(2), -10, -16.0)), ...toCabin] },
+  ] },
+].map(S => ({ ...S, y: H(S.x, S.z), boards: S.boards.map(b => {
+  const pts = [[S.x, S.z], ...b.way]; let len = 0, aim = null;
+  for (let i = 1; i < pts.length; i++) {
+    const seg = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    if (!aim && len + seg >= 3) { const k = (3 - len) / seg; aim = [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * k, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * k]; }
+    len += seg;
+  }
+  aim = aim || pts[pts.length - 1];
+  return { text: b.text, metres: len < 20 ? Math.round(len) : Math.round(len / 5) * 5, angle: Math.atan2(aim[1] - S.z, aim[0] - S.x) };   // angle: of the way from +x towards +z
+}) }));
+/** Distance to the nearest signpost's foot (< 0 at it). */
+export function signDist(x, z) { let d = Infinity; for (const S of SIGNS) d = Math.min(d, Math.hypot(x - S.x, z - S.z) - 0.3); return d; }
 /** Distance to anything built to walk on or sit at (path stones, bridge, benches, jetty, firepits): the island's scatter is cleared off these. */
 export function walkwayDist(x, z) { return Math.min(footpathDist(x, z), bridgeDist(x, z), benchDist(x, z), jettyDist(x, z), firepitDist(x, z)); }
 /** Distance to the bridge's footprint (< 0 under the deck). */

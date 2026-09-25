@@ -5,7 +5,7 @@ import { fbm2 } from '../core/noise.js';
 import { addFlutter, addWorldSway, addDistanceFade, THIN_SMALL } from '../core/shaderPatches.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { H, WORLD_HALF, SEA_Y, forest, excluded, coastDist, walkwayDist } from './layout.js';
+import { H, WORLD_HALF, SEA_Y, forest, excluded, coastDist, walkwayDist, signDist } from './layout.js';
 import { obstacles, rockBodies } from './bounds.js';
 import { placer, plantGroups, updateGroups, bakeAtlas, billboards } from './scatter.js';
 import { createBushVariants } from '../assets/vegetation/bush.js';
@@ -144,7 +144,7 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
   }
 
   /* ---- clear the walkways (paths, bridge, benches) of anything placed on them; nothing else moves ---- */
-  const off = m => it => { const e = it[0].elements; return walkwayDist(e[12], e[14]) > m; };
+  const off = m => it => { const e = it[0].elements; return Math.min(walkwayDist(e[12], e[14]), signDist(e[12], e[14])) > m; };   // (not the signposts through walkwayDist: the pebbles would move)
   const logClear = t => { const v = logSet.variants[t.variant], dx = Math.cos(t.rot - v.yaw), dz = -Math.sin(t.rot - v.yaw); for (let s = 0; s <= v.length; s += 0.4) if (walkwayDist(t.x + dx * s, t.z + dz * s) < 0.7) return false; return walkwayDist(t.x, t.z) > 0.7; };
   const keep = (list, ok) => { const k = list.filter(ok); list.length = 0; list.push(...k); };
   keep(logs, logClear); keep(bushes, t => walkwayDist(t.x, t.z) > 0.6 * t.s + 0.4); keep(roses, t => walkwayDist(t.x, t.z) > 0.6 * t.s + 0.4);
