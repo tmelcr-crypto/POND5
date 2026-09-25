@@ -7,7 +7,7 @@ import { KINDS, iconSvg } from './itemKinds.js';
 
 /**
  * Picking things up and using them (what you carry: app/inventory.js; the kinds: app/itemKinds.js).
- *  - sources: the plot's apples (on the reference tree and under it), its spruce's cones and the rose's fallen petals;
+ *  - sources: the plot's apples (on the reference tree and under it), the low-hanging apples of the island's apple trees, its spruce's cones and the rose's fallen petals;
  *    the island's cones and sticks (world/undergrowth.js), the stream's pebbles, the windfall apples, berries and
  *    pebbles of assets/vegetation/forage.js; what small moments drops (apples, cones, gust petals) and what you throw;
  *    and petals straight off any rose bush (CONFIG.items.rosePetals a day each).
@@ -21,7 +21,7 @@ import { KINDS, iconSvg } from './itemKinds.js';
  *    and drifts off on the wind. Sitting, in bed or aboard only eating and throwing.
  *  - what you take comes back after an in-game day. Taken things and the day count are saved in the browser.
  */
-export function createItems({ scene, camera, st, clock, inventory, ambience, waterLife, moments, undergrowth, stream, forage, softDot }) {
+export function createItems({ scene, camera, st, clock, inventory, ambience, waterLife, moments, undergrowth, stream, forage, scatter, softDot }) {
   const IC = CONFIG.items, PC = CONFIG.player, KEY = 'meadow.items';
   const zero = new THREE.Matrix4().makeScale(0, 0, 0), m4 = new THREE.Matrix4();
 
@@ -30,6 +30,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d) { total = +d.total || 0; taken = d.taken || {}; } } catch (err) { void err; /* private mode */ }
 
   /* ---- sources: fixed places (hide / show by index), on a 1 m grid ---- */
+  const treeAppleMat = new THREE.MeshStandardMaterial({ roughness: 0.32, metalness: 0 });   // an apple off an island tree, in your hand (no thinning)
   const sources = [], grid = new Map(), gk = (i, j) => i * 73856093 ^ j * 19349663;
   const protos = {};   // per kind, the look of one real item (for what you throw or let go)
   /** look(i): the item's own geometry, material, matrix and colour, so what flies to you is exactly what lay there. */
@@ -54,6 +55,23 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   if (undergrowth) for (const [id, kind, t] of [['cone', 'cone', undergrowth.cones], ['stick', 'stick', undergrowth.sticks]]) if (t) addSource(id, kind, t.positions(), i => t.hide(i), i => t.show(i), i => t.look(i));
   if (stream) imSource('streamPebble', 'pebble', stream.stones, stream.pebbleFrom);
   if (forage) for (const [id, kind, f] of [['windfall', 'apple', forage.windfalls], ['berry', 'berry', forage.berries], ['pebble', 'pebble', forage.pebbles]]) addSource(id, kind, f.points, f.hide, f.show, f.look);
+  // the island's apple trees: the apples low enough to reach (a tree's apples are its variant's shared instances, so a
+  // tree gets its own copy of the apple and stem matrices the first time one is taken, and only its apple goes)
+  if (scatter) scatter.trees.filter(tr => tr.species === 'apple').forEach((tr, ti) => {
+    const ai = tr.v.parts.findIndex(p => p.fruit), apple = tr.g.children[ai], stem = tr.g.children[ai + 1], shared = tr.v.parts[ai].instances.matrix;
+    const pts = [], idx = [], wm = [], P = new V();
+    for (let j = 0; j < shared.count; j++) {
+      const w = tr.g.matrixWorld.clone().multiply(m4.fromArray(shared.array, j * 16)); P.setFromMatrixPosition(w);
+      if (P.y - H(P.x, P.z) < PC.eyeHeight + IC.above - 0.05) { pts.push(P.clone()); idx.push(j); wm.push(w); }
+    }
+    if (!pts.length) return;
+    const own = () => { for (const m of [apple, stem]) if (m.instanceMatrix === m.userData.shared || !m.userData.shared) { m.userData.shared = m.instanceMatrix; m.instanceMatrix = new THREE.InstancedBufferAttribute(m.instanceMatrix.array.slice(), 16); } };
+    const put = (i, arr) => { own(); for (const m of [apple, stem]) { m.instanceMatrix.array.set(arr || m.userData.shared.array.subarray(idx[i] * 16, idx[i] * 16 + 16), idx[i] * 16); m.instanceMatrix.needsUpdate = true; } };
+    const geo = new THREE.BufferGeometry(), src = tr.v.parts[ai].geometry; for (const k of ['position', 'normal', 'uv']) if (src.attributes[k]) geo.setAttribute(k, src.attributes[k]); if (src.index) geo.setIndex(src.index);
+    const col = tr.v.parts[ai].instances.color;
+    addSource('treeApple' + ti, 'apple', pts, i => put(i, zero.elements), i => put(i, null),
+      i => ({ geo, mat: treeAppleMat, m: wm[i], color: new THREE.Color().fromArray(col.array, idx[i] * 3) }));
+  });
   // a petal for letting go and for picking off a rose: the rose's fallen-petal card with a material of its own
   if (!protos.petal && P && P.groundPetals) {
     const src = P.groundPetals, pm = new THREE.MeshStandardMaterial({ map: src.material.map, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.5, metalness: 0 });

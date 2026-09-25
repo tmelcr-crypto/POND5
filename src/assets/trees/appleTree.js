@@ -183,7 +183,7 @@ export function createAppleVariants(ctx, count, seed) {
       parts: [
         { geometry: barkSet.geometry, material: barkMat, depth: barkDepth, vertexRanks: barkSet.ranks },
         { geometry: leafSet.geometry, material: lMat, depth: lDepth, instances: leafSet },
-        { geometry: appleSet.geometry, material: appleMat, depth: appleDepth, instances: appleSet },
+        { geometry: appleSet.geometry, material: appleMat, depth: appleDepth, instances: appleSet, fruit: true },   // fruit: pickable (app/items.js)
         { geometry: stemSet.geometry, material: stemMat, depth: appleDepth, instances: stemSet },
       ],
     });
