@@ -258,6 +258,9 @@ export const CONFIG = {
   // The vegetable garden (app/gardening.js): in-game days from sowing to ripe per crop, how close and how squarely you
   // look at a plot
   garden: { days: { carrot: 2, potato: 3, pumpkin: 4 }, reach: 2.0, cone: 0.3 },
+  // Planting saplings (app/planting.js): at most `max`, in-game days to full size, how far down you look (pitch, rad)
+  // and how far away the ground may be, and how clear of the island's trees and of each other they must be (m)
+  planting: { max: 12, days: 8, pitch: -0.6, reach: 2.4, clear: 2.2, apart: 1.6 },
 
   // Storage chests (app/chestUI.js)
   chest: { reach: 2.2, cone: 0.6, lidOpen: 1.69, longPress: 450 },   // lidOpen 97 degrees: the lid then reaches 0.20 m behind its hinge (keep the chest that far from a wall)   // m, rad (in view), rad (lid open), ms (a press that picks how many)

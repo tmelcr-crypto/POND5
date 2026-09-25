@@ -61,6 +61,7 @@ import { createCurtains } from './app/curtains.js';
 import { createLantern } from './app/lantern.js';
 import { createDrawWater } from './app/drawWater.js';
 import { createGardening } from './app/gardening.js';
+import { createPlanting } from './app/planting.js';
 import { createGameHours } from './world/gameHours.js';
 import { createBody } from './app/body.js';
 import { createFootsteps } from './audio/footsteps.js';
@@ -72,6 +73,7 @@ import { createFirepits } from './assets/cabin/firepits.js';
 import { createSignposts } from './assets/cabin/signposts.js';
 import { createWell } from './assets/cabin/well.js';
 import { createGarden } from './assets/cabin/garden.js';
+import { createSaplings } from './assets/trees/sapling.js';
 import { createControls } from './app/controls.js';
 import { createDebugOverlay } from './app/debugOverlay.js';
 
@@ -160,7 +162,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
+  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
@@ -196,6 +198,7 @@ const items = createItems({ scene: ctx.scene, camera: ctx.camera, st, clock, inv
 const chests = createChests(ctx);   // the storage chest by the woodpile
 createSignposts(ctx);   // signposts at the forks of the paths (own random numbers)
 const well = createWell(ctx), garden = createGarden(ctx);   // the well and the vegetable garden behind the cabin (own random numbers)
+const saplings = createSaplings(ctx, CONFIG.planting.max);   // the saplings you plant (own random numbers)
 const chestUI = createChestUI({ camera: ctx.camera, st, inventory, items, chests }); addTakeover(chestUI.hold);   // opening it, the storage screen
 const fires = createFires({ st, inventory, scene: ctx.scene, camera: ctx.camera, softDot: ctx.tex.softDot });   // lighting and putting out fires: the cabin's fireplace and the firepits
 {
@@ -223,6 +226,7 @@ const timelapse = createTimelapse({ st, clock });   // hold to let time run whil
 const dynRes = createDynamicRes(renderer);   // softer when the frame rate drops, sharper when there is room
 const drawWater = createDrawWater({ scene: ctx.scene, camera: ctx.camera, st, well, inventory, items, softDot: ctx.tex.softDot });   // a cup of water from the well
 const gardening = createGardening({ scene: ctx.scene, camera: ctx.camera, st, garden, inventory, items, hours, seasons, softDot: ctx.tex.softDot });   // sowing and harvest
+const planting = createPlanting({ camera: ctx.camera, st, inventory, items, saplings, hours, seasons, scatter });   // apples and cones into saplings
 const lantern = createLantern({ scene: ctx.scene, camera: ctx.camera, st, softDot: ctx.tex.softDot, skyUniforms });   // the hand lantern on the porch bench, to carry about
 const seasonLooks = createSeasonLooks(scene, seasons);   // the season's colours, snow and what comes and goes (before finalizeScene)
 const weather = createWeather(ctx, { apples: scatter.apple });   // snowfall, autumn leaves, spring blossom
@@ -232,7 +236,7 @@ seasons.on(s => { if (s !== bakedFor) { bakedFor = s; scatter.rebake(s); } items
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, lantern, hours, well, garden, drawWater, gardening, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, lantern, hours, well, garden, drawWater, gardening, planting, saplings, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);
