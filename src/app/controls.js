@@ -2,7 +2,7 @@ import { isTouch } from '../core/env.js';
 import { V, UPV, clamp } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, bridgeRails, jettyDeckY, SEATS } from '../world/layout.js';
+import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, bridgeRails, jettyDeckY, SEATS, lakeD } from '../world/layout.js';
 import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
 
 /** Icons of the sit and stand buttons (also used by the bed, app/sleeping.js). */
@@ -180,6 +180,7 @@ export function createControls(app) {
     const ix = p.x - HOUSE.x, iz = p.z - HOUSE.z;
     if (Math.abs(ix) < 1.58 && Math.abs(iz) < 1.23) g = Math.max(g, PAD_H + CB.FL);
     const deck = Math.max(bridgeDeckY(p.x, p.z), jettyDeckY(p.x, p.z)); if (deck - feet <= PC.stepHeight) g = Math.max(g, deck);   // the footbridge and the jetty (not from under them)
+    if (U.uWinter.value > 0.5 && lakeD(p.x, p.z) < 1.0) g = Math.max(g, WATER_Y + 0.02);   // the frozen pond (world/seasons.js)
     const standOn = c => {
       // in the collider's own (rotated) frame; radii are padded by 0.2, body is the player's radius
       const cr = Math.cos(c.rot || 0), sr = Math.sin(c.rot || 0), wx = p.x - c.x, wz = p.z - c.z;

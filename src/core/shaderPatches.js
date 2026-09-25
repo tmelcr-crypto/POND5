@@ -13,6 +13,7 @@ import { canvasTex } from './canvasTexture.js';
  *  addDistanceFade - dithered distance cross-fade between a near and a far mesh (island rocks)
  *  addRegionFade   - the same dither, by the camera's distance to a fixed box / point (the plot's assets)
  *  addCloudShadow  - soft cloud shadows drifting over everything the sun lights (CLOUD uniforms)
+ *  addSeason       - the season's colours and winter snow (U.uSpring / uAutumn / uWinter / uSnow; world/seasons.js)
  */
 export function addFlutter(mat, amp) {
   mat.onBeforeCompile = s => {
@@ -215,6 +216,61 @@ export function addCloudShadow(mat) {
         }
         #define getDirectionalDirectLightIrradiance cloudShadowedSun
       #endif`);
+  };
+  return mat;
+}
+
+/**
+ * The season on a material (world/seasons.js sets the uniforms; all 0 in summer, when this changes nothing). Options:
+ *  veg:  green vegetation colours turn fresher in spring, golden-brown in autumn, dry straw in winter (the less green a
+ *        colour, the less it changes, so dirt, rock and sand stay as they are)
+ *  leaf: tree leaves (instanced cards): white-pink blossom on some cards in spring, yellow / orange / red in autumn
+ *  snow: [lo, hi] how much a surface must face up to take snow in winter (1 flat), amount 0..1, minY: none below this
+ *        height (the waterline); patchy at the edges
+ * Applied just before the lighting, after textures and vertex colours.
+ */
+const SEASON_GLSL = `uniform float uSpring; uniform float uAutumn; uniform float uWinter; uniform float uSnow; varying vec3 vSeasonW; varying float vSeasonH;
+  float sHash(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+  float sNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+    return mix(mix(sHash(vec3(i, 0.0)), sHash(vec3(i + vec2(1.0, 0.0), 0.0)), f.x), mix(sHash(vec3(i + vec2(0.0, 1.0), 0.0)), sHash(vec3(i + vec2(1.0, 1.0), 0.0)), f.x), f.y); }
+  vec3 seasonVeg(vec3 c){
+    float g = clamp((c.g - max(c.r, c.b)) / max(c.g, 1e-4) * 3.0, 0.0, 1.0), l = dot(c, vec3(0.3, 0.59, 0.11));
+    vec3 t = c;
+    t = mix(t, c * vec3(0.92, 1.14, 0.72), uSpring);
+    t = mix(t, vec3(1.7, 1.12, 0.42) * l, uAutumn);
+    t = mix(t, vec3(1.3, 1.1, 0.8) * l, uWinter);
+    return mix(c, t, g);
+  }`;
+export function addSeason(mat, o = {}) {
+  const prev = mat.onBeforeCompile, snow = o.snow || null;
+  mat.onBeforeCompile = (s, r) => {
+    prev.call(mat, s, r);
+    Object.assign(s.uniforms, { uSpring: U.uSpring, uAutumn: U.uAutumn, uWinter: U.uWinter, uSnow: U.uSnow });
+    const at = s.vertexShader.includes('#include <project_vertex>') ? '#include <project_vertex>' : '#include <fog_vertex>';
+    s.vertexShader = 'varying vec3 vSeasonW; varying float vSeasonH;\n' + s.vertexShader.replace(at, `${at}
+      #ifdef USE_INSTANCING
+        vSeasonW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+        vec3 sip = (modelMatrix * instanceMatrix[3]).xyz; vSeasonH = fract(sin(dot(sip, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+      #else
+        vSeasonW = (modelMatrix * vec4(transformed, 1.0)).xyz; vSeasonH = 0.5;
+      #endif`);
+    let frag = '';
+    if (o.veg) frag += 'diffuseColor.rgb = seasonVeg(diffuseColor.rgb);\n';
+    if (o.leaf) frag += `{
+        float h = vSeasonH, l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)) * 2.6;
+        vec3 blossom = mix(vec3(0.92, 0.84, 0.86), vec3(0.95, 0.62, 0.7), fract(h * 7.0)) * clamp(l * 2.2, 0.35, 1.0);
+        diffuseColor.rgb = mix(diffuseColor.rgb, blossom, uSpring * step(0.62, h));
+        vec3 aut = h < 0.4 ? vec3(0.78, 0.5, 0.05) : h < 0.75 ? vec3(0.8, 0.27, 0.03) : vec3(0.52, 0.07, 0.03);
+        diffuseColor.rgb = mix(diffuseColor.rgb, aut * clamp(l, 0.25, 1.0), uAutumn);
+      }\n`;
+    if (snow) frag += `{
+        vec3 upV = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+        float up = dot(normalize(normal), upV) + (sNoise(vSeasonW.xz * 2.3) - 0.5) * 0.3 + (sNoise(vSeasonW.xz * 0.35) - 0.5) * 0.2;
+        float sn = uSnow * ${(snow.amount ?? 1).toFixed(3)} * smoothstep(${snow.lo.toFixed(3)}, ${snow.hi.toFixed(3)}, up) * smoothstep(${(snow.minY ?? -1e4).toFixed(3)}, ${((snow.minY ?? -1e4) + 0.12).toFixed(3)}, vSeasonW.y);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.8, 0.84, 0.9) * (0.92 + 0.12 * sNoise(vSeasonW.xz * 9.0)), sn);
+        roughnessFactor = mix(roughnessFactor, 0.75, sn);
+      }\n`;
+    s.fragmentShader = SEASON_GLSL + '\n' + s.fragmentShader.replace('#include <lights_physical_fragment>', frag + '#include <lights_physical_fragment>');
   };
   return mat;
 }

@@ -55,6 +55,7 @@ export function createTerrain(ctx) {
           totalEmissiveRadiance += uSunCol * uSunI * cc * uwm * fade * 0.09;
         }`);
     };
+    m.userData.season = 'groundPlot';   // world/seasonLooks.js
     const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh);
   }
 }
@@ -154,6 +155,7 @@ export function createWorldTerrain(ctx) {
         diffuseColor.rgb *= 1.0 - 0.3 * soilW * streamBed;             // wet bed`)
       .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n reflectedLight.directSpecular *= 0.2; reflectedLight.indirectSpecular *= 0.2;');
   };
+  m.userData.season = 'ground';   // world/seasonLooks.js
   const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh);
   return { mesh };
 }

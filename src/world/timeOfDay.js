@@ -30,9 +30,10 @@ function displayColor(out, c, exposure) {
 export function createTimeOfDay(ctx) {
   const { renderer, scene, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin, setLights } = ctx, TC = CONFIG.time;
   const sunDir = new V();
+  let SUN = [6, 18, 1];   // sunrise, sunset (hours) and how high the sun climbs: the season's (setSeasonSun)
   const moonDir = new V(-0.35, 0.72, 0.6).normalize();
   function setSun(hours) {
-    const tt = (hours - 6) / 12, sN = Math.sin(Math.PI * tt), el = Math.max(0.035, sN * 1.05), az = Math.PI * clamp(tt, 0, 1);
+    const tt = (hours - SUN[0]) / (SUN[1] - SUN[0]), sN = Math.sin(Math.PI * tt), el = Math.max(0.035, sN * 1.05 * SUN[2]), az = Math.PI * clamp(tt, 0, 1);
     sunDir.set(Math.cos(az) * Math.cos(el), Math.sin(el), -0.55 * Math.sin(az) * Math.cos(el)).normalize();
     const k = smooth(0.03, 0.5, sN), day = smooth(-0.16, 0.06, sN), vis = smooth(-0.03, 0.05, sN);
     const sc = new THREE.Color(1.0, 0.46, 0.22).lerp(new THREE.Color(1.0, 0.95, 0.88), k);
@@ -71,5 +72,7 @@ export function createTimeOfDay(ctx) {
     const n = skyUniforms.uNight.value, changing = n > 0.02 && n < 0.98;   // dawn and dusk: the sky changes fast
     if (envAcc >= (changing ? TC.envEvery[0] : TC.envEvery[1])) { envAcc = 0; const t0 = performance.now(); rebuildEnv(); stats.envMs = performance.now() - t0; stats.envBuilds++; }
   }
-  return { setSun, scheduleEnv, clock, setHours, update, stats };
+  /** The season's day: [sunrise, sunset, height] (world/seasons.js, CONFIG.seasons.sun). */
+  function setSeasonSun(s) { SUN = s; setSun(clock.hours); dark = skyUniforms.uNight.value > 0.5; }
+  return { setSun, scheduleEnv, clock, setHours, update, stats, setSeasonSun };
 }

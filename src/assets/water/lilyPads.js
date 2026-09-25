@@ -10,8 +10,8 @@ export function createLilyPads(ctx) {
   const { scene } = ctx;
   const pads = [];
   {
-    const pm = new THREE.MeshStandardMaterial({ color: lin(0x3b6a28), roughness: 0.4, side: THREE.DoubleSide });
-    const pm2 = new THREE.MeshStandardMaterial({ color: lin(0x55702e), roughness: 0.45, side: THREE.DoubleSide });
+    const pm = new THREE.MeshStandardMaterial({ color: lin(0x3b6a28), roughness: 0.4, side: THREE.DoubleSide }); pm.userData.season = 'pond';   // gone under the ice in winter
+    const pm2 = new THREE.MeshStandardMaterial({ color: lin(0x55702e), roughness: 0.45, side: THREE.DoubleSide }); pm2.userData.season = 'pond';
     let tries = 0;
     while (pads.length < 11 && tries < 500) {
       tries++;
@@ -23,7 +23,7 @@ export function createLilyPads(ctx) {
       mesh.receiveShadow = true; mesh.castShadow = true; mesh.userData.ph = rng() * 6.28; pads.push(mesh); scene.add(mesh);
     }
     // one water lily flower on a pad
-    const fl = new THREE.Group(); const petalM = new THREE.MeshStandardMaterial({ color: lin(0xfbeef0), roughness: 0.5 });
+    const fl = new THREE.Group(); const petalM = new THREE.MeshStandardMaterial({ color: lin(0xfbeef0), roughness: 0.5 }); petalM.userData.season = 'pond';
     for (let ring = 0; ring < 2; ring++) for (let i = 0; i < 8; i++) {
       const p = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 6), petalM); p.scale.set(0.38, 0.14, 1);
       const a = i / 8 * Math.PI * 2 + ring * 0.4; p.position.set(Math.cos(a) * 0.025 * (1 - ring * 0.35), 0.012 + ring * 0.012, Math.sin(a) * 0.025 * (1 - ring * 0.35));

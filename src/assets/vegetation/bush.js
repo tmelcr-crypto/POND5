@@ -15,7 +15,7 @@ import { addFlutter, addThinning, dampSpecular } from '../../core/shaderPatches.
 export function createBushVariants(ctx, count, seed, thin) {
   const { barkTex, leafTex } = ctx.tex;
   const woodMat = new THREE.MeshStandardMaterial({ map: barkTex, vertexColors: true, color: lin(0x8a7a66), roughness: 0.9 });
-  const leafMat = new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.75, envMapIntensity: 0.5 });
+  const leafMat = new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.75, envMapIntensity: 0.5 }); leafMat.userData.season = 'leafVeg';
   addFlutter(leafMat, 0.014); dampSpecular(leafMat, 0.3);
   const depth = (map, alphaTest) => new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map, alphaTest });
   const woodDepth = depth(null, 0), leafDepth = depth(leafTex, 0.5);

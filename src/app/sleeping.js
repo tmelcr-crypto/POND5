@@ -165,7 +165,7 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
       black.style.opacity = String(t < F ? t / F : t < F + SL.black ? 1 : Math.max(0, 1 - (t - F - SL.black) / F));
       if (!fade.jumped && t >= F + SL.black * 0.5) {
         fade.jumped = true; const hrs = SL.hours[0] + Math.random() * (SL.hours[1] - SL.hours[0]);
-        setHours(clock.hours + hrs); prevH = clock.hours; total += hrs; scheduleEnv(true); afterTimeJump();
+        setHours(clock.hours + hrs); prevH = clock.hours; total += hrs; afterTimeJump(hrs); scheduleEnv(true);
       }
       if (t >= 2 * F + SL.black) { fade = null; black.style.opacity = '0'; mode = 'lying'; }
     } else if (mode === 'sitting') setButtons(['stand', allowed() && 'sleep', !albumOpen() && 'album'].filter(Boolean));
