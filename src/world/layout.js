@@ -260,6 +260,9 @@ const FOOTPATH_ROUTES = [
   { course: [BRIDGE_E, [12.2, -12.4], [12.8, -14.6], [13.9, -17.3], [16.5, -18.9], [19.6, -19.1], [22.2, -18.7], benchPoint(SUNRISE, 1.75, 0.2), benchPoint(SUNRISE, 1.1, 0.95), benchPoint(SUNRISE, 0, 1.0)], from: 0.55, bench: SUNRISE },
   { course: [BRIDGE_W, [6.2, -11.4], [3.8, -13.2], [0, -14.4], [-5, -15.3], [-10, -16.0], [-15, -16.4], [-19.5, -16.4], benchPoint(SUNSET, 1.85, 0.25), benchPoint(SUNSET, 1.15, 1.0), benchPoint(SUNSET, 0, 1.05)], from: 0.6, bench: SUNSET },
   { course: [[21.0, -19.05], [23.4, -19.9], [25.8, -19.5], [27.4, -18.4], [JETTY.x0 - 0.25, JETTY.z]], from: 0.62 },   // branches off the sunrise path down to the jetty
+  // from the bridge's east end north through the open ground to the forest firepit (route picked offline round every tree,
+  // rock and bush; it ends between two of the logs)
+  { course: [[12.0, -11.9], [11.5, -10.5], [11.3, -8], [10.6, -5.5], [10.5, -3], [10.4, -0.5], [10.2, 2], [10.9, 4.6], [13.3, 6.7], [16, 6.4], [18.5, 6.8], [20.4, 8.6], [21.4, 9.1]], from: 0.6 },
 ];
 export const FOOTPATH = (() => {
   let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }, rr = (a, b) => a + (b - a) * rnd();
@@ -319,7 +322,7 @@ export const FIREPITS = [
   const pa = f.pile[0] * R, px = f.x + Math.cos(pa) * f.pile[1], pz = f.z + Math.sin(pa) * f.pile[1];
   return { ...f, y, logs, pile: { x: px, z: pz, fx: -Math.cos(pa), fz: -Math.sin(pa), w: PIT.pileW, d: PIT.pileD }, ...PIT };
 });
-FIREPITS.forEach(f => f.logs.forEach(l => SEATS.push({ x: l.x, z: l.z, fx: l.fx, fz: l.fz, top: l.top, half: PIT.logLen / 2, back: 0 })));   // sit on any log
+FIREPITS.forEach((f, pit) => f.logs.forEach(l => SEATS.push({ x: l.x, z: l.z, fx: l.fx, fz: l.fz, top: l.top, half: PIT.logLen / 2, back: 0, pit })));   // sit on any log (pit: which firepit, for cooking)
 /** Distance to a firepit's footprint: the fire and its logs (a disc), or its woodpile (< 0 inside). */
 export function firepitDist(x, z) {
   let d = Infinity;

@@ -170,6 +170,14 @@ export const CONFIG = {
     embers: 45,                    // s the embers keep glowing (and the chimney smoking) after it is out
   },
 
+  // Cooking at a firepit (app/cooking.js)
+  cook: {
+    push: 2, time: 30,             // s: the stick reaching out to the fire (and back), the cooking
+    reach: 0.9,                    // m the stick travels
+    over: 0.12,                    // m the food hangs above the middle of the fire
+    hand: [0.3, 0.2, 0.45],        // m from the seated eye to the hand: forward, right, down
+  },
+
   // Sleeping in the cabin's bed (app/sleeping.js)
   sleep: {
     reach: 2.6, cone: 0.6,         // m from the bed, and how near the middle of the view it must be (rad)

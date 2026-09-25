@@ -50,6 +50,7 @@ import { createItems } from './app/items.js';
 import { createChests } from './assets/cabin/chest.js';
 import { createChestUI } from './app/chestUI.js';
 import { createFires } from './app/fires.js';
+import { createCooking } from './app/cooking.js';
 import { createFirepits } from './assets/cabin/firepits.js';
 import { createControls } from './app/controls.js';
 import { createDebugOverlay } from './app/debugOverlay.js';
@@ -135,7 +136,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
+  tod.update(dt); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
@@ -175,10 +176,11 @@ const fires = createFires({ st, inventory });   // lighting and putting out fire
   firepits.pits.forEach((p, i) => { const s = ambience.addFire(p.at); fires.add({ id: 'pit-' + p.P.name, at: p.at, near: () => true, fuel: { kinds: ['stick', 'cone'], n: 3, text: 'You need 3 sticks or cones' }, set: (k, e) => { firepits.set(i, k, e); ambience.setFireLevel(k, s); } }); });
   fires.add({ id: 'fireplace', at: hearth.localToWorld(cabin.fireParts.hearth.clone()), near: p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW, set: (k, e) => { setFire(k, e); ambience.setFireLevel(k); } });
 }
+const cooking = createCooking({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, fires });   // roasting food over a firepit
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);

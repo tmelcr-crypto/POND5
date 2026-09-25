@@ -28,6 +28,7 @@ export function createInventory({ st }) {
   useBtn.addEventListener('contextmenu', e => e.preventDefault());
 
   let near = false;   // by a chest the bar always shows (app/chestUI.js)
+  let useLabel = () => null;   // another word for the Use button for a kind (app/cooking.js: Cook), or null
   function render() {
     const any = slots.some(Boolean);
     bar.classList.toggle('hide', !any && !near);
@@ -37,7 +38,8 @@ export function createInventory({ st }) {
       b.setAttribute('aria-label', s ? `${KINDS[s.kind].name}, ${s.n}` + (i === sel ? ', selected' : '') : `Empty slot ${i + 1}`);
     });
     useBtn.style.display = slots[sel] ? '' : 'none';
-    useBtn.setAttribute('aria-label', slots[sel] ? 'Use ' + KINDS[slots[sel].kind].name.toLowerCase() : 'Use');
+    const lab = slots[sel] && useLabel(slots[sel].kind); useBtn.textContent = lab || 'Use'; useBtn.classList.toggle('cook', !!lab);
+    useBtn.setAttribute('aria-label', slots[sel] ? (lab || 'Use') + ' ' + KINDS[slots[sel].kind].name.toLowerCase() : 'Use');
     st.wheelSelect = any;   // the mouse wheel picks a slot while you carry something (app/controls.js)
   }
   function select(i) { sel = ((i % N) + N) % N; render(); save(); }
@@ -70,5 +72,5 @@ export function createInventory({ st }) {
     for (const k of kinds) for (const s of slots.filter(x => x && x.kind === k).sort((a, b) => a.n - b.n)) { const t = Math.min(n, s.n); s.n -= t; n -= t; if (!s.n) slots[slots.indexOf(s)] = null; if (!n) break; }
     refresh(); return true;
   }
-  return { canAdd, add, use, select, refresh, count, take, get slots() { return slots; }, get selected() { return slots[sel]; }, set onUse(f) { onUse = f; }, set nearChest(v) { if (v !== near) { near = v; render(); } } };
+  return { canAdd, add, use, select, refresh, count, take, get slots() { return slots; }, get selected() { return slots[sel]; }, set onUse(f) { onUse = f; }, get onUse() { return onUse; }, set useLabel(f) { useLabel = f; render(); }, set nearChest(v) { if (v !== near) { near = v; render(); } } };
 }
