@@ -3,12 +3,13 @@ import { clamp, smooth, lin } from '../core/math.js';
 import { fbm2 } from '../core/noise.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { H, HALF, WORLD_HALF, forest, excluded, coastDist, streamDist, footpathDist, bridgeDist, benchDist, chestDist, firepitDist, builtDist, signDist } from './layout.js';
+import { H, HALF, WORLD_HALF, forest, excluded, coastDist, streamDist, footpathDist, bridgeDist, benchDist, chestDist, firepitDist, builtDist, signDist, lieDist } from './layout.js';
 
 /**
  * Bake the world into a small RGBA half-float texture the grass vertex shader samples:
  * R = terrain height, G = grass density (0 on the plot, the beach and the sea, thinner under forest and on exclusions),
- * B = low-frequency patch noise (blade height / tint variation). 0.25 m per texel.
+ * B = low-frequency patch noise (blade height / tint variation), A = blade height factor (low round the places to lie
+ * down, LIE_SPOTS in layout.js). 0.25 m per texel.
  */
 export function createGroundTexture() {
   const N = 4 * WORLD_HALF * 2 + 1, ext = WORLD_HALF, st = 2 * ext / (N - 1);
@@ -22,7 +23,7 @@ export function createGroundTexture() {
     d *= smooth(-0.3, 0.6, firepitDist(x, z));                                         // trodden round the firepits, none under the woodpiles
     d *= smooth(-0.05, 0.45, builtDist(x, z)) * smooth(0.0, 0.35, signDist(x, z));   // none in the garden beds or the well; a little round the signposts
     d *= smooth(0.0, 0.4, footpathDist(x, z)) * smooth(0.0, 0.15, bridgeDist(x, z)) * smooth(-0.1, 0.25, benchDist(x, z)) * smooth(0.3, 0.7, chestDist(x, z));   // swaying blades would reach into a chest   // off the path stones, from under the bridge and the benches
-    data[k] = half(H(x, z)); data[k + 1] = half(clamp(d)); data[k + 2] = half(clamp(fbm2(x * 0.9 + 4, z * 0.9 - 2) + 0.5)); data[k + 3] = half(1);
+    data[k] = half(H(x, z)); data[k + 1] = half(clamp(d)); data[k + 2] = half(clamp(fbm2(x * 0.9 + 4, z * 0.9 - 2) + 0.5)); data[k + 3] = half(0.3 + 0.7 * smooth(1.4, 2.6, lieDist(x, z)));
   }
   const tex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat, THREE.HalfFloatType);
   tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.needsUpdate = true;
@@ -130,7 +131,7 @@ export function createWorldGrass(ctx, ground) {
           float cr = cos(aBlade.z), sr = sin(aBlade.z);
           vec3 objectNormal = normalize(vec3(sr, 0.0, cr) * 0.35 + vec3(0.0, 1.0, 0.0));`)
         .replace('#include <begin_vertex>', `
-          float tall = mix(uH.x, uH.y, rnd) * (0.75 + 0.55 * gPatch) * smoothstep(uFall.y, uFall.y - 3.0, r) * keep;
+          float tall = mix(uH.x, uH.y, rnd) * (0.75 + 0.55 * gPatch) * gd.a * smoothstep(uFall.y, uFall.y - 3.0, r) * keep;
           vec3 p = position; float hf = uv.y;
           p.x *= mix(0.03, 0.058, gh(bp + 1.9)) * widen; p.y *= tall; p.z *= tall * mix(0.3, 1.3, gh(bp + 2.7));
           p = vec3(cr*p.x + sr*p.z, p.y, -sr*p.x + cr*p.z);

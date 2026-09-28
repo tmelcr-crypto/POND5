@@ -268,6 +268,8 @@ const FOOTPATH_ROUTES = [
   { course: [[-9, -15.5], [-9.5, -13], [-9.5, -10.5], [-11, -8], [-12, -5.5], [-12, -3], [-12, -0.5], [-12, 2], [-12, 4.5], [-12.5, 7], [-13, 9.5], [-14.5, 12], [-16.5, 14], [-18.5, 16.5], [-19.7, 17.0]], from: 0.6 },
   // off the forest path east into the meadow, to the well and the garden (clear of every tree, rock and bush; picked offline)
   { course: [[-12.0, 4.75], [-11.0, 5.05], [-10.0, 5.6], [-9.0, 6.3], [-8.0, 6.75]], from: 0.6 },
+  // on from the sunrise bench up the east hill to the standing stones, round the apple tree and the boulders (picked offline)
+  { course: [[24.75, -15.0], [23.7, -14.2], [22.75, -13.2], [22.3, -12.0], [22.3, -10.5], [22.55, -9.0], [22.9, -7.5], [23.8, -6.3], [24.9, -5.35], [26.0, -5.0]], from: 0.6 },
 ];
 export const FOOTPATH = (() => {
   let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }, rr = (a, b) => a + (b - a) * rnd();
@@ -290,11 +292,11 @@ export const FOOTPATH = (() => {
   return { stones, len, routes: FOOTPATH_ROUTES.length, grid: { x0, z0, nx, nz, cells, reach } };
 })();
 /** Distance to the nearest path stone's rim (< 0 on a stone); FOOTPATH.grid.reach (2.2 m) when none is that close. */
-export function footpathDist(x, z) {
+export function footpathDist(x, z, routes = Infinity) {   // routes: only the routes before this one
   const G = FOOTPATH.grid, i = Math.floor(x - G.x0), j = Math.floor(z - G.z0);
   if (i < 0 || j < 0 || i >= G.nx || j >= G.nz) return G.reach;
   let d = G.reach;
-  for (const s of G.cells[j * G.nx + i]) d = Math.min(d, Math.hypot(x - s.x, z - s.z) - s.r * (1 + 0.5 * (s.sx - 1)));
+  for (const s of G.cells[j * G.nx + i]) if (s.route < routes) d = Math.min(d, Math.hypot(x - s.x, z - s.z) - s.r * (1 + 0.5 * (s.sx - 1)));
   return d;
 }
 /** Distance to a bench's footprint, its lantern's end included (< 0 inside). */
@@ -363,6 +365,7 @@ export const SIGNS = [
     { text: 'Beach fire', way: [...course(3), pitAt('beach')] },
     { text: 'Sunrise bench', way: onFrom(course(1), 22.2, -18.7) },
     { text: 'Cabin', way: [...rev(upTo(course(1), 19.6, -19.1)), ...rev(overBridge), ...toCabin] },
+    { text: 'Standing stones', way: [...onFrom(course(1), 22.2, -18.7), ...course(6)] },
   ] },
   { x: -9.9, z: -15.1, boards: [   // the forest path's start, on the sunset path
     { text: 'Forest fire', way: [...course(4), pitAt('forest')] },
@@ -407,16 +410,67 @@ export const GARDEN = (() => {
   return { ...G, beds, plots, seedBox, bins, half: [(3 * G.bedW + 2 * G.gap) / 2, G.bedL / 2] };
 })();
 export const WELL = { x: -8.7, z: 5.1, r: 0.56, rim: 0.72, y: H(-8.7, 5.1) };
-/** Distance to the garden's beds (as one rectangle round them), its seed box, or the well (< 0 inside). */
+/**
+ * The standing stones on the east hilltop (#66; the island's highest hilltops are all 2.9-3.2 m, the two highest in the
+ * spruce forest, so the ring stands on the highest open one, with the sea to the east). A ring of ten places round
+ * (x, z), radius r, the gap between the first and the last facing the path from the west. Each place: angle, size
+ * (w along the ring, d across it, h above the ground) and what became of it: standing, leaning (outwards, lean rad),
+ * fallen (lying outwards), broken (a stump) or gone. The stones' shapes: assets/rocks/standingStones.js.
+ */
+export const STONES = (() => {
+  const x = 29.75, z = -5, r = 2.8, n = 10;
+  const kinds = [
+    { w: 0.78, d: 0.42, h: 2.0 },                  // the entrance's two tall stones: this one and the last
+    { w: 0.7, d: 0.38, h: 1.45 }, { w: 0.6, d: 0.36, h: 1.62 },
+    { w: 0.72, d: 0.4, h: 1.55, lean: 0.3 },
+    { w: 0.98, d: 0.5, h: 2.25 },                  // the tallest, facing the way in
+    { w: 0.66, d: 0.36, h: 1.7 },
+    { w: 0.74, d: 0.42, h: 1.85, fallen: true },
+    { w: 0.62, d: 0.4, h: 0.55, broken: true },
+    { gone: true },
+    { w: 0.74, d: 0.42, h: 1.95 },
+  ];
+  const jit = [0.03, -0.05, 0.04, -0.02, 0.0, 0.05, -0.04, 0.02, 0, -0.03], rj = [0.0, 0.08, -0.06, 0.05, 0.1, -0.05, 0.06, -0.08, 0, 0.02];
+  const stones = kinds.map((k, i) => {
+    const a = Math.PI + (i + 0.5) / n * Math.PI * 2 + jit[i], rr = r + rj[i], sx = x + Math.cos(a) * rr, sz = z + Math.sin(a) * rr;
+    return { ...k, i, a, x: sx, z: sz, y: H(sx, sz), seed: 31 + i * 17 };
+  }).filter(s => !s.gone);
+  // footprints (x, z, radius) for keeping grass, sticks and cones out of them; a fallen stone lies outwards from its place
+  const foot = [];
+  stones.forEach(s => {
+    if (!s.fallen) { foot.push([s.x, s.z, Math.max(s.w, s.d) * 0.5]); return; }
+    for (let t = 0.2; t < s.h; t += 0.45) foot.push([s.x + Math.cos(s.a) * t, s.z + Math.sin(s.a) * t, s.w * 0.5]);
+  });
+  return { x, z, r, y: H(x, z), stones, foot };
+})();
+
+/**
+ * Five places to lie down in the grass and watch the sky (#99): the grass is lower there and only there can you lie
+ * (app/controls.js). (x, z) is where you lie (the middle of you), (fx, fz) the way your feet point, i.e. the view
+ * when you lift your head. All clear of trees, rocks, bushes, paths and the stream by 1.3 m or more (picked offline).
+ */
+export const LIE_SPOTS = [
+  { name: 'stones', x: 30.25, z: -4.7, fx: 1, fz: 0 },            // in the stone ring, feet to the sunrise and the sea
+  { name: 'north hill', x: -11.5, z: -23.5, fx: -0.57, fz: -0.82 }, // over the north shore
+  { name: 'glade', x: 24, z: 11.5, fx: 0, fz: 1 },                 // a glade in the east wood: spruce crowns all round the sky
+  { name: 'south hill', x: 7, z: 21.5, fx: 0.27, fz: 0.96 },       // the south slope down to the sea
+  { name: 'west meadow', x: -16.5, z: -12, fx: -1, fz: 0 },        // feet to the sunset
+].map(s => ({ ...s, y: H(s.x, s.z) }));
+/** Distance to the nearest lie-down place's middle. */
+export function lieDist(x, z) { let d = Infinity; for (const s of LIE_SPOTS) d = Math.min(d, Math.hypot(x - s.x, z - s.z)); return d; }
+
+/** Distance to the garden's beds (as one rectangle round them), its seed box, the well or a standing stone's foot (< 0 inside). */
 export function builtDist(x, z) {
   const rect = (cx, cz, hx, hz) => { const a = Math.abs(x - cx) - hx, b = Math.abs(z - cz) - hz; return Math.max(a, b) < 0 ? Math.max(a, b) : Math.hypot(Math.max(a, 0), Math.max(b, 0)); };
   const S = GARDEN.seedBox;
-  return Math.min(rect(GARDEN.x, GARDEN.z, GARDEN.half[0], GARDEN.half[1]), rect(S.x, S.z, S.w / 2, S.l / 2), Math.hypot(x - WELL.x, z - WELL.z) - WELL.r);
+  let d = Math.min(rect(GARDEN.x, GARDEN.z, GARDEN.half[0], GARDEN.half[1]), rect(S.x, S.z, S.w / 2, S.l / 2), Math.hypot(x - WELL.x, z - WELL.z) - WELL.r);
+  if (Math.abs(x - STONES.x) < STONES.r + 3 && Math.abs(z - STONES.z) < STONES.r + 3) for (const [a, b, r] of STONES.foot) d = Math.min(d, Math.hypot(x - a, z - b) - r);
+  return d;
 }
 /** Distance to the nearest signpost's foot (< 0 at it). */
 export function signDist(x, z) { let d = Infinity; for (const S of SIGNS) d = Math.min(d, Math.hypot(x - S.x, z - S.z) - 0.3); return d; }
 /** Distance to anything built to walk on or sit at (path stones, bridge, benches, jetty, firepits): the island's scatter is cleared off these. */
-export function walkwayDist(x, z) { return Math.min(footpathDist(x, z), bridgeDist(x, z), benchDist(x, z), jettyDist(x, z), firepitDist(x, z)); }
+export function walkwayDist(x, z, routes) { return Math.min(footpathDist(x, z, routes), bridgeDist(x, z), benchDist(x, z), jettyDist(x, z), firepitDist(x, z)); }
 /** Distance to the bridge's footprint (< 0 under the deck). */
 export function bridgeDist(x, z) {
   const B = BRIDGE, dx = x - B.x, dz = z - B.z, u = Math.abs(dx * B.ax + dz * B.az) - B.half, v = Math.abs(dx * B.az - dz * B.ax) - B.width / 2;

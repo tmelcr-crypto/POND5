@@ -3,7 +3,7 @@ import { setSeed, rng, rr } from '../core/random.js';
 import { smooth } from '../core/math.js';
 import { THIN, addSeason } from '../core/shaderPatches.js';
 import { CONFIG } from '../config.js';
-import { H, WORLD_HALF, forest, excluded, coastDist, walkwayDist } from './layout.js';
+import { H, WORLD_HALF, forest, excluded, coastDist, walkwayDist, STONES } from './layout.js';
 import { SHOWN, PATCH } from './seasonLooks.js';
 import { obstacles, rockBodies } from './bounds.js';
 import { createSpruceVariants } from '../assets/trees/spruce.js';
@@ -209,7 +209,7 @@ export function createScatter(ctx) {
   }
   // spruces: groves between the meadow and the beach, a few loners in the meadow
   // (anything that would stand on a path, the bridge or a bench is dropped afterwards, so nothing else moves)
-  const spruceAll = scatterTrees(SC.spruceCount, (x, z) => 0.03 + 0.97 * forest(x, z), TC.spruceScale, SC.minSpacing), spruce = spruceAll.filter(t => walkwayDist(t.x, t.z) > 1.1);
+  const spruceAll = scatterTrees(SC.spruceCount, (x, z) => 0.03 + 0.97 * forest(x, z), TC.spruceScale, SC.minSpacing), spruce = spruceAll.filter(t => walkwayDist(t.x, t.z) > 1.1 && Math.hypot(t.x - STONES.x, t.z - STONES.z) > STONES.r + 1.8);   // (and none in the stone ring)
   // apple trees: open meadow ring around the clearing, away from the forest
   const appleAll = scatterTrees(SC.appleCount, (x, z) => { const r = Math.hypot(x, z); return (1 - forest(x, z)) * smooth(SC.clearingRadius - 4, SC.clearingRadius + 2, r) * (1 - smooth(30, 42, r)); }, TC.appleScale, 5), apple = appleAll.filter(t => walkwayDist(t.x, t.z) > 1.1);
 

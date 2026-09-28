@@ -2,11 +2,12 @@ import { isTouch } from '../core/env.js';
 import { V, UPV, clamp } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, bridgeRails, jettyDeckY, SEATS, lakeD } from '../world/layout.js';
+import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, bridgeRails, jettyDeckY, SEATS, LIE_SPOTS, lakeD } from '../world/layout.js';
 import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
 
 /** Icons of the sit and stand buttons (also used by the bed, app/sleeping.js). */
 export const ICON_SIT = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8.5" cy="4.5" r="2"/><path d="M8.5 7.5v6h6v6"/><path d="M3 14.5h18M5 14.5v5M19 14.5v5"/></svg>';
+export const ICON_LIE = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="13.5" r="2"/><path d="M8 14.5h8l3-2.5M12 14.5l3 2.5"/><path d="M2.5 18.5h19"/><path d="M17 4.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/></svg>';
 export const ICON_STAND = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="4" r="2"/><path d="M10 7v7M10 14l-3 6M10 14l3 6M6.5 10.5h7"/><path d="M19 13V5M16.5 7.5L19 5l2.5 2.5"/></svg>';
 
 /**
@@ -21,6 +22,9 @@ export const ICON_STAND = '<svg viewBox="0 0 24 24" width="30" height="30" fill=
  *  - sitting: near a bench (SEATS in world/layout.js), in front of it, the sit button (or R) turns you to the bench,
  *    walks you up to it, turns you round and sits you down; seated, you can only look around; the stand button (or R)
  *    raises you and gives the controls back. Nothing else moves you while it plays.
+ *  - lying down: at one of the places to lie in the grass (LIE_SPOTS), the same button (a lying figure) walks you to it,
+ *    turns you to face the way your feet will point, sits you down and lays you back looking at the sky; you can look
+ *    round (and let time run, app/timelapse.js) but not sleep. The stand button sits you up and stands you up.
  */
 export function createControls(app) {
   const { canvas, camera, cabin, toggleDoor, setLights, setHours, clock, scheduleEnv } = app;
@@ -259,7 +263,7 @@ export function createControls(app) {
   }
 
   /* ---- sitting on a bench ---- */
-  const SIT = PC.sit, seatBtn = document.getElementById('btnSeat');
+  const SIT = PC.sit, LIE = PC.lie, seatBtn = document.getElementById('btnSeat');
   st.seat = null;
   const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a)), yawTo = (dx, dz) => Math.atan2(-dx, -dz);
   const ease = t => t * t * (3 - 2 * t);
@@ -271,6 +275,7 @@ export function createControls(app) {
       const dx = st.pos.x - s.x, dz = st.pos.z - s.z, d = Math.hypot(dx, dz);
       if (d < bd && dx * s.fx + dz * s.fz > SIT.front && Math.abs(st.pos.y - PC.eyeHeight - s.top) < 1.2) { best = s; bd = d; }
     }
+    if (!best) for (const s of LIE_SPOTS) { const d = Math.hypot(st.pos.x - s.x, st.pos.z - s.z); if (d < LIE.reach && (!best || d < bd)) { best = { ...s, lie: true }; bd = d; } }
     return best;
   }
   /** A step of the animation: over `dur` seconds, f(k) sets the pose for k = 0..1 (eased). */
@@ -295,14 +300,39 @@ export function createControls(app) {
     st.seat = { s, steps, i: 0, t: 0, seated: false, stand: { x: ax, y: ay, z: az }, eye: { x: ex, y: ey, z: ez } };
     st.vel.set(0, 0, 0);
   }
+  /** Lie down at a LIE_SPOTS place: walk to its middle, face the way the feet point, sit down, lie back looking up. */
+  function lieDown(s) {
+    const p0 = st.pos.clone(), y0 = st.yaw, pi0 = st.pitch, dy0 = p0.y - (H(p0.x, p0.z) + PC.eyeHeight);
+    const ax = s.x, az = s.z, ay = H(ax, az) + PC.eyeHeight, walk = Math.hypot(ax - p0.x, az - p0.z);
+    const sx = s.x - s.fx * 0.15, sz = s.z - s.fz * 0.15, sy = H(sx, sz) + LIE.sitEye;                          // sitting in the grass
+    const ex = s.x - s.fx * LIE.head, ez = s.z - s.fz * LIE.head, ey = H(ex, ez) + LIE.eye;                  // the head, lying
+    const yawC = walk > 0.25 ? yawTo(ax - p0.x, az - p0.z) : y0, d1 = wrapA(yawC - y0), yawF = yawTo(s.fx, s.fz);
+    let yawT = 0;
+    const steps = [
+      step(Math.abs(d1) / SIT.turn + 0.1, k => { st.yaw = y0 + d1 * k; st.pitch = pi0 + (-0.3 - pi0) * k; }),
+      step(walk / SIT.walk, k => { st.pos.set(p0.x + (ax - p0.x) * k, 0, p0.z + (az - p0.z) * k); st.pos.y = H(st.pos.x, st.pos.z) + PC.eyeHeight + dy0 * (1 - k) + Math.sin(k * walk * 7) * 0.012; }),
+      step(0.01, () => { yawT = wrapA(yawF - st.yaw); }),
+      step(Math.abs(wrapA(yawF - yawC)) / SIT.turn + 0.2, k => { st.yaw = yawC + yawT * k; st.pitch = -0.3 + 0.2 * k; }),                 // face the view
+      step(LIE.sit, k => { st.pos.set(ax + (sx - ax) * k, ay + (sy - ay) * k - Math.sin(k * Math.PI) * 0.05, az + (sz - az) * k); st.pitch = -0.1 - 0.15 * Math.sin(k * Math.PI); }),   // sit down
+      step(LIE.lie, k => { st.pos.set(sx + (ex - sx) * k, sy + (ey - sy) * k, sz + (ez - sz) * k); st.pitch = -0.1 + (LIE.pitch + 0.1) * k; }),   // lie back
+    ];
+    st.seat = { s, steps, i: 0, t: 0, seated: false, lie: true, stand: { x: ax, y: ay, z: az }, sit: { x: sx, y: sy, z: sz }, eye: { x: ex, y: ey, z: ez } };
+    st.vel.set(0, 0, 0);
+  }
   function standUp() {
     const S = st.seat, a = S.stand, e = S.eye;
+    if (S.lie) {   // sit up (looking ahead), then stand
+      const b = S.sit, p0 = S.eye, pi0 = st.pitch;
+      S.steps = [step(LIE.lie * 0.8, k => { st.pos.set(p0.x + (b.x - p0.x) * k, p0.y + (b.y - p0.y) * k, p0.z + (b.z - p0.z) * k); st.pitch = pi0 + (-0.1 - pi0) * k; }),
+        step(SIT.rise * 1.2, k => { st.pos.set(b.x + (a.x - b.x) * k, b.y + (a.y - b.y) * k, b.z + (a.z - b.z) * k); })];
+      S.i = 0; S.t = 0; S.seated = false; S.leaving = true; return;
+    }
     S.steps = [step(SIT.rise, k => { st.pos.set(e.x + (a.x - e.x) * k, e.y + (a.y - e.y) * k, e.z + (a.z - e.z) * k); })];   // rise
     S.i = 0; S.t = 0; S.seated = false; S.leaving = true;
   }
   function toggleSeat() {
     if (st.seat) { if (st.seat.seated) standUp(); return; }
-    const s = nearSeat(); if (s) sitDown(s);
+    const s = nearSeat(); if (s) (s.lie ? lieDown : sitDown)(s);
   }
   if (seatBtn) {
     seatBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); toggleSeat(); });
@@ -312,14 +342,14 @@ export function createControls(app) {
   function seatButton(state) {
     if (!seatBtn || state === btnState) return; btnState = state;
     seatBtn.style.display = state ? '' : 'none';
-    if (state) { seatBtn.innerHTML = state === 'sit' ? ICON_SIT : ICON_STAND; seatBtn.setAttribute('aria-label', state === 'sit' ? 'Sit down' : 'Stand up'); }
+    if (state) { seatBtn.innerHTML = state === 'sit' ? ICON_SIT : state === 'lie' ? ICON_LIE : ICON_STAND; seatBtn.setAttribute('aria-label', state === 'sit' ? 'Sit down' : state === 'lie' ? 'Lie down' : 'Stand up'); }
     seatBtn.classList.toggle('busy', state === 'busy');
   }
   /** Plays the sit / stand animation or holds the seated pose (look only). Returns true while it has the camera. */
   function seatUpdate(dt) {
     const S = st.seat;
     if (!S) {
-      if ((seatCheck -= dt) <= 0) { seatCheck = 0.2; seatButton(nearSeat() ? 'sit' : ''); }
+      if ((seatCheck -= dt) <= 0) { seatCheck = 0.2; const s = nearSeat(); seatButton(s ? (s.lie ? 'lie' : 'sit') : ''); }
       return false;
     }
     if (!S.seated) {

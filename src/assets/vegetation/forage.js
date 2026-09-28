@@ -67,10 +67,11 @@ export function createForage(ctx, { scatter, undergrowth }) {
   const tones = [0x8b857a, 0x9d9486, 0x6f6a62, 0xa89c88];
   for (let tries = 0, n = 0, want = PB.beach + PB.meadow; n < want && tries < want * 80; tries++) {
     const x = rr(-WORLD_HALF, WORLD_HALF), z = rr(-WORLD_HALF, WORLD_HALF), c = coastDist(x, z), beach = n < PB.beach;
-    if (Math.max(Math.abs(x), Math.abs(z)) < 5.5 || walkwayDist(x, z) < 0.3) continue;
+    if (Math.max(Math.abs(x), Math.abs(z)) < 5.5 || walkwayDist(x, z, 6) < 0.3) continue;   // (the paths as they were: a newer one must not move the pebbles; cleared below)
     if (beach ? (c < 0.3 || c > beachW || H(x, z) < SEA_Y + 0.02) : (c < beachW + 2 || forest(x, z) > 0.25)) continue;
     const s = rr(...PB.size); pebbles.push([x, H(x, z) + s * 0.25, z, s, lin(tones[Math.floor(rnd() * tones.length)]).multiplyScalar(rr(0.85, 1.1))]); n++;
   }
+  { const k = pebbles.filter(p => walkwayDist(p[0], p[2]) >= 0.3); pebbles.length = 0; pebbles.push(...k); }   // none on the stones' path
   const pebbleMesh = set(pebGeo, new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0, flatShading: true }), pebbles, false);
 
   /* ---- shells on the beaches: a ribbed fan, cup down, half in the sand ---- */

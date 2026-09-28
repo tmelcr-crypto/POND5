@@ -56,7 +56,7 @@ A workflow is included in `.github/workflows/pages.yml`. Push to `main`, then en
 | `E` / click | Tap the item | Pick up what you aim at |
 | `F` / right click | Use button | Use the selected item (eat, throw, cook, place) |
 | `1`-`4`, wheel | Tap a slot | Select a quick slot |
-| `R` | Seat button | Sit down / stand up (benches, logs, the porch bench) |
+| `R` | Seat button | Sit down / stand up (benches, logs, the porch bench); lie down / get up at the five lying places |
 | `X` | Fire icon beside it | Light / put out a fire, lamp, candle or lantern |
 | `T` | The icon beside it | Take / put back the hand lantern, draw water at the well, sow or harvest a garden plot |
 | `V` | Curtain button | Open / close the curtains of the window you look at |
@@ -332,6 +332,19 @@ export function createRoseBush(ctx) {
   says Sow; without them, a note says what the bed needs. It grows by itself over 2 / 3 / 4 in-game days (sleeping counts; nothing grows or
   is sown in winter, when the beds are under snow), then an icon beside it (T) harvests it: 3 carrots (eaten raw), 3 potatoes or a
   pumpkin (both cooked on the stick into baked potatoes and roasted pumpkin). Saved in the browser.
+- **Standing stones** (`STONES` in `world/layout.js`, `assets/rocks/standingStones.js`): a ring of weathered, lichened
+  stones on the east hilltop (the island's hilltops are all 2.9-3.2 m; the two highest are inside the spruce forest, so
+  the ring stands on the highest open one, with the sea and the jetty below). Ten places round a 2.8 m ring: seven stand,
+  one leans, one lies fallen in the turf, one is a broken stump and one is gone; the gap between the two tall stones on
+  the west side is the way in, where a stepping-stone path arrives from the sunrise bench (signposted from the jetty
+  fork). One merged mesh with a grain texture; snow on their tops in winter. The one spruce on the hilltop was dropped
+  after placement (with its cones), so nothing else on the island moved.
+- **Lying in the grass** (`LIE_SPOTS` in `world/layout.js`, `app/controls.js`, `CONFIG.player.lie`): five places to lie
+  down and watch the sky: inside the stone ring, the north hill over the shore, a glade in the east wood, the south
+  slope above the sea and the west meadow facing the sunset. The grass is lower round each (the ground texture's alpha,
+  `world/grass.js`) and ferns, sticks and cones are kept off it. Near one, the seat button (R) shows a lying figure: you
+  walk to it, turn to the view, sit and lie back looking up; you can look round and hold the time-lapse button, but not
+  sleep. The stand button sits you up and stands you up.
 - **Planting** (`app/planting.js`, `assets/trees/sapling.js`, `CONFIG.planting`): with an apple or a spruce cone
   selected, look down at open ground close by (off paths, beaches, water, the plot, and clear of trees, rocks and other
   saplings) and Use says Plant. A seedling comes up and grows over 8 in-game days into a young apple tree or spruce
