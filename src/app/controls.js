@@ -2,7 +2,7 @@ import { isTouch } from '../core/env.js';
 import { V, UPV, clamp } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, bridgeRails, jettyDeckY, SEATS, LIE_SPOTS, lakeD } from '../world/layout.js';
+import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, bridgeRails, jettyDeckY, SEATS, LIE_SPOTS, lakeD, treehouseDeckY, treehouseRails } from '../world/layout.js';
 import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
 
 /** Icons of the sit and stand buttons (also used by the bed, app/sleeping.js). */
@@ -183,7 +183,7 @@ export function createControls(app) {
     let g = H(p.x, p.z);
     const ix = p.x - HOUSE.x, iz = p.z - HOUSE.z;
     if (Math.abs(ix) < 1.58 && Math.abs(iz) < 1.23) g = Math.max(g, PAD_H + CB.FL);
-    const deck = Math.max(bridgeDeckY(p.x, p.z), jettyDeckY(p.x, p.z)); if (deck - feet <= PC.stepHeight) g = Math.max(g, deck);   // the footbridge and the jetty (not from under them)
+    const deck = Math.max(bridgeDeckY(p.x, p.z), jettyDeckY(p.x, p.z), treehouseDeckY(p.x, p.z)); if (deck - feet <= PC.stepHeight) g = Math.max(g, deck);   // the footbridge, the jetty and the treehouse (not from under them)
     if (U.uWinter.value > 0.5 && lakeD(p.x, p.z) < 1.0) g = Math.max(g, WATER_Y + 0.02);   // the frozen pond (world/seasons.js)
     const standOn = c => {
       // in the collider's own (rotated) frame; radii are padded by 0.2, body is the player's radius
@@ -233,6 +233,7 @@ export function createControls(app) {
     }
     obstacles.resolve(np, 0.15);
     bridgeRails(np, st.pos, 0.15, np.y - (st.walk ? PC.eyeHeight : 0.3), np.y + 0.1);   // the footbridge's railings
+    if (st.walk) treehouseRails(np, st.pos, 0.2, st.pos.y - PC.eyeHeight);   // on the treehouse deck: its railings and the hut's walls
     applyBounds(np, st.vel, dt, st.walk && jettyDeckY(np.x, np.z) === -Infinity);   // on the jetty, deep water below is fine
     if (st.walk) {
       // eye height above the walkable surface; step up smoothly, stick to the ground going down hill

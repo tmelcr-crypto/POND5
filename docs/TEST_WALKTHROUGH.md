@@ -50,7 +50,7 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Standing stones (#66) on the east hilltop: follow the "Standing stones" board from the jetty fork, past the sunrise bench and up the path; walk round and through the ring, bump into the stones, step onto the fallen one. Winter: snow on their tops.
 - [ ] Lie down (#99) at the five places (stone ring, north hill, east wood glade, south slope, west meadow): the grass is lower there; the seat button shows a lying figure; lie back, look round, hold the time-lapse button; get up. The button shows nowhere else outdoors, and never offers sleep.
 - [ ] Cave (#63): walk in with and without the lantern; find what is inside; walk out.
-- [ ] Treehouse (#58): climb the rope ladder, look out, climb down; try to walk off the edge.
+- [ ] Treehouse (#58): from the signpost on the stones' path follow "Treehouse" into the east wood; at the ladder's foot the icon (T) climbs up; walk round the deck and into the hut (the railings and walls hold you); step off through the ladder's gap (you drop to the ground); climb up again and down with the icon. Walk under the deck (the posts block you). Winter: snow on the roof.
 - [ ] Album picture (#13): be at a picture's place at its time (or do its action there); the picture arrives in the album.
 
 ## 4. The beach and the sea (late afternoon)

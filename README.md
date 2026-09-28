@@ -58,7 +58,7 @@ A workflow is included in `.github/workflows/pages.yml`. Push to `main`, then en
 | `1`-`4`, wheel | Tap a slot | Select a quick slot |
 | `R` | Seat button | Sit down / stand up (benches, logs, the porch bench); lie down / get up at the five lying places |
 | `X` | Fire icon beside it | Light / put out a fire, lamp, candle or lantern |
-| `T` | The icon beside it | Take / put back the hand lantern, draw water at the well, sow or harvest a garden plot |
+| `T` | The icon beside it | Take / put back the hand lantern, draw water at the well, sow or harvest a garden plot, climb the treehouse ladder |
 | `V` | Curtain button | Open / close the curtains of the window you look at |
 | `B` | Boat button | Board, anchor, weigh anchor, leave the boat |
 | `H` | Fish button | Cast, reel in; tap to strike |
@@ -339,8 +339,16 @@ export function createRoseBush(ctx) {
   the west side is the way in, where a stepping-stone path arrives from the sunrise bench (signposted from the jetty
   fork). One merged mesh with a grain texture; snow on their tops in winter. The one spruce on the hilltop was dropped
   after placement (with its cones), so nothing else on the island moved.
+- **Treehouse** (`TREEHOUSE` in `world/layout.js`, `assets/cabin/treehouse.js`, `app/climbing.js`, `CONFIG.climb`): in
+  the east wood among the spruces, a plank deck 2.5 m up on four log posts, a little hut with an open front and a
+  shingle roof over its back half (a crate and a rolled blanket inside), railings round the front half and a rope
+  ladder through a gap in them. A path leaves the stones' path at a signpost and runs north through the wood to the
+  ladder. At its foot, looking at it, the icon beside it (T) climbs up; on the deck by the gap the same icon climbs
+  down. The deck is walkable (`treehouseDeckY`) and its railings and the hut's walls keep you on it
+  (`treehouseRails`); through the gap you can step off and drop to the ground. Three merged meshes; snow on the roof
+  and deck in winter.
 - **Lying in the grass** (`LIE_SPOTS` in `world/layout.js`, `app/controls.js`, `CONFIG.player.lie`): five places to lie
-  down and watch the sky: inside the stone ring, the north hill over the shore, a glade in the east wood, the south
+  down and watch the sky: inside the stone ring, the north hill over the shore, a glade in the east wood by the treehouse, the south
   slope above the sea and the west meadow facing the sunset. The grass is lower round each (the ground texture's alpha,
   `world/grass.js`) and ferns, sticks and cones are kept off it. Near one, the seat button (R) shows a lying figure: you
   walk to it, turn to the view, sit and lie back looking up; you can look round and hold the time-lapse button, but not
