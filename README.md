@@ -338,6 +338,69 @@ export function createRoseBush(ctx) {
   more. The **grow book** lies open on the potting table: looking at it, the icon (T) opens it, a page for each
   pairing and one for how long each crop takes (tap to turn the pages). Looking at a growing plot says how far it is
   and which bonuses it has. Saved in the browser.
+- **Standing stones** (`STONES` in `world/layout.js`, `assets/rocks/standingStones.js`): a ring of weathered, lichened
+  stones on the east hilltop (the island's hilltops are all 2.9-3.2 m; the two highest are inside the spruce forest, so
+  the ring stands on the highest open one, with the sea and the jetty below). Ten places round a 2.8 m ring: seven stand,
+  one leans, one lies fallen in the turf, one is a broken stump and one is gone; the gap between the two tall stones on
+  the west side is the way in, where a stepping-stone path arrives from the sunrise bench (signposted from the jetty
+  fork). One merged mesh with a grain texture; snow on their tops in winter. The one spruce on the hilltop was dropped
+  after placement (with its cones), so nothing else on the island moved.
+- **Treehouse** (`TREEHOUSE` in `world/layout.js`, `assets/cabin/treehouse.js`, `app/climbing.js`, `CONFIG.climb`): in
+  the east wood among the spruces, a plank deck 2.5 m up on four log posts, a little hut with an open front and a
+  shingle roof over its back half (a crate and a rolled blanket inside), railings round the front half and a rope
+  ladder through a gap in them. A path leaves the stones' path at a signpost and runs north through the wood to the
+  ladder. At its foot, looking at it, the icon beside it (T) climbs up; on the deck by the gap the same icon climbs
+  down. The deck is walkable (`treehouseDeckY`) and its railings and the hut's walls keep you on it
+  (`treehouseRails`); through the gap you can step off and drop to the ground. Three merged meshes; snow on the roof
+  and deck in winter.
+- **Cave** (`CAVE` in `world/layout.js`, `assets/rocks/cave.js`): a rocky knoll on the meadow slope south of the plot,
+  painted like the island's boulders, with an arched mouth facing the pond. Inside is a dome-shaped cave, one wall's
+  thickness smaller, with a floor of packed earth. Every surface carries a baked occlusion (a vertex attribute that
+  scales the sky and bounce light), so the daylight fades from the mouth to near darkness at the back; carry the hand
+  lantern in and it lights the walls (inside the cave it shines by day too). On the back wall, ochre paintings of
+  deer, hands, a sun and people with bows; in a niche, pale crystals that glimmer. Water drips now and then while you
+  are inside. `caveWalls` keeps you out of the rock (in by the mouth only) and inside the walls; the grass, flowers,
+  pebbles and one boulder are kept out of it.
+- **Islet** (`ISLET` / `isletH` in `world/layout.js`, `assets/water/islet.js`): a low sandy islet some 20 m off the
+  north-east shore, a short sail north of the jetty. It is part of the terrain height (the boat runs aground on its sand,
+  you step off and walk round it, the water is shallow round it) but not of `coastDist`, so the island's scatter never
+  reaches it. On it: weathered boulders at the waterline, a bleached driftwood log, a cairn on its top and an old rowing
+  boat half sunk in the sand. Wading off it eases you back onto it.
+- **Treasure map** (`TREASURE` in `world/layout.js`, `assets/cabin/treasureChest.js`, `app/treasure.js`): an old map lies
+  rolled up on the crate in the treehouse; looking at it there, the icon beside it (T) takes it. Selected, the Use
+  button says Read and unfolds it: the island drawn by hand (its coasts, woods, paths, the pond and the cabin, the
+  stones, the treehouse, the cave and the islet) with a red X by the islet's cairn; tap anywhere to fold it (it is not
+  used up). Once read, a mound of loose sand shows at the X; there the icon digs by hand (no shovel), three scoops, and
+  a small iron-bound chest comes up, lid open, full of old gold coins. The icon takes them: a keepsake for the cabin
+  shelf (its third place). Saved in the browser.
+- **Tides** (`world/tide.js`, `TIDE` / `seaY()` in `world/layout.js`, `CONFIG.tide`): the sea rises and falls 0.25 m
+  about its mean level twice a day (a 12.4 in-game-hour tide, counted over the seasons' days, so it carries on across
+  sleep and reloads). The sea's surface, its shallows and shore foam, the wet sand, the sea mist (`U.uSea`) and all that
+  floats, wades or splashes (the boat at its berth and under way, running aground, wading back to shore, the fishing
+  float, footsteps in the surf) follow it; what was placed once (shells, driftwood, the jetty and its stairs) stays, so
+  at high water the lowest steps go under and at low water more beach and more of the piles show.
+- **God rays** (`world/godRays.js`, `CONFIG.godRays`): shafts of sunlight slanting down through the woods, strongest
+  when the sun is low and you look towards it; gone at night and in rain, storms and fog. No extra render pass: a few
+  long additive light planes in one instanced mesh (one draw call), each from a sunlit spot on the forest floor up
+  towards the sun, turned to face you, at fixed places round you (picked by a hash, so they do not swim), hidden by the
+  trees and hills in front of them.
+- **Messages in bottles** (`story/bottleMessages.js`, `app/bottles.js`, `assets/story/friendship.js`, `STORY` in
+  `world/layout.js`, `CONFIG.bottles`): Captain Elias's 25 messages wash up on the island's beaches in bottles, above
+  the high-water line, now and then (about every 5 in-game hours, the first soon after you arrive), each a day you have
+  not read yet, in no order; never more than two lie on the shore at once, and a new one washes up out of your sight.
+  Looking at one, the icon (T) opens it: the letter unfolds and is written into the **journal**, which the book button at
+  the top left (or J) opens at any time (the days you have, in order, and the gaps). The messages lead here: the old
+  dock is the jetty, the crooked tree stands on the dune beside it with a star carved in it, and a star is carved over the
+  cave's mouth. Once 15 messages have been read, a brass key glints at the crooked tree's foot and a wooden lid shows in
+  the sand under the jetty's first span, seven steps away; with the key, the icon lifts it: the **Friendship Chest**,
+  Elias's grandfather's and Arthur's memories (a page in the journal) and an old photograph to keep (the cabin shelf's
+  fourth place). Saved in the browser.
+- **Lying in the grass** (`LIE_SPOTS` in `world/layout.js`, `app/controls.js`, `CONFIG.player.lie`): five places to lie
+  down and watch the sky: inside the stone ring, the north hill over the shore, a glade in the east wood by the treehouse, the south
+  slope above the sea and the west meadow facing the sunset. The grass is lower round each (the ground texture's alpha,
+  `world/grass.js`) and ferns, sticks and cones are kept off it. Near one, the seat button (R) shows a lying figure: you
+  walk to it, turn to the view, sit and lie back looking up; you can look round and hold the time-lapse button, but not
+  sleep. The stand button sits you up and stands you up.
 - **Planting** (`app/planting.js`, `assets/trees/sapling.js`, `CONFIG.planting`): with an apple or a spruce cone
   selected, look down at open ground close by (off paths, beaches, water, the plot, and clear of trees, rocks and other
   saplings) and Use says Plant. A seedling comes up and grows over 8 in-game days into a young apple tree or spruce

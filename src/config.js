@@ -163,6 +163,11 @@ export const CONFIG = {
   // `share` of them, where the forest is at least `forest`); width and length ranges in m; strength: their brightness;
   godRays: { count: isTouch ? 16 : 26, radius: 22, cell: 2.5, share: 0.22, forest: 0.45, width: [0.6, 1.8], length: [10, 16], strength: 0.35, steep: 0.45 },   // steep: how much steeper than the sun's own slant
 
+  // Messages in bottles (app/bottles.js): one washes up every `every` in-game hours (varied), the first `first` hours
+  // after you arrive; at most onShore on the beaches, `away` m or more from you, `apart` m from each other; reach: how
+  // near you open one; reveal: messages read before the key and the lid under the jetty show
+  bottles: { every: 5, first: 0.4, onShore: 2, away: 18, apart: 12, reach: 2.2, reveal: 15 },
+
   // Tides (world/tide.js): the sea rises and falls amp m about its mean level, once in `period` in-game hours;
   // phase shifts it (0: mean and rising at dawn of day 0)
   tide: { amp: 0.25, period: 12.42, phase: 0.6 },

@@ -8,6 +8,7 @@ import { fishModel } from '../assets/water/fishModel.js';
 import { rareShellModel } from '../assets/vegetation/forage.js';
 import { produceModel, PRODUCE_KINDS } from '../assets/cabin/garden.js';
 import { coinsModel } from '../assets/cabin/treasureChest.js';
+import { storyModel } from '../assets/story/friendship.js';
 import { SHOWN } from '../world/seasonLooks.js';
 
 /**
@@ -104,6 +105,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     if (!models[kind] && kind === 'rareShell') models[kind] = rareShellModel();   // assets/vegetation/forage.js
     if (!models[kind] && kind in PRODUCE_KINDS) models[kind] = produceModel(kind);   // assets/cabin/garden.js
     if (!models[kind] && kind === 'goldCoins') models[kind] = coinsModel();   // assets/cabin/treasureChest.js
+    if (!models[kind] && (kind === 'brassKey' || kind === 'oldPhotograph')) models[kind] = storyModel(kind);   // assets/story/friendship.js
     if (!models[kind] && KINDS[kind].packet) { const g = new THREE.BoxGeometry(0.055, 0.08, 0.008), c = lin(KINDS[kind].color), p = lin(0xeee4cc), col = new Float32Array(g.attributes.position.count * 3); for (let i = 0; i < col.length / 3; i++) (g.attributes.position.getY(i) > 0.012 ? p : c).toArray(col, i * 3); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); models[kind] = { geo: g, mat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }) }; }   // a seed packet
     if (!models[kind]) {
       const K = KINDS[kind], mat = new THREE.MeshStandardMaterial({ color: lin(K.color), roughness: kind === 'goldenFish' ? 0.3 : 0.6, metalness: kind === 'goldenFish' ? 0.6 : 0, side: kind === 'petal' ? THREE.DoubleSide : THREE.FrontSide, flatShading: kind === 'pebble' });
@@ -111,6 +113,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
         : kind === 'pebble' ? new THREE.IcosahedronGeometry(0.025, 0).scale(1, 0.6, 0.8) : kind === 'petal' ? new THREE.PlaneGeometry(0.036, 0.03) : new THREE.SphereGeometry(K.r, 10, 8);
       models[kind] = { geo, mat };
     }
+    if (models[kind].object) { const o = models[kind].object.clone(); scene.add(o); return o; }   // a whole little group (the old photograph)
     const m = new THREE.Mesh(models[kind].geo, models[kind].mat); m.castShadow = kind !== 'petal'; scene.add(m); return m;
   }
 

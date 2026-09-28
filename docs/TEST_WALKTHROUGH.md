@@ -57,7 +57,7 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
       and land again once you are away.
 - [ ] Beachcombing (#18): pick shells and driftwood; throw a shell and a piece of driftwood; light the beach firepit
       with 3 driftwood. (The nautilus is 1 in 10 000 shells: do not wait for it.)
-- [ ] Message in a bottle (#17): find one, read it; it goes into the album / journal.
+- [ ] Messages in bottles (#17): walk the beaches; a bottle lies above the waterline (never more than two at a time); the icon (T) opens it, the letter shows; the journal button (top left, or J) lists the days found, in order. Come back after some hours for more. After 15: the brass key at the crooked tree by the jetty, the lid under the jetty's first span; lift it with the key: the Friendship Chest page in the journal, the old photograph for the shelf. The star over the cave's mouth.
 - [ ] Fishing from the jetty: cast, strike, catch; miss once on purpose; reel in empty once.
 - [ ] Board the boat, sail out to the islet (#26); anchor (#30) off it; fish from the boat; weigh anchor.
 - [ ] Land on the islet (sail north from the jetty; the boat runs aground on its sand, step off), find what is there (a cairn, a wrecked rowing boat, driftwood), wade out a little (you are eased back onto it), board again, sail back, dock.

@@ -6,6 +6,7 @@ import { canvasTex } from '../../core/canvasTexture.js';
 import { CAVE, H } from '../../world/layout.js';
 import { finishRock } from './rockOutcrop.js';
 import { voice } from '../fauna/animalKit.js';
+import { starTexture } from '../story/friendship.js';
 
 /**
  * The cave (#63; site and walls: CAVE in world/layout.js). A rocky knoll on the meadow slope, painted like the island's
@@ -164,6 +165,12 @@ export function createCave(ctx, { ambience } = {}) {
   const cryMat = addCaveDark(new THREE.MeshStandardMaterial({ color: 0xcfe2f2, emissive: 0x2f4d6a, emissiveIntensity: 0.22, roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.88 }));
   const cryG = mergeGeos(cry, ['position', 'normal']); cryG.setAttribute('ao', new THREE.Float32BufferAttribute(new Float32Array(cryG.attributes.position.count).fill(0.06), 1));
   const crystals = new THREE.Mesh(cryG, cryMat); crystals.castShadow = false; crystals.receiveShadow = true; scene.add(crystals);   // (the knoll's shadow keeps the sun off them)
+
+  /* ---- the star carved over the mouth (Captain Elias's clue, app/bottles.js) ---- */
+  { const v = ARCH + 0.07, p = new THREE.Vector3(...outerAt(0, v)), du = new THREE.Vector3(...outerAt(0.05, v)).sub(new THREE.Vector3(...outerAt(-0.05, v))), dv = new THREE.Vector3(...outerAt(0, v + 0.05)).sub(new THREE.Vector3(...outerAt(0, v - 0.05)));
+    const n = new THREE.Vector3().crossVectors(dv, du).normalize(); if (n.dot(new THREE.Vector3(p.x - C.x, 0, p.z - C.z)) < 0) n.negate();   // the rock face's own slope, outwards
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshStandardMaterial({ map: starTexture(), transparent: true, depthWrite: false, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -4 }));
+    m.position.copy(p).addScaledVector(n, 0.03); m.lookAt(m.position.clone().add(n)); scene.add(m); }
 
   /* ---- drips: a soft plink now and then while you are inside ---- */
   let next = 2;

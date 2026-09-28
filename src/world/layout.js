@@ -40,7 +40,7 @@ export const BED = (() => {
  */
 /** The keepsake shelf on the cabin's back wall above the nightstand (app/shelf.js): its middle, width, depth, top, and its
  *  places (x) for the golden fish and, later, the unique shell. */
-export const SHELF = { x: HOUSE.x + 0.34, z: HOUSE.z - CB.ZW + CB.R + 0.075, y: PAD_H + CB.FL + 1.2, w: 0.5, d: 0.15, slots: [-0.15, 0, 0.15] };
+export const SHELF = { x: HOUSE.x + 0.34, z: HOUSE.z - CB.ZW + CB.R + 0.075, y: PAD_H + CB.FL + 1.2, w: 0.5, d: 0.15, slots: [-0.18, -0.06, 0.06, 0.18] };
 export const CHESTS = [
   { id: 'cabin', x: HOUSE.x - 0.45, z: HOUSE.z - CB.ZW - 0.11 - 0.26 - 0.25, rot: Math.PI, length: 0.86, depth: 0.5, height: 0.52 },   // under the back window (house x -0.9..0), facing away from the wall; 0.26 m out so the open lid (0.20 m behind its hinge) clears the logs
 ];
@@ -100,6 +100,12 @@ export function hillsH(x, z) {
  * never reaches it.
  */
 export const ISLET = { x: 38.5, z: -38.5, r: 5.2, top: 0.5, reach: 16 };   // (top: all of it below the beach sand's upper edge)
+/**
+ * Captain Elias's story (#17; app/bottles.js, assets/story/friendship.js): the crooked tree on the dune by the old dock
+ * (our jetty), with a star carved in it and, once 15 messages are read, a brass key glinting at its foot; seven steps
+ * away, under the jetty's first span, the wooden lid over the Friendship Chest (hidden until then too).
+ */
+export const STORY = { tree: { x: 25.15, z: -22.5 }, lid: { x: 30.0, z: -18.0 } };
 /** Where the treasure is buried (#16; app/treasure.js): on the islet, three paces from the cairn. */
 export const TREASURE = { x: 38.64, z: -40.05 };
 export function isletH(x, z) {

@@ -40,6 +40,8 @@ export const KINDS = {
   lettuceSeeds: { name: 'Lettuce seeds', use: 'sow', hint: 'Sow them in a bare garden plot', packet: true, r: 0.04, color: 0x7fb049, icon: '<path d="M6.5 3.5h11v17h-11z"/><path d="M6.5 8h11"/><path d="M12 18c-2.6 0-4-1.4-4-3.2 0-1.6 1.6-2.8 4-3.8 2.4 1 4 2.2 4 3.8 0 1.8-1.4 3.2-4 3.2z"/>' },
   beanSeeds: { name: 'Bean seeds', use: 'sow', hint: 'Sow them in a bare garden plot', packet: true, r: 0.04, color: 0x8a5a3a, icon: '<path d="M6.5 3.5h11v17h-11z"/><path d="M6.5 8h11"/><path d="M9.5 17c-1-1.6 0-3.6 2-4.6s4-.8 4.5.8c.5 1.6-.8 3.2-2.8 4-2 .8-3.2.8-3.7-.2z"/>' },
   strawberryPlants: { name: 'Strawberry runners', use: 'sow', hint: 'Plant them in a bare garden plot', r: 0.04, color: 0x4f8a34, icon: '<path d="M12 21v-7"/><path d="M12 14c-3 0-5-1.6-5-4 2.6 0 4.2.6 5 2 .8-1.4 2.4-2 5-2 0 2.4-2 4-5 4z"/><path d="M12 12V6.5c0-1.6 1.2-3 3-3.5"/>' },
+  brassKey: { name: 'Brass key', use: 'hold', hint: 'A little star is scratched on it. It opens something beneath the old dock', r: 0.02, color: 0xc9a043, icon: '<circle cx="7.5" cy="12" r="3.5"/><path d="M11 12h10M17 12v3M20 12v2.5"/>' },   // app/bottles.js
+  oldPhotograph: { name: 'Old photograph', use: 'keep', hint: 'Put it on the shelf in the cabin', r: 0.04, color: 0xb89a6a, icon: '<path d="M4 6h16v12H4z"/><circle cx="9.5" cy="11" r="1.6"/><circle cx="14.5" cy="11" r="1.6"/><path d="M7 16c.6-1.6 1.6-2.4 2.5-2.4s1.9.8 2.5 2.4c.6-1.6 1.6-2.4 2.5-2.4s1.9.8 2.5 2.4"/>' },
   petal: { name: 'Rose petal', use: 'release', r: 0.018, color: 0xc0283c, icon: '<path d="M12 20.5c-5.2-3-6.5-9.4-3.2-15 2.1 2.9 6.2 3.2 8.4 2 1.2 6.2-.8 10.6-5.2 13z"/><path d="M12 20.5c-.2-4.4 1-8.4 4-11.6"/>' },
 };
 /** The icon of a kind as an SVG string, `size` px. */
