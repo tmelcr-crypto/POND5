@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { V, clamp } from '../core/math.js';
 import { CONFIG } from '../config.js';
-import { H, SEA_Y, JETTY, jettyDeckY, jettyDist } from '../world/layout.js';
+import { H, SEA_Y, seaY, JETTY, jettyDeckY, jettyDist } from '../world/layout.js';
 
 /**
  * Fishing, from the head of the jetty or from the boat at anchor (app/boating.js). There, looking out over deep water,
@@ -38,8 +38,8 @@ export function createFishing({ scene, camera, st, inventory, items, boating, wa
     if (!st.playing || st.inBed || st.seat || st.chestOpen) return null;
     const onBoat = boating && boating.anchored, onJetty = !st.aboard && st.walk && jettyDeckY(st.pos.x, st.pos.z) > -1e9 && st.pos.x > JETTY.head.x0 - 2;
     if (!onBoat && !onJetty) return null;
-    const p = st.pos.clone().addScaledVector(fwdH(), FC.cast); p.y = SEA_Y;
-    return SEA_Y - H(p.x, p.z) > FC.depth && jettyDist(p.x, p.z) > 0.6 ? p : null;
+    const p = st.pos.clone().addScaledVector(fwdH(), FC.cast); p.y = seaY();
+    return seaY() - H(p.x, p.z) > FC.depth && jettyDist(p.x, p.z) > 0.6 ? p : null;
   }
   const hand = () => { const f = fwdH(); return st.pos.clone().addScaledVector(f, 0.32).addScaledVector(new V(-f.z, 0, f.x), 0.24).addScaledVector(up, -0.38); };
   /** The wait for a bite: shorter within FC.dawnDusk hours of sunrise or sunset. */
@@ -66,7 +66,7 @@ export function createFishing({ scene, camera, st, inventory, items, boating, wa
     if (job.phase === 'bite') {
       const kind = Math.random() < FC.golden ? 'goldenFish' : 'fish';
       if (!inventory.canAdd(kind)) { say('No room to carry it; you let it go'); job.phase = 'wait'; job.t = 0; job.wait = waitTime(); return; }
-      if (Math.random() < FC.fail) { job.phase = 'reel'; job.t = 0; job.kind = null; job.lost = true; job.start = flo.position.clone(); if (waterLife && waterLife.splash) waterLife.splash(job.target.x, SEA_Y + 0.002, job.target.z, 0.4); return; }   // hooked, but it slips off
+      if (Math.random() < FC.fail) { job.phase = 'reel'; job.t = 0; job.kind = null; job.lost = true; job.start = flo.position.clone(); if (waterLife && waterLife.splash) waterLife.splash(job.target.x, seaY() + 0.002, job.target.z, 0.4); return; }   // hooked, but it slips off
       job.phase = 'reel'; job.t = 0; job.kind = kind; job.fish = items.model(kind); job.fish.castShadow = true; job.start = flo.position.clone();
       if (items.sfx) items.sfx('stick');
     } else if (job.phase === 'wait' || job.phase === 'cast') { job.phase = 'reel'; job.t = 0; job.kind = null; job.start = flo.position.clone(); }   // reel in empty
@@ -94,12 +94,12 @@ export function createFishing({ scene, camera, st, inventory, items, boating, wa
     if (job.phase === 'cast') {   // the float flies out in an arc
       const k = Math.min(1, job.t / FC.castTime); flo.position.lerpVectors(tipP, job.target, k); flo.position.y += Math.sin(k * Math.PI) * 1.2 * (1 - k * 0.3);
       drawLine(tipP, flo.position, 0.02);
-      if (k >= 1) { job.phase = 'wait'; job.t = 0; if (waterLife && waterLife.splash) waterLife.splash(job.target.x, SEA_Y + 0.002, job.target.z, 0.25); }
+      if (k >= 1) { job.phase = 'wait'; job.t = 0; if (waterLife && waterLife.splash) waterLife.splash(job.target.x, seaY() + 0.002, job.target.z, 0.25); }
     } else if (job.phase === 'wait') {
-      flo.position.set(job.target.x, SEA_Y + 0.005 + bob, job.target.z); drawLine(tipP, flo.position, 0.35);
-      if (job.t >= job.wait) { job.phase = 'bite'; job.t = 0; if (waterLife && waterLife.splash) waterLife.splash(job.target.x, SEA_Y + 0.002, job.target.z, 0.35); if (items.sfx) items.sfx('pebble'); }
+      flo.position.set(job.target.x, seaY() + 0.005 + bob, job.target.z); drawLine(tipP, flo.position, 0.35);
+      if (job.t >= job.wait) { job.phase = 'bite'; job.t = 0; if (waterLife && waterLife.splash) waterLife.splash(job.target.x, seaY() + 0.002, job.target.z, 0.35); if (items.sfx) items.sfx('pebble'); }
     } else if (job.phase === 'bite') {   // it bobs and dips: strike now
-      flo.position.set(job.target.x, SEA_Y - 0.03 * Math.abs(Math.sin(job.t * 14)) - 0.01, job.target.z); drawLine(tipP, flo.position, 0.12);
+      flo.position.set(job.target.x, seaY() - 0.03 * Math.abs(Math.sin(job.t * 14)) - 0.01, job.target.z); drawLine(tipP, flo.position, 0.12);
       if (job.t > FC.window) { say('It got away'); job.phase = 'wait'; job.t = 0; job.wait = waitTime(); }
     } else if (job.phase === 'reel') {   // float (and fish) come in to the rod tip, then to your hand
       const k = clamp(job.t / FC.reelTime); flo.position.lerpVectors(job.start, tipP, k * k); flo.position.y += Math.sin(k * Math.PI) * 0.4;

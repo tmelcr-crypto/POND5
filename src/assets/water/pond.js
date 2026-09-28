@@ -74,7 +74,7 @@ export function createOcean(ctx, ground, seaY) {
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.06, metalness: 0, envMapIntensity: 1.1 });
   m.onBeforeCompile = s => {
     s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uWinter = U.uWinter; s.uniforms.uGround = { value: ground.tex };
-    s.uniforms.uGroundST = { value: new THREE.Vector2(ground.scale, ground.offset) }; s.uniforms.uSea = { value: seaY };
+    s.uniforms.uGroundST = { value: new THREE.Vector2(ground.scale, ground.offset) }; s.uniforms.uSea = U.uSea;
     s.vertexShader = 'varying vec3 vWP;\n' + s.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     s.fragmentShader = `varying vec3 vWP; uniform float uTime; uniform float uWind; uniform float uWinter; uniform sampler2D uGround; uniform vec2 uGroundST; uniform float uSea;
       vec2 wv(vec2 p, float t, vec2 d, float f, float sp, float a){ return d * (a*f*cos(dot(d,p)*f + t*sp)); }
@@ -99,5 +99,5 @@ export function createOcean(ctx, ground, seaY) {
         normal = normalize((viewMatrix * vec4(normalize(vec3(-wg.x, 1.0, -wg.y)), 0.0)).xyz);`);
   };
   const sea = new THREE.Mesh(g, m); sea.position.y = seaY; sea.receiveShadow = true; sea.frustumCulled = false; scene.add(sea);
-  return { sea, update(cam) { sea.position.x = cam.x; sea.position.z = cam.z; } };
+  return { sea, update(cam) { sea.position.set(cam.x, U.uSea.value, cam.z); } };   // (the tide: world/tide.js)
 }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { LAKE, lakeR, WATER_Y, SEA_Y, coastDist, H } from '../../world/layout.js';
+import { LAKE, lakeR, WATER_Y, SEA_Y, seaY, coastDist, H } from '../../world/layout.js';
 import { mergeGeos, paint, limb } from '../../core/geometry.js';
 import { canvasTex } from '../../core/canvasTexture.js';
 import { lin } from '../../core/math.js';
@@ -100,7 +100,7 @@ export function createWaterLife(ctx) {
     const head = Math.atan2(fwd.z, fwd.x);
     for (let i = 0; i < S.tries; i++) {
       const a = head + rr(-S.fov, S.fov), d = rr(...S.view), x = p.x + Math.cos(a) * d, z = p.z + Math.sin(a) * d, c = coastDist(x, z);
-      if (c > S.shore[0] && c < S.shore[1] && SEA_Y - H(x, z) > S.minDepth) { rise(x, SEA_Y + 0.02, z, S.radius); return; }
+      if (c > S.shore[0] && c < S.shore[1] && seaY() - H(x, z) > S.minDepth) { rise(x, seaY() + 0.02, z, S.radius); return; }
     }
   }
   const waters = [

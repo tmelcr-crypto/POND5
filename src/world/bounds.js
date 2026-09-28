@@ -1,5 +1,5 @@
 import { CONFIG } from '../config.js';
-import { WORLD_HALF, H, SEA_Y, ISLET } from './layout.js';
+import { WORLD_HALF, H, SEA_Y, seaY, ISLET } from './layout.js';
 
 /**
  * World edge and static obstacles for the player.
@@ -50,7 +50,7 @@ const NONE = [];
 
 export function applyBounds(p, vel, dt, walking) {
   if (walking) {
-    const over = (SEA_Y - H(p.x, p.z)) - CONFIG.island.wadeDepth;   // metres deeper than wading depth
+    const over = (seaY() - H(p.x, p.z)) - CONFIG.island.wadeDepth;   // metres deeper than wading depth
     if (over > 0) {
       const nearIslet = Math.hypot(p.x - ISLET.x, p.z - ISLET.z) < ISLET.r + 8, cx = nearIslet ? ISLET.x : 0, cz = nearIslet ? ISLET.z : 0;   // back to the islet if that is the nearer land
       const r = Math.hypot(p.x - cx, p.z - cz) || 1, nx = (p.x - cx) / r, nz = (p.z - cz) / r, out = vel.x * nx + vel.z * nz;

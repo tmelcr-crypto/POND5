@@ -70,6 +70,10 @@ export function dioramaH(x, z) {
 /* ---- the 100 x 100 m world around the plot ---- */
 const WC = CONFIG.world, TC = CONFIG.terrain, SC = CONFIG.scatter, IC = CONFIG.island;
 export const WORLD_HALF = WC.size / 2, SEA_Y = IC.seaLevel;
+/** The tide (#68; world/tide.js): TIDE.y the sea's rise above its mean level SEA_Y now; seaY() the level itself. SEA_Y stays for what
+ *  was placed once (the beach, shells, the stream's mouth); what floats, wades or splashes asks seaY(). */
+export const TIDE = { y: 0 };
+export const seaY = () => SEA_Y + TIDE.y;
 // seed -> noise-space offsets (the value noise itself is unseeded, so the seed moves the sample window)
 const SX = (WC.seed * 12.9898) % 911 + 37.1, SZ = (WC.seed * 78.233) % 877 - 51.7;
 /** Distance outside the square that keeps the exact diorama terrain (0 inside it). */

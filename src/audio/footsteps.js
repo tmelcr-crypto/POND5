@@ -1,5 +1,5 @@
 import { CONFIG } from '../config.js';
-import { H, HOUSE, CB, PAD_H, footpathDist, bridgeDeckY, jettyDeckY, coastDist, lakeD, WATER_Y, SEA_Y } from '../world/layout.js';
+import { H, HOUSE, CB, PAD_H, footpathDist, bridgeDeckY, jettyDeckY, coastDist, lakeD, WATER_Y, SEA_Y, seaY } from '../world/layout.js';
 
 /**
  * Footsteps (#80), quiet under the ambience, synthesised: a step every CONFIG.steps.stride metres walked on the ground,
@@ -16,7 +16,7 @@ export function createFootsteps({ st, ambience, seasons }) {
     if (Math.abs(feet - bridgeDeckY(p.x, p.z)) < 0.15 || Math.abs(feet - jettyDeckY(p.x, p.z)) < 0.15) return 'wood';
     const g = H(p.x, p.z), winter = seasons && seasons.season === 'winter';
     if (winter && lakeD(p.x, p.z) < 1 && feet > WATER_Y - 0.05) return 'ice';
-    if (g < SEA_Y - 0.02 || (lakeD(p.x, p.z) < 1 && g < WATER_Y)) return 'water';
+    if (g < seaY() - 0.02 || (lakeD(p.x, p.z) < 1 && g < WATER_Y)) return 'water';
     if (footpathDist(p.x, p.z) < 0.02) return 'stone';
     if (winter) return 'snow';
     if (coastDist(p.x, p.z) < CONFIG.island.beachWidth) return 'sand';

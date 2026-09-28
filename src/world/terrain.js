@@ -128,7 +128,7 @@ export function createWorldTerrain(ctx) {
     uDirtTex: { value: dirtTex }, uRockTex: { value: rockTex },
     uDirtCol: { value: lin(0x4d3c28) }, uRockCol: { value: lin(0x77736a) },
     uRockSlope: { value: 1 - TC.rockSlope },
-    uSea: { value: SEA_Y }, uSand: { value: lin(0xb9a57c) }, uWetSand: { value: lin(0x6f6147) },
+    uSea: U.uSea, uSand: { value: lin(0xb9a57c) }, uWetSand: { value: lin(0x6f6147) },
   };
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, map: detailTex, roughness: 0.95, metalness: 0, envMapIntensity: 0.6 });
   m.onBeforeCompile = s => {

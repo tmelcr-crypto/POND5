@@ -42,7 +42,7 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Sit on a log, cook an apple and a mushroom (#4); stand up during a third cook: the raw one comes back.
 - [ ] Standing at the burning firepit (no log), cook an apple. Toss a stick in (Use says Burn): the fire flares up
       bigger for 30 s and the next apple cooks in about 19 s instead of 30. Same at the fireplace.
-- [ ] God rays (#92) through the trees; sun-ray look again in the morning mist in step 7.
+- [ ] God rays (#92): in the woods (the east wood by the treehouse is best) in the morning or late afternoon, look towards the sun: soft shafts slant down between the trees and flicker a little; walk about (they stay where they are); at noon they are faint, at night and in rain or fog there are none.
 - [ ] Lie down at a view spot (#99): only at the 5 spots (lower grass there), only lying, no sleep; get up again.
 - [ ] Time-lapse (#79) while sitting or lying: hold it; the sun and clouds move; letting go returns to normal speed.
 
@@ -54,8 +54,7 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Album picture (#13): be at a picture's place at its time (or do its action there); the picture arrives in the album.
 
 ## 4. The beach and the sea (late afternoon)
-- [ ] Tides (#68): note where the waterline is on the beach; check again in an hour of game time; the jetty stairs
-      and the boat's berth still work at high and low water.
+- [ ] Tides (#68): note where the waterline is on the beach and on the jetty stairs; check again three game hours later (time slider or sleep): the sea is up or down by up to half a metre; the boat rides at its berth; board and leave it at high and at low water.
 - [ ] Seagulls (#44) on the jetty's bollards, crate and the sand; their calls; walk up: they take off, circle,
       and land again once you are away.
 - [ ] Beachcombing (#18): pick shells and driftwood; throw a shell and a piece of driftwood; light the beach firepit
@@ -86,7 +85,7 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 ## 7. The seasons
 - [ ] Sleep past day 10: wake in autumn with the name on screen. Leaves colour and fall, the sky is hazier (#93),
       mushrooms, fewer birds (#94).
-- [ ] Autumn fog morning with sun rays in the mist (#92).
+- [ ] Autumn morning in the woods: the sun's shafts through the trees (#92); on a fog day there are none.
 - [ ] Winter (sleep on): snow, snow on the spruces too (#95), almost no birds (#94), the pond frozen and walkable,
       snowfall, short days.
 - [ ] Warmth (#2): stay outdoors in winter: frost creeps in at the screen's corners and sides; a fire, the cabin or
