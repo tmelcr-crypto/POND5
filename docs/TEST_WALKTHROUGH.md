@@ -105,3 +105,5 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Switch the Season picker while cooking, fishing, sailing, sitting and in bed.
 - [ ] Let the game run for 10 minutes untouched at night by a lit firepit; **fps** after 5 and 10 minutes.
 - [ ] Soundtrack off again; settings panel values survive a reload.
+- [ ] Curtains: inside the cabin, look at a window: the icon beside it closes / opens its curtains (they slide).
+- [ ] Daily task: a note at a new day says today's task; do it: a note and a chime; the journal's Calendar has the day ticked by hand. Sleep past midnight: a new task.

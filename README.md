@@ -59,7 +59,7 @@ A workflow is included in `.github/workflows/pages.yml`. Push to `main`, then en
 | `R` | Seat button | Sit down / stand up (benches, logs, the porch bench); lie down / get up at the five lying places |
 | `X` | Fire icon beside it | Light / put out a fire, lamp, candle or lantern |
 | `T` | The icon beside it | Take / put back the hand lantern, draw water at the well, sow or harvest a garden plot, climb the treehouse ladder |
-| `V` | Curtain button | Open / close the curtains of the window you look at |
+| `V` | Curtain icon | Open / close the curtains of the window you look at |
 | `B` | Boat button | Board, anchor, weigh anchor, leave the boat |
 | `H` | Fish button | Cast, reel in; tap to strike |
 | hold `Z` | Hold the fast-forward button | Time-lapse while sitting or in bed |
@@ -422,7 +422,13 @@ export function createRoseBush(ctx) {
   jetty's bollards, the crate, the head's edge and the sand, call now and then, and take off with an alarm call when
   you come close, circle and land again. Procedural, instanced (one draw call per kind, the gulls' wings one more),
   with short positional sounds.
-- **Curtains** (`app/curtains.js`): inside, looking at a window, the curtain button (V) draws or opens its curtains.
+- **Curtains** (`app/curtains.js`): inside, looking at a window, a floating icon beside it (as at the fires; or V) draws
+  or opens its curtains. (The panels stay separate meshes: `engine/mergeStatic.js` looks 6 levels into the cabin's list
+  of moving parts.)
+- **Daily tasks and the calendar** (`app/dailyTasks.js`): every in-game day at midnight a new little task (walk 1000
+  steps, sail round the island, catch 3 fish, pick apples, light a fire, climb to the treehouse, ...), never yesterday's
+  and only what the season allows; a note tells it. Done, it is ticked off in the journal's calendar (a row per season)
+  with a handwritten check mark; a missed day stays blank.
 - **Hunger and frost** (`app/body.js`, `CONFIG.body`): a thin bar under the quick slots empties slowly (never below a
   quarter) and eating fills it, cooked food more. In winter, a minute or more outdoors away from a fire frosts the
   screen's edges; a fire, the cabin or hot food thaws it. Both are only shown, nothing happens when they are low.
