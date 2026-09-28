@@ -34,13 +34,13 @@ export function createIslet(ctx) {
     obstacles.add(x, z, 0.45, h);
   }
   /* ---- driftwood: a long bleached log with a stub of a branch ---- */
-  { const [x, y, z] = at(5.9, 0.6), bleached = lin(0xc2b8a6);
+  { const [x, y, z] = at(5.9, 0.4), bleached = lin(0xa39a8a);
     const log = new THREE.CylinderGeometry(0.11, 0.15, 2.6, 9, 6); const p = log.attributes.position;
     for (let k = 0; k < p.count; k++) { const py = p.getY(k); p.setX(k, p.getX(k) + 0.04 * Math.sin(py * 2.1)); }
     log.computeVertexNormals(); paint(log, (c, px, py) => c.copy(bleached).multiplyScalar(0.8 + 0.25 * vnoise3(px * 20, py * 3, 0)));
     const stub = new THREE.CylinderGeometry(0.03, 0.06, 0.6, 6); stub.rotateZ(0.9); stub.translate(0.2, 0.5, 0); paint(stub, c => c.copy(bleached).multiplyScalar(0.85));
-    const g = mergeGeos([log, stub], ['position', 'normal', 'color']); g.rotateZ(Math.PI / 2 - 0.05); g.rotateY(0.7); g.translate(x, y + 0.1, z); wood.push(g);
-    rockBodies.add({ x, y: y + 0.1, z, rx: 1.35, ry: 0.35, rz: 0.35, rot: 0.7, body: 0.25 });
+    const g = mergeGeos([log, stub], ['position', 'normal', 'color']); g.rotateZ(Math.PI / 2); g.rotateY(0.7); g.translate(x, y + 0.06, z); wood.push(g);
+    rockBodies.add({ x, y: y + 0.06, z, rx: 1.35, ry: 0.3, rz: 0.35, rot: 0.7, body: 0.25 });
   }
   /* ---- the old rowing boat: a hull half in the sand, tipped on its side, planks gone in places, the ribs showing ---- */
   { const [x, y, z] = at(0.9, 0.45), L = 3.2, B = 0.62, D = 0.42, hull = [], ribs = [];

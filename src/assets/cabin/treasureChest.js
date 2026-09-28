@@ -41,7 +41,7 @@ export function createTreasureThings(ctx) {
     const m = new THREE.Mesh(mergeGeos(parts, ['position', 'normal', 'color']), std({ vertexColors: true, roughness: 0.95 })); m.castShadow = m.receiveShadow = true; pile.add(m); }
 
   /* ---- the chest: planks and iron bands, the lid on its hinge; half in the hole it came out of ---- */
-  const chest = new THREE.Group(); chest.position.set(X.x, gy - 0.12, X.z); chest.rotation.y = 0.6; chest.visible = false; scene.add(chest);
+  const chest = new THREE.Group(); chest.position.set(X.x, gy - 0.16, X.z); chest.rotation.y = 0.6; chest.visible = false; scene.add(chest);
   const W = 0.5, Dp = 0.32, Ht = 0.26;
   const wood = std({ color: lin(0x6a4a2c), roughness: 0.85 }), iron = std({ color: lin(0x3a3632), roughness: 0.5, metalness: 0.6 });
   const box = (w, h, d, x, y, z, mat, parent) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
@@ -56,6 +56,9 @@ export function createTreasureThings(ctx) {
   { const cm = coinsModel(), g = cm.geo, parts = [];
     for (let i = 0; i < 26; i++) { const c = g.clone(); c.rotateY(rnd() * 6.28); c.rotateX((rnd() - 0.5) * 0.8); c.translate(rr(-0.18, 0.18), Ht - 0.06 + rr(0, 0.05), rr(-0.1, 0.1)); parts.push(c); }
     const m = new THREE.Mesh(mergeGeos(parts, ['position', 'normal']), cm.mat); m.castShadow = true; coins.add(m); }
+  { const rim = new THREE.RingGeometry(0.28, 0.62, 20, 1); rim.rotateX(-Math.PI / 2); const p = rim.attributes.position;   // the dug-up sand round the hole
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), r = Math.hypot(x, z); p.setY(i, 0.16 + 0.07 * Math.sin((r - 0.28) / 0.34 * Math.PI) + 0.02 * vnoise3(x * 9, 0, z * 9)); }
+    rim.computeVertexNormals(); const m = new THREE.Mesh(rim, std({ color: lin(0x6e5a3e), roughness: 1 })); m.receiveShadow = true; chest.add(m); }
   const sandIn = new THREE.Mesh(new THREE.BoxGeometry(W - 0.04, 0.01, Dp - 0.04), std({ color: lin(0x5f4c35), roughness: 1 })); sandIn.position.y = Ht - 0.07; chest.add(sandIn);
 
   return {

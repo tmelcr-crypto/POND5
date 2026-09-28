@@ -95,7 +95,7 @@ export function hillsH(x, z) {
  * the boat grounds on it, you can walk on it, the water shallows round it), but not of coastDist: the island's scatter
  * never reaches it.
  */
-export const ISLET = { x: 38.5, z: -38.5, r: 5.2, top: 0.85, reach: 16 };
+export const ISLET = { x: 38.5, z: -38.5, r: 5.2, top: 0.5, reach: 16 };   // (top: all of it below the beach sand's upper edge)
 /** Where the treasure is buried (#16; app/treasure.js): on the islet, three paces from the cairn. */
 export const TREASURE = { x: 38.64, z: -40.05 };
 export function isletH(x, z) {
