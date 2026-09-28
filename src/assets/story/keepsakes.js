@@ -176,8 +176,8 @@ export const KEEPSAKE_KINDS = Object.keys(BUILD);
 export function createKeepsakes({ scene }) {
   const objs = KEEPSAKES.map(k => { const o = keepsakeModel(k.kind).object.clone(); o.position.set(k.x, k.y, k.z); o.rotation.y = k.ry; scene.add(o); return o; });
   const points = KEEPSAKES.map(k => new THREE.Vector3(k.x, k.y + 0.03, k.z));
-  // drawn only within FAR m (tiny beyond; they cost a draw call or two each), and not once taken
-  const FAR = 30, gone = objs.map(() => false);
+  // drawn only within FAR m (a pixel or two beyond; they cost a draw call or two each), and not once taken
+  const FAR = 15, gone = objs.map(() => false);
   return {
     points, kinds: KEEPSAKES.map(k => k.kind), objects: objs,
     hide: i => { gone[i] = true; objs[i].visible = false; }, show: i => { gone[i] = false; },
