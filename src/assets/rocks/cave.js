@@ -163,7 +163,7 @@ export function createCave(ctx, { ambience } = {}) {
   }
   const cryMat = addCaveDark(new THREE.MeshStandardMaterial({ color: 0xcfe2f2, emissive: 0x2f4d6a, emissiveIntensity: 0.22, roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.88 }));
   const cryG = mergeGeos(cry, ['position', 'normal']); cryG.setAttribute('ao', new THREE.Float32BufferAttribute(new Float32Array(cryG.attributes.position.count).fill(0.06), 1));
-  const crystals = new THREE.Mesh(cryG, cryMat); crystals.castShadow = false; crystals.receiveShadow = true;   // (the knoll's shadow keeps the sun off them) scene.add(crystals);
+  const crystals = new THREE.Mesh(cryG, cryMat); crystals.castShadow = false; crystals.receiveShadow = true; scene.add(crystals);   // (the knoll's shadow keeps the sun off them)
 
   /* ---- drips: a soft plink now and then while you are inside ---- */
   let next = 2;
