@@ -9,6 +9,7 @@ import { rareShellModel } from '../assets/vegetation/forage.js';
 import { produceModel, PRODUCE_KINDS } from '../assets/cabin/garden.js';
 import { coinsModel } from '../assets/cabin/treasureChest.js';
 import { storyModel } from '../assets/story/friendship.js';
+import { keepsakeModel } from '../assets/story/keepsakes.js';
 import { SHOWN } from '../world/seasonLooks.js';
 
 /**
@@ -105,6 +106,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     if (!models[kind] && kind === 'rareShell') models[kind] = rareShellModel();   // assets/vegetation/forage.js
     if (!models[kind] && kind in PRODUCE_KINDS) models[kind] = produceModel(kind);   // assets/cabin/garden.js
     if (!models[kind] && kind === 'goldCoins') models[kind] = coinsModel();   // assets/cabin/treasureChest.js
+    if (!models[kind] && KINDS[kind].keepsake) models[kind] = keepsakeModel(kind);   // assets/story/keepsakes.js
     if (!models[kind] && (kind === 'brassKey' || kind === 'oldPhotograph')) models[kind] = storyModel(kind);   // assets/story/friendship.js
     if (!models[kind] && KINDS[kind].packet) { const g = new THREE.BoxGeometry(0.055, 0.08, 0.008), c = lin(KINDS[kind].color), p = lin(0xeee4cc), col = new Float32Array(g.attributes.position.count * 3); for (let i = 0; i < col.length / 3; i++) (g.attributes.position.getY(i) > 0.012 ? p : c).toArray(col, i * 3); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); models[kind] = { geo: g, mat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }) }; }   // a seed packet
     if (!models[kind]) {
@@ -156,7 +158,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       full: () => tone(260, 200, 0.12, 0.08),
       creak: () => { const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(140, t); o.frequency.linearRampToValueAtTime(95, t + 0.35); const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 6; o.connect(f); env(f, 0.4, 0.05); o.start(t); o.stop(t + 0.45); noise(0.3, 1200, 4, 0.04); },
       clunk: () => { tone(120, 70, 0.12, 0.2); noise(0.06, 500, 1, 0.1); },
-    }[type] || (() => {}))();
+    }[KINDS[type] && KINDS[type].keepsake ? 'rareShell' : type] || (() => {}))();   // (a keepsake chimes like the nautilus)
   }
 
   /* ---- aim: the thing in the middle of the view, within reach ---- */
@@ -226,6 +228,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     pick = { t: 0, dur: IC.pickTime, base: st.pos.clone(), dip, reachUp, from, m, kind, done: false };
     aimed = null; glow.visible = false; hint.classList.add('hide');
     if (rare) note('A nautilus shell! Put it on the shelf in the cabin', 4000);
+    if (KINDS[kind].keepsake) note(`${KINDS[kind].name}! Keepsake ${found().length} of ${keeps.length}: put it on the shelf in the cabin`, 4500);
   }
   addEventListener('meadow-tap', tryPick);
   /** The pick-up animation has the camera while it plays (app/controls.js takeover). */
@@ -324,7 +327,8 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
       saveIn = 1;
       for (const key in taken) {
         if (total - taken[key] < IC.respawn) continue;
-        const [sid, i] = key.split(':'); const s = sources.find(x => x.id === sid); if (s) s.show(+i);
+        const [sid, i] = key.split(':'); const s = sources.find(x => x.id === sid); if (s && s.once) continue;   // a keepsake never comes back
+        if (s) s.show(+i);
         delete taken[key]; dirty = true;
       }
       if (dirty) { dirty = false; try { localStorage.setItem(KEY, JSON.stringify({ total, taken })); } catch (err) { void err; } }
@@ -335,5 +339,9 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
     const m = model(kind); m.position.copy(at);
     thrown.push({ kind, mesh: m, v: new V(Math.random() * 0.6 - 0.3, 0, Math.random() * 0.6 - 0.3), spin: new V(Math.random() * 6 - 3, Math.random() * 6 - 3, Math.random() * 6 - 3), rest: false, bounced: false });
   }
-  return { update, pickUpdate, use, sfx, drop, model: kind => model(kind), season: s => { season = s; }, get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
+  /** The keepsakes hidden round the island (assets/story/keepsakes.js): one source each, taken once only. */
+  const keeps = [];
+  function addKeepsakes(ks) { ks.kinds.forEach((kind, i) => { addSource('ks_' + kind, kind, [ks.points[i]], () => ks.hide(i), () => ks.show(i), null, false); sources[sources.length - 1].once = true; keeps.push(kind); }); }
+  const found = () => keeps.filter(k => taken['ks_' + k + ':0'] !== undefined);
+  return { addKeepsakes, keepsakes: () => ({ all: keeps.slice(), found: found() }), update, pickUpdate, use, sfx, drop, model: kind => model(kind), season: s => { season = s; }, get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
 }

@@ -11,7 +11,7 @@ import * as THREE from 'three';
 export function mergeStatic(root, dynamic) {
   const keep = new Set(), seen = new Set();
   (function collect(v, depth) {
-    if (!v || typeof v !== 'object' || seen.has(v) || depth > 4) return; seen.add(v);
+    if (!v || typeof v !== 'object' || seen.has(v) || depth > 6) return; seen.add(v);
     if (v.isObject3D) { v.traverse(o => keep.add(o)); return; }
     if (v.isMaterial || v.isTexture || v.isBufferGeometry) return;
     for (const k of Object.keys(v)) collect(v[k], depth + 1);

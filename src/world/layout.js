@@ -38,9 +38,26 @@ export const BED = (() => {
  * middle of its base; rot: the turn about y that points its front (the lid's open side, local +z) where it faces;
  * length along its front, depth, height.
  */
-/** The keepsake shelf on the cabin's back wall above the nightstand (app/shelf.js): its middle, width, depth, top, and its
- *  places (x) for the golden fish and, later, the unique shell. */
-export const SHELF = { x: HOUSE.x + 0.34, z: HOUSE.z - CB.ZW + CB.R + 0.075, y: PAD_H + CB.FL + 1.2, w: 0.5, d: 0.15, slots: [-0.18, -0.06, 0.06, 0.18] };
+/**
+ * The keepsake shelves on the cabin's back wall, above the nightstand and the bed's head (app/shelf.js): two boards (x0
+ * to x1, top y), `d` deep against the wall (middle z); the lower one runs under the wall clock, the upper one only east
+ * of it. places: where each keepsake goes (board, x along it; ry its turn, rx a tilt, s a scale): flat ones under the
+ * clock, the horseshoe hung on the wall above the upper board (board 2: y is its middle), points up for luck.
+ */
+export const SHELF = (() => {
+  const x = HOUSE.x, y = PAD_H + CB.FL, z = HOUSE.z - CB.ZW + CB.R + 0.075;
+  const boards = [{ x0: x + 0.08, x1: x + 1.52, y: y + 1.2 }, { x0: x + 0.52, x1: x + 1.52, y: y + 1.5 }];
+  const P = (b, lx, ry = 0, o = {}) => ({ b, x: x + lx, ry, ...o });
+  return {
+    z, d: 0.15, boards,
+    places: {
+      goldCoins: P(0, 0.18, 0.3), compass: P(0, 0.31, 0.5), pocketWatch: P(0, 0.43, -0.4),
+      goldenFish: P(0, 0.62, 0.25, { s: 1.15 }), oldPhotograph: P(0, 0.8, 0.12), shipBottle: P(0, 1.02, 0), geode: P(0, 1.25, 0.5), rareShell: P(0, 1.42, -0.6, { s: 1.15 }),
+      spyglass: P(1, 0.7, 0.12), ammonite: P(1, 0.93, 0.4), antler: P(1, 1.12, 0.3), birdNest: P(1, 1.32, 0), glassFloat: P(1, 1.46, 0),
+      horseshoe: P(2, 1.0, 0, { rx: -Math.PI / 2 }),
+    },
+  };
+})();
 export const CHESTS = [
   { id: 'cabin', x: HOUSE.x - 0.45, z: HOUSE.z - CB.ZW - 0.11 - 0.26 - 0.25, rot: Math.PI, length: 0.86, depth: 0.5, height: 0.52 },   // under the back window (house x -0.9..0), facing away from the wall; 0.26 m out so the open lid (0.20 m behind its hinge) clears the logs
 ];
@@ -595,3 +612,28 @@ export const EXCLUSIONS = [
   (x, z) => streamDist(x, z) - 1.4,                                                          // the stream and its banks
 ];
 export function excluded(x, z, margin = 0) { for (const f of EXCLUSIONS) if (f(x, z) < margin) return true; return false; }
+
+/**
+ * The ten keepsakes hidden round the island (app/items.js picks them up, once only; their models:
+ * assets/story/keepsakes.js; the shelf in the cabin has a place for each, SHELF.places). (x, z) where it lies, y its
+ * base (on the ground unless given), ry its turn; hint: its line in the journal until found. The grass is low round
+ * each (world/grass.js), so it can be seen from a few steps.
+ */
+export const KEEPSAKES = (() => {
+  const T = TREEHOUSE, [tx, tz] = T.toWorld(0.35, -1.18), fs = STONES.stones.find(s => s.fallen), [cx, cz] = CAVE.toWorld(1.0, -1.6);
+  const SUNSET = BENCHES[1], [bx, bz] = benchPoint(SUNSET, 0.35, 0.05), wa = 2.4, wm = WELL.r - 0.07;
+  return [
+    { kind: 'compass', x: tx, z: tz, y: T.deck + 0.918, ry: 0.6, hint: 'Where someone once kept watch, high in the trees, on the shelf.' },
+    { kind: 'spyglass', x: STONES.x + Math.cos(fs.a) * (STONES.r - 0.75), z: STONES.z + Math.sin(fs.a) * (STONES.r - 0.75), ry: 1.9, hint: 'In the stone ring, by the stone that fell.' },
+    { kind: 'geode', x: cx, z: cz, y: H(cx, cz) + 0.04, ry: 0.4, hint: 'Deep in the dark, where the walls are painted. Bring a light.' },
+    { kind: 'shipBottle', x: 40.9, z: -35.3, ry: 2.3, hint: 'Beside an old boat that will never sail again.' },
+    { kind: 'ammonite', x: -16.8, z: -31.1, ry: 0.8, hint: 'On the north beach, below the hill where you lie and watch the sky.' },
+    { kind: 'glassFloat', x: 8.7, z: 27.5, ry: 0, hint: 'Washed up on the south beach, below the hill that looks out to sea.' },
+    { kind: 'pocketWatch', x: WELL.x + Math.cos(wa) * wm, z: WELL.z + Math.sin(wa) * wm, y: WELL.y + WELL.rim, ry: -0.5, hint: 'Someone set it down while drawing water.' },
+    { kind: 'birdNest', x: -20.95, z: 18.25, ry: 0, hint: 'Fallen from a spruce, a few steps from the fire in the woods.' },
+    { kind: 'antler', x: -16.2, z: -13.45, ry: 2.6, hint: 'In the west meadow, where you lie with your feet to the sunset.' },
+    { kind: 'horseshoe', x: bx, z: bz, ry: -1.6, hint: 'Under the seat where you watch the sun go down.' },
+  ].map(k => ({ ...k, y: k.y !== undefined ? k.y : H(k.x, k.z) }));
+})();
+/** Distance to the nearest keepsake's place on the ground. */
+export function keepsakeDist(x, z) { let d = Infinity; for (const k of KEEPSAKES) d = Math.min(d, Math.hypot(x - k.x, z - k.z)); return d; }

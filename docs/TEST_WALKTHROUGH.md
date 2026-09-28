@@ -76,8 +76,9 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Rainbow (#33) when the sun comes out after rain.
 - [ ] A fog morning (#32).
 - [ ] The garden is grown; harvest it. The planted sapling has grown a little.
-- [ ] Decorate the cabin (#47): place shells, flowers, pebbles on the shelves and table; the unique shell (#18) and
-      the golden fish go on the keepsake shelf.
+- [ ] Hidden keepsakes (#47): find the ten (the journal's ◆ page has a hint for each still hidden); each chimes and
+      says how many are found; none comes back after a day. Put each on the cabin's shelves: each has its own place,
+      the horseshoe hangs on the wall. Reload: the shelves keep them, the found ones stay gone.
 - [ ] Seasonal sky (#93): note the summer light; compare in autumn and winter.
 
 ## 7. The seasons
@@ -104,3 +105,5 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Switch the Season picker while cooking, fishing, sailing, sitting and in bed.
 - [ ] Let the game run for 10 minutes untouched at night by a lit firepit; **fps** after 5 and 10 minutes.
 - [ ] Soundtrack off again; settings panel values survive a reload.
+- [ ] Curtains: inside the cabin, look at a window: the icon beside it closes / opens its curtains (they slide).
+- [ ] Daily task: a note at a new day says today's task; do it: a note and a chime; the journal's Calendar has the day ticked by hand. Sleep past midnight: a new task.

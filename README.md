@@ -59,7 +59,7 @@ A workflow is included in `.github/workflows/pages.yml`. Push to `main`, then en
 | `R` | Seat button | Sit down / stand up (benches, logs, the porch bench); lie down / get up at the five lying places |
 | `X` | Fire icon beside it | Light / put out a fire, lamp, candle or lantern |
 | `T` | The icon beside it | Take / put back the hand lantern, draw water at the well, sow or harvest a garden plot, climb the treehouse ladder |
-| `V` | Curtain button | Open / close the curtains of the window you look at |
+| `V` | Curtain icon | Open / close the curtains of the window you look at |
 | `B` | Boat button | Board, anchor, weigh anchor, leave the boat |
 | `H` | Fish button | Cast, reel in; tap to strike |
 | hold `Z` | Hold the fast-forward button | Time-lapse while sitting or in bed |
@@ -293,9 +293,17 @@ export function createRoseBush(ctx) {
   golden fish. 40 % of hooked fish slip off the hook (`CONFIG.fishing.fail`). Raw fish cooks into grilled fish.
 - **Anchor** (`app/boating.js`): out on open water, once the boat has nearly stopped, the boat button drops the anchor
   (a splash, a rope from the bow); the boat stays, swinging slowly bow into the wind. The same button weighs anchor.
-- **Keepsake shelf** (`app/shelf.js`, `SHELF` in `world/layout.js`): on the cabin's back wall above the nightstand.
-  With a keepsake selected (the golden fish, the nautilus shell), near it and looking at it, Use says Place and puts it
-  there for good.
+- **Keepsake shelves** (`app/shelf.js`, `SHELF` in `world/layout.js`): two boards on the cabin's back wall, above the
+  nightstand and the bed's head, with a place for each keepsake (the golden fish, the nautilus shell, the old gold coins,
+  the old photograph and the ten hidden keepsakes; the horseshoe hangs on the wall above, points up for luck). With a
+  keepsake selected, near them and looking at them, Use says Place and puts it in its place for good.
+- **Hidden keepsakes** (`assets/story/keepsakes.js`, `KEEPSAKES` in `world/layout.js`, `app/items.js`): ten old things
+  lie hidden round the island, each once only (they never come back): a brass compass on the treehouse shelf, a spyglass
+  in the stone ring by the fallen stone, an amethyst geode at the back of the cave, a ship in a bottle by the islet's old
+  boat, an ammonite on the north beach, a glass fishing float on the south beach, a pocket watch on the well's rim, a
+  bird's nest under a spruce by the forest firepit, a deer antler in the west meadow and a horseshoe under the sunset
+  bench. The grass is low round each, so it shows from a few steps. Picked up like anything else (tap); the journal's
+  ◆ page lists the ones found and a hint for each of the rest.
 - **Seasons** (`world/seasons.js`, `world/seasonLooks.js`, `world/weather.js`, `CONFIG.seasons`): spring, summer,
   autumn, winter, 10 in-game days each; a season only turns while you sleep (the first sleep after its days are up),
   and its name fades in as you wake. The panel's Season picker jumps to any season. Summer is the scene as it always
@@ -393,8 +401,8 @@ export function createRoseBush(ctx) {
   dock is the jetty, the crooked tree stands on the dune beside it with a star carved in it, and a star is carved over the
   cave's mouth. Once 15 messages have been read, a brass key glints at the crooked tree's foot and a wooden lid shows in
   the sand under the jetty's first span, seven steps away; with the key, the icon lifts it: the **Friendship Chest**,
-  Elias's grandfather's and Arthur's memories (a page in the journal) and an old photograph to keep (the cabin shelf's
-  fourth place). Saved in the browser.
+  Elias's grandfather's and Arthur's memories (a page in the journal) and an old photograph to keep (for the cabin
+  shelves). Saved in the browser.
 - **Lying in the grass** (`LIE_SPOTS` in `world/layout.js`, `app/controls.js`, `CONFIG.player.lie`): five places to lie
   down and watch the sky: inside the stone ring, the north hill over the shore, a glade in the east wood by the treehouse, the south
   slope above the sea and the west meadow facing the sunset. The grass is lower round each (the ground texture's alpha,
@@ -414,7 +422,13 @@ export function createRoseBush(ctx) {
   jetty's bollards, the crate, the head's edge and the sand, call now and then, and take off with an alarm call when
   you come close, circle and land again. Procedural, instanced (one draw call per kind, the gulls' wings one more),
   with short positional sounds.
-- **Curtains** (`app/curtains.js`): inside, looking at a window, the curtain button (V) draws or opens its curtains.
+- **Curtains** (`app/curtains.js`): inside, looking at a window, a floating icon beside it (as at the fires; or V) draws
+  or opens its curtains. (The panels stay separate meshes: `engine/mergeStatic.js` looks 6 levels into the cabin's list
+  of moving parts.)
+- **Daily tasks and the calendar** (`app/dailyTasks.js`): every in-game day at midnight a new little task (walk 1000
+  steps, sail round the island, catch 3 fish, pick apples, light a fire, climb to the treehouse, ...), never yesterday's
+  and only what the season allows; a note tells it. Done, it is ticked off in the journal's calendar (a row per season)
+  with a handwritten check mark; a missed day stays blank.
 - **Hunger and frost** (`app/body.js`, `CONFIG.body`): a thin bar under the quick slots empties slowly (never below a
   quarter) and eating fills it, cooked food more. In winter, a minute or more outdoors away from a fire frosts the
   screen's edges; a fire, the cabin or hot food thaws it. Both are only shown, nothing happens when they are low.
