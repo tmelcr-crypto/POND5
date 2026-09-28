@@ -161,7 +161,7 @@ export const CONFIG = {
 
   // God rays (world/godRays.js): up to `count` light shafts in the woods within `radius` m, in cells of `cell` m (a
   // `share` of them, where the forest is at least `forest`); width and length ranges in m; strength: their brightness;
-  godRays: { count: isTouch ? 16 : 26, radius: 22, cell: 2.5, share: 0.22, forest: 0.45, width: [0.6, 1.8], length: [10, 16], strength: 0.45, steep: 0.45 },   // steep: how much steeper than the sun's own slant
+  godRays: { count: isTouch ? 16 : 26, radius: 22, cell: 2.5, share: 0.22, forest: 0.45, width: [0.6, 1.8], length: [10, 16], strength: 0.35, steep: 0.45 },   // steep: how much steeper than the sun's own slant
 
   // Tides (world/tide.js): the sea rises and falls amp m about its mean level, once in `period` in-game hours;
   // phase shifts it (0: mean and rising at dawn of day 0)
