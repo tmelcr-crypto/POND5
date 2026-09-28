@@ -40,7 +40,7 @@ export function createTreehouse(ctx) {
     const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), len = A.distanceTo(B);
     const g = new THREE.CylinderGeometry(r * 0.92, r, len, seg, 1); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 2, uv.getY(i) * len * 0.8);
     paint(g, col => col.copy(c));
-    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize())); g.translate((A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2); list.push(g); return g;
+    g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize()))); g.translate((A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2); list.push(g); return g;
   }
 
   /* ---- posts, braces, beams ---- */
