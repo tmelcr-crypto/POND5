@@ -180,7 +180,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); seasons.update(); tide.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt, t); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); climbing.update(dt, t); cave.update(dt); treasure.update(dt, t); bottles.update(dt, t); dailyTasks.update(dt); godRays.update(); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); rabbits.update(dt); squirrels.update(dt); frogs.update(dt); gulls.update(dt); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
+  tod.update(dt); seasons.update(); tide.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt, t); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); climbing.update(dt, t); cave.update(dt); treasure.update(dt, t); bottles.update(dt, t); dailyTasks.update(dt); keepsakes.update(ctx.camera); godRays.update(); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); rabbits.update(dt); squirrels.update(dt); frogs.update(dt); gulls.update(dt); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
