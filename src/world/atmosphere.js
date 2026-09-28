@@ -59,7 +59,7 @@ export function createAtmosphere(ctx) {
   function mistMaterial(sea, layer) {
     const m = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
     m.onBeforeCompile = s => {
-      Object.assign(s.uniforms, mistU, { tMist: { value: mistTex }, uGround: { value: ground.tex }, uGroundST: { value: new THREE.Vector2(ground.scale, ground.offset) }, uSea: { value: SEA_Y } });
+      Object.assign(s.uniforms, mistU, { tMist: { value: mistTex }, uGround: { value: ground.tex }, uGroundST: { value: new THREE.Vector2(ground.scale, ground.offset) }, uSea: U.uSea });
       s.vertexShader = 'varying vec3 vMW; varying vec2 vMU;\n' + s.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMU = uv; vMW = (modelMatrix * vec4(position, 1.0)).xyz;');
       s.fragmentShader = `varying vec3 vMW; varying vec2 vMU; uniform sampler2D tMist; uniform sampler2D uGround; uniform vec2 uGroundST; uniform float uSea;
         uniform vec3 uMistCol; uniform float uMistA; uniform vec2 uMistOff; uniform vec2 uMistAbove;\n` + s.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', `

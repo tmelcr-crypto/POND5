@@ -159,6 +159,14 @@ export const CONFIG = {
     lie: { reach: 1.6, sitEye: 0.78, eye: 0.2, head: 0.75, pitch: 1.05, sit: 1.2, lie: 1.5 },
   },
 
+  // God rays (world/godRays.js): up to `count` light shafts in the woods within `radius` m, in cells of `cell` m (a
+  // `share` of them, where the forest is at least `forest`); width and length ranges in m; strength: their brightness
+  godRays: { count: isTouch ? 16 : 26, radius: 22, cell: 2.5, share: 0.22, forest: 0.45, width: [0.5, 1.5], length: [9, 15], strength: 0.16 },
+
+  // Tides (world/tide.js): the sea rises and falls amp m about its mean level, once in `period` in-game hours;
+  // phase shifts it (0: mean and rising at dawn of day 0)
+  tide: { amp: 0.25, period: 12.42, phase: 0.6 },
+
   // Climbing the treehouse's rope ladder (app/climbing.js): the icon within `reach` m of its foot (`reachTop` m of the top
   // on the deck); the climber `off` m out from the ladder; `up` / `down` s on the ladder, `pulls` rungs' worth of bob
   climb: { reach: 1.8, reachTop: 1.1, off: 0.35, up: 3.4, down: 2.8, pulls: 8 },

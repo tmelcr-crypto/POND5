@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { V, clamp, lin } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { H, WATER_Y, SEA_Y, ROSE, GARDEN, lakeD, streamAt, jettyDeckY, bridgeDeckY } from '../world/layout.js';
+import { H, WATER_Y, SEA_Y, seaY, ROSE, GARDEN, lakeD, streamAt, jettyDeckY, bridgeDeckY } from '../world/layout.js';
 import { KINDS, iconSvg } from './itemKinds.js';
 import { fishModel } from '../assets/water/fishModel.js';
 import { rareShellModel } from '../assets/vegetation/forage.js';
@@ -257,7 +257,7 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
 
   const waterAt = (x, z) => {   // the water's level at (x, z), or -Infinity where it is dry
     let w = -Infinity; const g = H(x, z);
-    if (g < SEA_Y) w = SEA_Y;
+    if (g < seaY()) w = seaY();
     if (lakeD(x, z) < 1.1 && g < WATER_Y) w = Math.max(w, WATER_Y);
     const q = streamAt(x, z); if (q && q.d < q.w) w = Math.max(w, q.W);
     return w;

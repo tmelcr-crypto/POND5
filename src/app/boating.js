@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { V, clamp } from '../core/math.js';
 import { CONFIG } from '../config.js';
 import { U } from '../core/uniforms.js';
-import { H, SEA_Y, JETTY, coastDist, jettyDeckY, jettyDist } from '../world/layout.js';
+import { H, SEA_Y, seaY, JETTY, coastDist, jettyDeckY, jettyDist } from '../world/layout.js';
 
 /**
  * Sailing the boat (assets/water/sailboat.js). One icon button (B on desktop) does what fits where you are:
@@ -73,7 +73,7 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
   const HULL = []; { const L = 2.3; for (const [x, f] of [[L - 0.1, 0.25], [1.4, 0.7], [0.3, 1], [-0.9, 1], [-L + 0.1, 0.9]]) for (const s of (x > 2 ? [0] : [-1, 1])) HULL.push([x, s * boat.halfBeam(x) * 0.95, f * BC.draft]); }
   function contact(x, z, h) {   // worst clearance under the hull (m of water below each point's draft; < 0 aground) and whether it hits the jetty
     const c = Math.cos(h), s = Math.sin(h); let worst = 9, jetty = false;
-    for (const [lx, lz, d] of HULL) { const wx = x + c * lx - s * lz, wz = z + s * lx + c * lz; worst = Math.min(worst, SEA_Y - H(wx, wz) - d); if (jettyDist(wx, wz) < 0.12) jetty = true; }
+    for (const [lx, lz, d] of HULL) { const wx = x + c * lx - s * lz, wz = z + s * lx + c * lz; worst = Math.min(worst, seaY() - H(wx, wz) - d); if (jettyDist(wx, wz) < 0.12) jetty = true; }
     return { worst, jetty };
   }
   /** Land within a jump of the boat, or null: a dry spot near the bow or either side, not too high above the water. */
@@ -82,7 +82,7 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     for (let lx = -1.8; lx <= 3.6; lx += 0.45) for (const side of [-1, 0, 1]) {
       if (side === 0 && lx < 2.4) continue;
       const lz = side * (boat.halfBeam(Math.min(lx, 2.2)) + 0.7 + (lx > 2.3 ? 0 : 0.6)), x = b.x + c * lx - s * lz, z = b.z + s * lx + c * lz, g = H(x, z);
-      if (g < SEA_Y + 0.03 || g > SEA_Y + 1.3 || jettyDeckY(x, z) > -1e9) continue;
+      if (g < seaY() + 0.03 || g > seaY() + 1.3 || jettyDeckY(x, z) > -1e9) continue;
       const d = Math.hypot(lx - 0.3, lz); if (d < bd) { bd = d; best = { x, z, lx, side }; }
     }
     return best;
@@ -146,7 +146,7 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     let from = p0;
     if (!b.docked) {   // along the side deck on the landing's side (the boom swings out the other way), then jump
       const c = Math.cos(b.h), s = Math.sin(b.h), dx = land.x - b.x, dz = land.z - b.z, lx = clamp(c * dx + s * dz, -0.6, 1.9), side = -s * dx + c * dz >= 0 ? 1 : -1;
-      const lz = side * (boat.halfBeam(lx) - 0.28), mid = new V(b.x + c * lx - s * lz, SEA_Y + boat.sheer(lx) + PC.eyeHeight, b.z + s * lx + c * lz); from = mid;
+      const lz = side * (boat.halfBeam(lx) - 0.28), mid = new V(b.x + c * lx - s * lz, seaY() + boat.sheer(lx) + PC.eyeHeight, b.z + s * lx + c * lz); from = mid;
       boomOverride = -side * 0.9;
       steps.push(step(p0.distanceTo(mid) / 1.0, k => { st.pos.lerpVectors(p0, mid, k); st.pos.y += Math.sin(k * Math.PI) * 0.15; st.yaw = yawTo(land.x - st.pos.x, land.z - st.pos.z); }));
     }
@@ -199,7 +199,7 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     T += dt; boomA += (boomTarget() - boomA) * Math.min(1, dt * (boomOverride !== null ? 2.5 : 1.2));   // the boom swings across, not snaps
     if (!mode) {
       st.aboard = false;
-      if ((check -= dt) <= 0) { check = 0.15; const near = st.walk && st.playing && hullDist(st.pos.x, st.pos.z) < BC.reach && (jettyDeckY(st.pos.x, st.pos.z) > -1e9 || b.aground || H(st.pos.x, st.pos.z) > SEA_Y - CONFIG.island.wadeDepth); setButton(near ? 'board' : ''); }
+      if ((check -= dt) <= 0) { check = 0.15; const near = st.walk && st.playing && hullDist(st.pos.x, st.pos.z) < BC.reach && (jettyDeckY(st.pos.x, st.pos.z) > -1e9 || b.aground || H(st.pos.x, st.pos.z) > seaY() - CONFIG.island.wadeDepth); setButton(near ? 'board' : ''); }
       pose();
       return false;
     }

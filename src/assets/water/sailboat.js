@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { V, clamp, lin } from '../../core/math.js';
 import { mergeGeos } from '../../core/geometry.js';
 import { canvasTex } from '../../core/canvasTexture.js';
-import { JETTY, SEA_Y } from '../../world/layout.js';
+import { JETTY, SEA_Y, seaY } from '../../world/layout.js';
 
 /**
  * The little sailboat moored at the jetty (sailing it: app/boating.js). Built in its own frame: +x to the bow, y up from
@@ -142,7 +142,7 @@ export function createSailboat(ctx) {
 
   group.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   /** Place the boat: centre (x, z) at the waterline, heading h (the bow points along (cos h, sin h) in x, z), roll, pitch, bob. */
-  function setPose(x, z, heading, roll = 0, pitch = 0, bob = 0) { group.position.set(x, SEA_Y + bob, z); group.rotation.set(roll, -heading, pitch); }
+  function setPose(x, z, heading, roll = 0, pitch = 0, bob = 0) { group.position.set(x, seaY() + bob, z); group.rotation.set(roll, -heading, pitch); }
   setPose(JETTY.berth.x, JETTY.berth.z, JETTY.berth.heading);
   mooringLines(true);
   return { group, wheel, boom, setPose, mooringLines, sheer, halfBeam, keelY, helm: BL.helm };

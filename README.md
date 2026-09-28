@@ -367,6 +367,17 @@ export function createRoseBush(ctx) {
   used up). Once read, a mound of loose sand shows at the X; there the icon digs by hand (no shovel), three scoops, and
   a small iron-bound chest comes up, lid open, full of old gold coins. The icon takes them: a keepsake for the cabin
   shelf (its third place). Saved in the browser.
+- **Tides** (`world/tide.js`, `TIDE` / `seaY()` in `world/layout.js`, `CONFIG.tide`): the sea rises and falls 0.25 m
+  about its mean level twice a day (a 12.4 in-game-hour tide, counted over the seasons' days, so it carries on across
+  sleep and reloads). The sea's surface, its shallows and shore foam, the wet sand, the sea mist (`U.uSea`) and all that
+  floats, wades or splashes (the boat at its berth and under way, running aground, wading back to shore, the fishing
+  float, footsteps in the surf) follow it; what was placed once (shells, driftwood, the jetty and its stairs) stays, so
+  at high water the lowest steps go under and at low water more beach and more of the piles show.
+- **God rays** (`world/godRays.js`, `CONFIG.godRays`): shafts of sunlight slanting down through the woods, strongest
+  when the sun is low and you look towards it; gone at night and in rain, storms and fog. No extra render pass: a few
+  long additive light planes in one instanced mesh (one draw call), each from a sunlit spot on the forest floor up
+  towards the sun, turned to face you, at fixed places round you (picked by a hash, so they do not swim), hidden by the
+  trees and hills in front of them.
 - **Lying in the grass** (`LIE_SPOTS` in `world/layout.js`, `app/controls.js`, `CONFIG.player.lie`): five places to lie
   down and watch the sky: inside the stone ring, the north hill over the shore, a glade in the east wood by the treehouse, the south
   slope above the sea and the west meadow facing the sunset. The grass is lower round each (the ground texture's alpha,

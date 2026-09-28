@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { isTouch } from './core/env.js';
 import { U } from './core/uniforms.js';
-import { WATER_Y, SEA_Y, HOUSE, CB } from './world/layout.js';
+import { WATER_Y, SEA_Y, seaY, HOUSE, CB } from './world/layout.js';
 import { createEngine } from './engine/createEngine.js';
 import { finalizeScene } from './engine/finalizeScene.js';
 import { mergeStatic } from './engine/mergeStatic.js';
@@ -17,6 +17,8 @@ import { createGroundTexture, createWorldGrass } from './world/grass.js';
 import { createScatter } from './world/scatter.js';
 import { createUndergrowth } from './world/undergrowth.js';
 import { createTimeOfDay } from './world/timeOfDay.js';
+import { createTide } from './world/tide.js';
+import { createGodRays } from './world/godRays.js';
 import { createSeasons } from './world/seasons.js';
 import { createSeasonLooks } from './world/seasonLooks.js';
 import { createWeather } from './world/weather.js';
@@ -142,6 +144,7 @@ const birds = createBirds({ ...ctx, skyUniforms });
 await step(88);
 const tod = createTimeOfDay({ ...ctx, sun, hemi, skyUniforms, rebuildEnv, pollen, cabin, setLights }), { scheduleEnv, clock, setHours } = tod;
 const seasons = createSeasons({ clock });   // the four seasons; they turn while you sleep
+const tide = createTide({ clock, seasons });   // the sea rises and falls (world/tide.js)
 const hours = createGameHours({ clock });   // in-game hours since the start, sleep included (for what grows)
 seasons.on(s => { tod.setSeasonSun(CONFIG.seasons.sun[s]); scheduleEnv(true); });
 
@@ -173,7 +176,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); climbing.update(dt, t); cave.update(dt); treasure.update(dt, t); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); rabbits.update(dt); squirrels.update(dt); frogs.update(dt); gulls.update(dt); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
+  tod.update(dt); seasons.update(); tide.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); climbing.update(dt, t); cave.update(dt); treasure.update(dt, t); godRays.update(); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); rabbits.update(dt); squirrels.update(dt); frogs.update(dt); gulls.update(dt); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
@@ -201,7 +204,7 @@ const wind = createWind({ clock, show: showWind });   // the wind shifts by itse
 const horizon = createHorizon({ ...ctx, skyUniforms });   // distant sailboat, lighthouse
 const moments = createSmallMoments({ ...ctx, detail, plot: { apple: plotApple, spruce: plotSpruce, rose: plotRose } });   // falling leaves, apples, cones, rose petals
 const waterLife = createWaterLife({ ...ctx, detail, skyUniforms, ocean });
-boating.onSplash = (x, z) => waterLife.splash && waterLife.splash(x, SEA_Y + 0.002, z, 0.6);   // the anchor going in   // fish rises, dragonflies, shore foam
+boating.onSplash = (x, z) => waterLife.splash && waterLife.splash(x, seaY() + 0.002, z, 0.6);   // the anchor going in   // fish rises, dragonflies, shore foam
 const forage = createForage(ctx, { scatter, undergrowth });   // windfall apples, berries, pebbles to pick up
 const firepits = createFirepits(ctx);   // three firepits with logs to sit on and a roofed woodpile each (own random numbers)
 const inventory = createInventory({ st });   // the four quick slots and the Use button
@@ -251,12 +254,13 @@ const lantern = createLantern({ scene: ctx.scene, camera: ctx.camera, st, softDo
 const seasonLooks = createSeasonLooks(scene, seasons);   // the season's colours, snow and what comes and goes (before finalizeScene)
 const weather = createWeather(ctx, { apples: scatter.apple });   // snowfall, autumn leaves, spring blossom
 const skyWeather = createSkyWeather({ scene: ctx.scene, camera: ctx.camera, clock, seasons, tod, atmosphere, weather, fires, ambience, sun });   // rain, storms, fog days, rainbow, northern lights
+const godRays = createGodRays(ctx, { skyUniforms, skyWeather });   // shafts of sunlight through the woods
 let bakedFor = 'summer';   // the far trees' billboards are baked as they look in summer; again for each season
 seasons.on(s => { if (s !== bakedFor) { bakedFor = s; scatter.rebake(s); } items.season(s); moments.setSeason(s); weather.setSeason(s); birds.setSeason(s); ambience.setBirdShare({ autumn: 0.55, winter: 0.12 }[s] ?? 1); tod.setSeasonSky(s); });   // what can be picked
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { stones, treehouse, climbing, cave, islet, treasure, renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, lantern, hours, well, garden, drawWater, gardening, planting, saplings, rabbits, squirrels, frogs, gulls, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { ocean, tide, godRays, stones, treehouse, climbing, cave, islet, treasure, renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, lantern, hours, well, garden, drawWater, gardening, planting, saplings, rabbits, squirrels, frogs, gulls, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);
