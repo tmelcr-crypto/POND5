@@ -489,14 +489,42 @@ export function treehouseRails(p, prev, radius, feet) {
   const [wx, wz] = T.toWorld(lx, lz); p.x = wx; p.z = wz;
 }
 
+/**
+ * The cave (#63; assets/rocks/cave.js): a rocky knoll on the meadow slope south of the plot with a cave inside, its
+ * mouth (local +z) facing the pond. The knoll's footprint is an ellipse a x c (half-axes, m) turned by rot, b m high;
+ * the cave inside is the same shape `wall` m smaller. mouth: the entrance's half-angle at the ground (rad).
+ * caveWalls keeps you out of the rock (in by the mouth only) and, inside, within the walls at head height.
+ */
+export const CAVE = (() => {
+  const x = -4.5, z = 17.5, a = 3.7, c = 3.4, b = 3.4, wall = 0.65, face = [0.25, -0.97], rot = Math.atan2(face[0], face[1]), mouth = 0.4;
+  const s = Math.sin(rot), co = Math.cos(rot);
+  const toWorld = (lx, lz) => [x + lx * co + lz * s, z - lx * s + lz * co], toLocal = (wx, wz) => { const dx = wx - x, dz = wz - z; return [dx * co - dz * s, dx * s + dz * co]; };
+  return { x, z, a, c, b, wall, rot, mouth, toWorld, toLocal, y: H(x, z) };
+})();
+/** Distance (roughly, m) to the knoll's footprint: < 0 under the rock or in the cave. */
+export function caveDist(x, z) { const C = CAVE, [lx, lz] = C.toLocal(x, z); return (Math.hypot(lx / C.a, lz / C.c) - 1) * Math.min(C.a, C.c); }
+export function caveWalls(p, prev, radius) {
+  const C = CAVE; let [lx, lz] = C.toLocal(p.x, p.z); const rho = Math.hypot(lx / C.a, lz / C.c); if (rho > 1.25) return;
+  const [px, pz] = C.toLocal(prev.x, prev.z), prho = Math.hypot(px / C.a, pz / C.c), ang = Math.atan2(lx, lz);
+  const inner = 0.74 - radius / Math.min(C.a, C.c), outer = 1.02 + radius / Math.min(C.a, C.c);
+  let k = 1;
+  if (Math.abs(ang) < C.mouth && rho < outer + 0.05 && rho > inner - 0.05) {   // in the mouth: between its sides
+    const lim = C.mouth - 0.1 - radius / (rho * Math.min(C.a, C.c) + 0.01);
+    if (Math.abs(ang) > lim) { const r = Math.hypot(lx, lz), q = Math.sign(ang) * lim; lx = Math.sin(q) * r; lz = Math.cos(q) * r; }
+  } else if (prho < (inner + outer) / 2) { if (rho > inner) k = inner / rho; }   // inside: the walls
+  else if (rho < outer) k = outer / rho;                                          // outside: the rock
+  const [wx, wz] = C.toWorld(lx * k, lz * k); p.x = wx; p.z = wz;
+}
+
 /** Distance to the nearest lie-down place's middle. */
 export function lieDist(x, z) { let d = Infinity; for (const s of LIE_SPOTS) d = Math.min(d, Math.hypot(x - s.x, z - s.z)); return d; }
 
-/** Distance to the garden's beds (as one rectangle round them), its seed box, the well or a standing stone's foot (< 0 inside). */
+/** Distance to the garden's beds (as one rectangle round them), its seed box, the well, a standing stone's foot or the cave's knoll (< 0 inside). */
 export function builtDist(x, z) {
   const rect = (cx, cz, hx, hz) => { const a = Math.abs(x - cx) - hx, b = Math.abs(z - cz) - hz; return Math.max(a, b) < 0 ? Math.max(a, b) : Math.hypot(Math.max(a, 0), Math.max(b, 0)); };
   const S = GARDEN.seedBox;
   let d = Math.min(rect(GARDEN.x, GARDEN.z, GARDEN.half[0], GARDEN.half[1]), rect(S.x, S.z, S.w / 2, S.l / 2), Math.hypot(x - WELL.x, z - WELL.z) - WELL.r);
+  d = Math.min(d, caveDist(x, z));
   if (Math.abs(x - STONES.x) < STONES.r + 3 && Math.abs(z - STONES.z) < STONES.r + 3) for (const [a, b, r] of STONES.foot) d = Math.min(d, Math.hypot(x - a, z - b) - r);
   return d;
 }

@@ -78,6 +78,7 @@ import { createSignposts } from './assets/cabin/signposts.js';
 import { createWell } from './assets/cabin/well.js';
 import { createStandingStones } from './assets/rocks/standingStones.js';
 import { createTreehouse } from './assets/cabin/treehouse.js';
+import { createCave } from './assets/rocks/cave.js';
 import { createClimbing } from './app/climbing.js';
 import { createGarden } from './assets/cabin/garden.js';
 import { createSaplings } from './assets/trees/sapling.js';
@@ -169,7 +170,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); climbing.update(dt, t); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); rabbits.update(dt); squirrels.update(dt); frogs.update(dt); gulls.update(dt); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
+  tod.update(dt); seasons.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); climbing.update(dt, t); cave.update(dt); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); rabbits.update(dt); squirrels.update(dt); frogs.update(dt); gulls.update(dt); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
@@ -207,6 +208,7 @@ createSignposts(ctx);   // signposts at the forks of the paths (own random numbe
 const well = createWell(ctx), garden = createGarden(ctx);   // the well and the vegetable garden behind the cabin (own random numbers)
 const stones = createStandingStones(ctx);   // the standing stones on the east hilltop (no shared random numbers)
 const treehouse = createTreehouse(ctx);   // the treehouse in the east wood (own random numbers)
+const cave = createCave(ctx, { ambience });   // the cave in the knoll south of the plot (no shared random numbers)
 const saplings = createSaplings(ctx, CONFIG.planting.max);   // the saplings you plant (own random numbers)
 const chestUI = createChestUI({ camera: ctx.camera, st, inventory, items, chests }); addTakeover(chestUI.hold);   // opening it, the storage screen
 const fires = createFires({ st, inventory, scene: ctx.scene, camera: ctx.camera, softDot: ctx.tex.softDot, items });   // lighting and putting out fires: the cabin's fireplace and the firepits
@@ -239,7 +241,7 @@ const planting = createPlanting({ camera: ctx.camera, st, inventory, items, sapl
 const rabbits = createRabbits(ctx, { ambience, seasons }), squirrels = createSquirrels(ctx, { ambience, scatter, items, seasons });   // meadow rabbits, squirrels in the spruces
 const frogs = createFrogs(ctx, { ambience, seasons, waterLife, skyUniforms, pads }), gulls = createGulls(ctx, { ambience, skyUniforms });   // frogs round the pond, gulls on the jetty
 const climbing = createClimbing({ scene: ctx.scene, camera: ctx.camera, st, treehouse, softDot: ctx.tex.softDot }); addTakeover(climbing.takeover);   // the treehouse's rope ladder
-const lantern = createLantern({ scene: ctx.scene, camera: ctx.camera, st, softDot: ctx.tex.softDot, skyUniforms });   // the hand lantern on the porch bench, to carry about
+const lantern = createLantern({ scene: ctx.scene, camera: ctx.camera, st, softDot: ctx.tex.softDot, skyUniforms, darkHere: cave.inside });   // the hand lantern on the porch bench, to carry about
 const seasonLooks = createSeasonLooks(scene, seasons);   // the season's colours, snow and what comes and goes (before finalizeScene)
 const weather = createWeather(ctx, { apples: scatter.apple });   // snowfall, autumn leaves, spring blossom
 const skyWeather = createSkyWeather({ scene: ctx.scene, camera: ctx.camera, clock, seasons, tod, atmosphere, weather, fires, ambience, sun });   // rain, storms, fog days, rainbow, northern lights
@@ -248,7 +250,7 @@ seasons.on(s => { if (s !== bakedFor) { bakedFor = s; scatter.rebake(s); } items
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { stones, treehouse, climbing, renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, lantern, hours, well, garden, drawWater, gardening, planting, saplings, rabbits, squirrels, frogs, gulls, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { stones, treehouse, climbing, cave, renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, lantern, hours, well, garden, drawWater, gardening, planting, saplings, rabbits, squirrels, frogs, gulls, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);

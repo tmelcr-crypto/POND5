@@ -3,7 +3,7 @@ import { setSeed, rng, rr } from '../core/random.js';
 import { smooth } from '../core/math.js';
 import { THIN, addSeason } from '../core/shaderPatches.js';
 import { CONFIG } from '../config.js';
-import { H, WORLD_HALF, forest, excluded, coastDist, walkwayDist, STONES } from './layout.js';
+import { H, WORLD_HALF, forest, excluded, coastDist, walkwayDist, STONES, caveDist } from './layout.js';
 import { SHOWN, PATCH } from './seasonLooks.js';
 import { obstacles, rockBodies } from './bounds.js';
 import { createSpruceVariants } from '../assets/trees/spruce.js';
@@ -229,7 +229,7 @@ export function createScatter(ctx) {
       rocks[k].push({ x, y: H(x, z) - s * 0.12, z, s, rot: rng() * 6.28, tilt: rr(-0.15, 0.15) });
       n++;
     }
-    rocksAll.push(...rocks.map(l => l.slice())); rocks.forEach((l, k) => { rocks[k] = l.filter(r => walkwayDist(r.x, r.z) > r.s * 1.1 + 0.2); });   // none on the walkways
+    rocksAll.push(...rocks.map(l => l.slice())); rocks.forEach((l, k) => { rocks[k] = l.filter(r => walkwayDist(r.x, r.z) > r.s * 1.1 + 0.2 && caveDist(r.x, r.z) > r.s * 0.3); });   // none on the walkways or in the cave's knoll
   }
 
   /* ---- full-detail tree variants (each built from its own seed, after all placement draws) ---- */
