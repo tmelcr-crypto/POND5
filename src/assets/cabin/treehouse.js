@@ -22,7 +22,7 @@ export function createTreehouse(ctx) {
   const grain = canvasTex(128, 256, (g, w, h) => {   // weathered wood, grain along v
     g.fillStyle = '#8f7456'; g.fillRect(0, 0, w, h);
     for (let i = 0; i < 170; i++) { const x = rnd() * w, y = rnd() * h, len = 30 + rnd() * 160; g.strokeStyle = rnd() < 0.6 ? `rgba(48,32,20,${0.1 + rnd() * 0.3})` : `rgba(222,204,172,${0.05 + rnd() * 0.15})`; g.lineWidth = 0.6 + rnd() * 1.5; g.beginPath(); g.moveTo(x, y); g.bezierCurveTo(x + rr(-3, 3), y + len / 3, x + rr(-3, 3), y + len * 2 / 3, x, y + len); g.stroke(); }
-    for (let i = 0; i < 6; i++) { const x = rnd() * w, y = rnd() * h; g.fillStyle = 'rgba(40,26,16,0.45)'; g.beginPath(); g.ellipse(x, y, 2 + rnd() * 3, 4 + rnd() * 5, 0, 0, 6.28); g.fill(); }   // knots
+    for (let i = 0; i < 2; i++) { const x = rnd() * w, y = rnd() * h; g.fillStyle = 'rgba(52,34,20,0.28)'; g.beginPath(); g.ellipse(x, y, 1.2 + rnd() * 1.5, 3 + rnd() * 4, 0, 0, 6.28); g.fill(); }   // a knot or two
   });
   grain.wrapS = grain.wrapT = THREE.RepeatWrapping; grain.anisotropy = maxAniso;
   const wood = [], roof = [], rope = [];
@@ -82,7 +82,7 @@ export function createTreehouse(ctx) {
   // the roof: two layers of shingles on a sloping board, overhanging
   const slope = -Math.atan2(hFront - hBack, hutFront + e), rl = Math.hypot(hutFront + e, hFront - hBack) + 0.5;   // higher at the front
   const ry = deck + (hFront + hBack) / 2 + 0.06, rz = (hutFront - e) / 2 + 0.1;
-  board(roof, hf * 2 + 0.4, 0.05, rl, 0, ry, rz, slope, 0, 0, lin(0x8b7a66));
+  board(wood, hf * 2 + 0.4, 0.05, rl, 0, ry, rz, slope, 0, 0, tone().multiplyScalar(0.7));   // the roof boards (seen from under it)
   for (let row = 0; row < 7; row++) for (let i = 0; i < 12; i++) {
     const t = row / 6, lz = -rl / 2 + t * rl, w = (hf * 2 + 0.4) / 12;
     const g = new THREE.BoxGeometry(w - 0.012, 0.018, rl / 6 + 0.06); paint(g, c => c.copy(lin(0x7a6653)).multiplyScalar(rr(0.75, 1.1)));
