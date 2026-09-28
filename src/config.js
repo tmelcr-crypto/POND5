@@ -210,8 +210,8 @@ export const CONFIG = {
   // How the body feels, shown only (app/body.js)
   body: {
     perDay: 0.75, floor: 0.25,     // hunger bar: drain per in-game day, never below this
-    food: { apple: 0.15, berry: 0.08, bakedApple: 0.3, grilledFish: 0.4, roastedMushroom: 0.22, water: 0.04, carrot: 0.1, bakedPotato: 0.35, roastedPumpkin: 0.35 },   // how much each fills it
-    warm: ['bakedApple', 'grilledFish', 'roastedMushroom', 'bakedPotato', 'roastedPumpkin'],   // cooked food that warms you
+    food: { apple: 0.15, berry: 0.08, bakedApple: 0.3, grilledFish: 0.4, roastedMushroom: 0.22, water: 0.04, carrot: 0.1, bakedPotato: 0.35, roastedPumpkin: 0.35, roastedOnion: 0.2, lettuce: 0.08, beans: 0.12, strawberry: 0.08 },   // how much each fills it
+    warm: ['bakedApple', 'grilledFish', 'roastedMushroom', 'bakedPotato', 'roastedPumpkin', 'roastedOnion'],   // cooked food that warms you
     grace: 60, freeze: 180, melt: 25,      // s outdoors in winter before frost starts; s to full frost; s to melt it
     fireWarm: 3.5,                 // m from a burning fire that warms you
   },
@@ -273,7 +273,12 @@ export const CONFIG = {
   well: { reach: 2.2, cone: 0.5, down: 2.2, fill: 0.8, up: 3.2, fullFor: 8 },
   // The vegetable garden (app/gardening.js): in-game days from sowing to ripe per crop, how close and how squarely you
   // look at a plot, how many of each kind of seed the seed box gives a day
-  garden: { days: { carrot: 2, potato: 3, pumpkin: 4 }, reach: 2.0, cone: 0.3, seeds: 6 },   // seeds: of each kind the seed box gives a day
+  garden: {
+    days: { carrot: 2, potato: 3, pumpkin: 4, onion: 3, lettuce: 2, beans: 3, strawberry: 4 },    // in-game days to ripen
+    yield: { carrot: 3, potato: 3, pumpkin: 1, onion: 3, lettuce: 1, beans: 4, strawberry: 5 },   // what a ripe plot gives
+    reach: 2.0, cone: 0.3, seeds: 6,   // seeds: of each kind the potting table gives a day
+    faster: 1.4,                       // growth next to beans (companion planting, app/gardening.js)
+  },
   // Planting saplings (app/planting.js): at most `max`, in-game days to full size, how far down you look (pitch, rad)
   // and how far away the ground may be, and how clear of the island's trees and of each other they must be (m)
   planting: { max: 12, days: 8, pitch: -0.6, reach: 2.4, clear: 2.2, apart: 1.6 },

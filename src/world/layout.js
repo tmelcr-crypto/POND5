@@ -424,17 +424,25 @@ export const SIGNS = [
  * the well.
  */
 export const GARDEN = (() => {
-  const G = { x: -5.8, z: 8.2, bedW: 0.9, bedL: 2.2, gap: 0.6, h: 0.2, crops: ['carrot', 'potato', 'pumpkin'] };
-  const beds = G.crops.map((crop, b) => {
-    const x = G.x + (b - 1) * (G.bedW + G.gap), hs = [];
+  // four raised beds of four plots; any crop grows in any plot. The west edge is where it always was (the garden path
+  // ends there); it grew east, clear of everything by 0.8 m (checked offline)
+  const G = { x: -5.05, z: 8.2, bedW: 0.9, bedL: 2.2, gap: 0.6, h: 0.2, n: 4, per: 4 };
+  const beds = Array.from({ length: G.n }, (_, b) => {
+    const x = G.x + (b - (G.n - 1) / 2) * (G.bedW + G.gap), hs = [];
     for (const dx of [-G.bedW / 2, G.bedW / 2]) for (const dz of [-G.bedL / 2, 0, G.bedL / 2]) hs.push(H(x + dx, G.z + dz));
-    return { x, z: G.z, crop, base: Math.min(...hs) - 0.06, y: Math.max(...hs) + G.h };
+    return { x, z: G.z, base: Math.min(...hs) - 0.06, y: Math.max(...hs) + G.h };
   });
-  const plots = beds.flatMap((b, bi) => [-1, 0, 1].map(k => ({ bed: bi, crop: b.crop, x: b.x, z: b.z + k * G.bedL / 3, y: b.y })));
-  // the seed box at the path's end beside the first bed: three compartments along z, a kind of seed in each
-  const bx = -8.5, bz = 7.9, seedBox = { x: bx, z: bz, y: H(bx, bz), w: 0.34, l: 0.62, h: 0.46 };
-  const bins = ['carrotSeeds', 'seedPotato', 'pumpkinSeeds'].map((kind, i) => ({ kind, x: bx, z: bz + (i - 1) * 0.19, y: seedBox.y + seedBox.h + 0.02 }));
-  return { ...G, beds, plots, seedBox, bins, half: [(3 * G.bedW + 2 * G.gap) / 2, G.bedL / 2] };
+  const plots = beds.flatMap((b, bi) => Array.from({ length: G.per }, (_, k) => ({ bed: bi, row: k, x: b.x, z: b.z + (k - (G.per - 1) / 2) * G.bedL / G.per, y: b.y })));
+  // a plot's neighbours (for companion planting, app/gardening.js): the plots before and after it in its bed, and the
+  // plots in the same row of the beds either side
+  plots.forEach(p => { p.near = plots.map((q, i) => ((q.bed === p.bed && Math.abs(q.row - p.row) === 1) || (q.row === p.row && Math.abs(q.bed - p.bed) === 1)) ? i : -1).filter(i => i >= 0); });
+  // the potting table at the path's end beside the first bed: seven seed trays along it, each with a little painted
+  // sign, and the grow book at its far end (app/gardening.js reads it to you)
+  const tx = -8.5, tz = 7.95, table = { x: tx, z: tz, y: H(tx, tz), w: 0.5, l: 1.5, h: 0.78 };
+  const seeds = ['carrotSeeds', 'seedPotato', 'pumpkinSeeds', 'onionSets', 'lettuceSeeds', 'beanSeeds', 'strawberryPlants'];
+  const bins = seeds.map((kind, i) => ({ kind, x: tx, z: tz - table.l / 2 + 0.1 + i * 0.165, y: table.y + table.h + 0.03 }));
+  const book = { x: tx + 0.02, z: tz + table.l / 2 - 0.16, y: table.y + table.h + 0.025 };
+  return { ...G, beds, plots, table, seedBox: table, bins, book, half: [(G.n * G.bedW + (G.n - 1) * G.gap) / 2, G.bedL / 2] };
 })();
 export const WELL = { x: -8.7, z: 5.1, r: 0.56, rim: 0.72, y: H(-8.7, 5.1) };
 /**

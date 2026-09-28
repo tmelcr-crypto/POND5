@@ -326,64 +326,18 @@ export function createRoseBush(ctx) {
   turns and creaks, a splash far down), winds it back up full, and a cup of fresh water goes into your quick slots
   (Use says Drink).
 - **Vegetable garden** (`GARDEN` in `world/layout.js`, `assets/cabin/garden.js`, `app/gardening.js`, `CONFIG.garden`):
-  three raised beds at the end of the garden path, carrots, potatoes and pumpkins, three plots each. Seeds come from the
-  seed box at the path's end (carrot seeds, seed potatoes, pumpkin seeds; picked up like anything else, 6 of each a
-  day). With a bed's seeds selected (or a potato you dug up, for the potato bed), look at one of its bare plots and Use
-  says Sow; without them, a note says what the bed needs. It grows by itself over 2 / 3 / 4 in-game days (sleeping counts; nothing grows or
-  is sown in winter, when the beds are under snow), then an icon beside it (T) harvests it: 3 carrots (eaten raw), 3 potatoes or a
-  pumpkin (both cooked on the stick into baked potatoes and roasted pumpkin). Saved in the browser.
-- **Standing stones** (`STONES` in `world/layout.js`, `assets/rocks/standingStones.js`): a ring of weathered, lichened
-  stones on the east hilltop (the island's hilltops are all 2.9-3.2 m; the two highest are inside the spruce forest, so
-  the ring stands on the highest open one, with the sea and the jetty below). Ten places round a 2.8 m ring: seven stand,
-  one leans, one lies fallen in the turf, one is a broken stump and one is gone; the gap between the two tall stones on
-  the west side is the way in, where a stepping-stone path arrives from the sunrise bench (signposted from the jetty
-  fork). One merged mesh with a grain texture; snow on their tops in winter. The one spruce on the hilltop was dropped
-  after placement (with its cones), so nothing else on the island moved.
-- **Treehouse** (`TREEHOUSE` in `world/layout.js`, `assets/cabin/treehouse.js`, `app/climbing.js`, `CONFIG.climb`): in
-  the east wood among the spruces, a plank deck 2.5 m up on four log posts, a little hut with an open front and a
-  shingle roof over its back half (a crate and a rolled blanket inside), railings round the front half and a rope
-  ladder through a gap in them. A path leaves the stones' path at a signpost and runs north through the wood to the
-  ladder. At its foot, looking at it, the icon beside it (T) climbs up; on the deck by the gap the same icon climbs
-  down. The deck is walkable (`treehouseDeckY`) and its railings and the hut's walls keep you on it
-  (`treehouseRails`); through the gap you can step off and drop to the ground. Three merged meshes; snow on the roof
-  and deck in winter.
-- **Cave** (`CAVE` in `world/layout.js`, `assets/rocks/cave.js`): a rocky knoll on the meadow slope south of the plot,
-  painted like the island's boulders, with an arched mouth facing the pond. Inside is a dome-shaped cave, one wall's
-  thickness smaller, with a floor of packed earth. Every surface carries a baked occlusion (a vertex attribute that
-  scales the sky and bounce light), so the daylight fades from the mouth to near darkness at the back; carry the hand
-  lantern in and it lights the walls (inside the cave it shines by day too). On the back wall, ochre paintings of
-  deer, hands, a sun and people with bows; in a niche, pale crystals that glimmer. Water drips now and then while you
-  are inside. `caveWalls` keeps you out of the rock (in by the mouth only) and inside the walls; the grass, flowers,
-  pebbles and one boulder are kept out of it.
-- **Islet** (`ISLET` / `isletH` in `world/layout.js`, `assets/water/islet.js`): a low sandy islet some 20 m off the
-  north-east shore, a short sail north of the jetty. It is part of the terrain height (the boat runs aground on its sand,
-  you step off and walk round it, the water is shallow round it) but not of `coastDist`, so the island's scatter never
-  reaches it. On it: weathered boulders at the waterline, a bleached driftwood log, a cairn on its top and an old rowing
-  boat half sunk in the sand. Wading off it eases you back onto it.
-- **Treasure map** (`TREASURE` in `world/layout.js`, `assets/cabin/treasureChest.js`, `app/treasure.js`): an old map lies
-  rolled up on the crate in the treehouse; looking at it there, the icon beside it (T) takes it. Selected, the Use
-  button says Read and unfolds it: the island drawn by hand (its coasts, woods, paths, the pond and the cabin, the
-  stones, the treehouse, the cave and the islet) with a red X by the islet's cairn; tap anywhere to fold it (it is not
-  used up). Once read, a mound of loose sand shows at the X; there the icon digs by hand (no shovel), three scoops, and
-  a small iron-bound chest comes up, lid open, full of old gold coins. The icon takes them: a keepsake for the cabin
-  shelf (its third place). Saved in the browser.
-- **Tides** (`world/tide.js`, `TIDE` / `seaY()` in `world/layout.js`, `CONFIG.tide`): the sea rises and falls 0.25 m
-  about its mean level twice a day (a 12.4 in-game-hour tide, counted over the seasons' days, so it carries on across
-  sleep and reloads). The sea's surface, its shallows and shore foam, the wet sand, the sea mist (`U.uSea`) and all that
-  floats, wades or splashes (the boat at its berth and under way, running aground, wading back to shore, the fishing
-  float, footsteps in the surf) follow it; what was placed once (shells, driftwood, the jetty and its stairs) stays, so
-  at high water the lowest steps go under and at low water more beach and more of the piles show.
-- **God rays** (`world/godRays.js`, `CONFIG.godRays`): shafts of sunlight slanting down through the woods, strongest
-  when the sun is low and you look towards it; gone at night and in rain, storms and fog. No extra render pass: a few
-  long additive light planes in one instanced mesh (one draw call), each from a sunlit spot on the forest floor up
-  towards the sun, turned to face you, at fixed places round you (picked by a hash, so they do not swim), hidden by the
-  trees and hills in front of them.
-- **Lying in the grass** (`LIE_SPOTS` in `world/layout.js`, `app/controls.js`, `CONFIG.player.lie`): five places to lie
-  down and watch the sky: inside the stone ring, the north hill over the shore, a glade in the east wood by the treehouse, the south
-  slope above the sea and the west meadow facing the sunset. The grass is lower round each (the ground texture's alpha,
-  `world/grass.js`) and ferns, sticks and cones are kept off it. Near one, the seat button (R) shows a lying figure: you
-  walk to it, turn to the view, sit and lie back looking up; you can look round and hold the time-lapse button, but not
-  sleep. The stand button sits you up and stands you up.
+  four raised beds of four plots at the end of the garden path; any crop grows in any plot. Seeds come from the potting
+  table at the path's end: seven trays, each with a little painted sign (carrot seeds, seed potatoes, pumpkin seeds,
+  onion sets, lettuce seeds, bean seeds, strawberry runners; picked up like anything else, 6 of each a day; a potato you
+  dug up also plants). With seeds selected, look at a bare plot and Use says Sow. It grows by itself over 2-4 in-game
+  days (sleeping counts; nothing grows or is sown in winter, under the snow), then an icon beside it (T) harvests it:
+  carrots, potatoes, onions (roast them), a pumpkin, a lettuce, beans, strawberries.
+  **Companion planting:** a plot's neighbours are the plots before and after it in its bed and the same row in the
+  beds either side. Carrots and onions give each other one more; beans make everything beside them grow faster (x1.4)
+  and give a pumpkin or a potato beside them one more; strawberries beside lettuce give two more, the lettuce one
+  more. The **grow book** lies open on the potting table: looking at it, the icon (T) opens it, a page for each
+  pairing and one for how long each crop takes (tap to turn the pages). Looking at a growing plot says how far it is
+  and which bonuses it has. Saved in the browser.
 - **Planting** (`app/planting.js`, `assets/trees/sapling.js`, `CONFIG.planting`): with an apple or a spruce cone
   selected, look down at open ground close by (off paths, beaches, water, the plot, and clear of trees, rocks and other
   saplings) and Use says Plant. A seedling comes up and grows over 8 in-game days into a young apple tree or spruce
