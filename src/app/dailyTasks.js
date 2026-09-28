@@ -102,7 +102,7 @@ export function createDailyTasks({ camera, st, clock, hours, seasons, inventory,
     },
     /** The journal's calendar page: the days so far, a row per season, today's task with how far along it is. */
     page: {
-      id: 'calendar', chip: '▦', title: 'Calendar',
+      id: 'calendar', chip: '▦ Calendar', title: 'Calendar',
       html() {
         begin();
         const days = Object.keys(S.days).map(Number).sort((a, b) => a - b), rows = [];

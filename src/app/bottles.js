@@ -97,7 +97,7 @@ export function createBottles({ scene, camera, st, inventory, items, hours, thin
     const chips = Array.from({ length: N }, (_, i) => `<button class="day${got.includes(i) ? '' : ' none'}${sel === i ? ' on' : ''}" data-i="${i}" ${got.includes(i) ? '' : 'disabled'}>${i + 1}</button>`).join('') + (S.open ? `<button class="day chest${sel === 'chest' ? ' on' : ''}" data-i="chest">★</button>` : '') + pages.map(p => `<button class="day page${sel === p.id ? ' on' : ''}" data-i="${p.id}" aria-label="${p.title}">${p.chip}</button>`).join('');
     const pg = pages.find(p => p.id === sel);
     const body = pg ? `<h3>${pg.title}</h3>${pg.html()}` : sel === 'chest' ? `<h3>The Friendship Chest</h3><canvas class="photo" width="320" height="224"></canvas>${CHEST_PAGE}` : sel !== null ? `<h3>Day ${sel + 1}</h3>${messageHtml(MESSAGES[sel])}` : '<p class="empty">No messages yet. Walk the beaches: the sea brings bottles now and then.</p>';
-    view.innerHTML = `<div class="page journal"><button class="close" aria-label="Close the journal">×</button><h2>Captain Elias’s messages</h2><div class="sub">${got.length} of ${N} found${revealed() && !S.open ? ' · the old dock, the crooked tree…' : ''}</div><div class="days">${chips}</div><div class="entry">${body}</div></div>`;
+    view.innerHTML = `<div class="page journal"><button class="close" aria-label="Close the journal">×</button><h2>Journal</h2><div class="sub">Captain Elias’s messages: ${got.length} of ${N} found${revealed() && !S.open ? ' · the old dock, the crooked tree…' : ''}</div><div class="days">${chips}</div><div class="entry">${body}</div></div>`;
     const cv = view.querySelector('canvas.photo'); if (cv) drawPhoto(cv.getContext('2d'), cv.width, cv.height);
   }
   const close = () => { viewing = null; view.classList.add('hide'); };
@@ -164,7 +164,7 @@ export function createBottles({ scene, camera, st, inventory, items, hours, thin
  *  name, each still hidden by its hint. */
 export function keepsakePage(items) {
   return {
-    id: 'keepsakes', chip: '◆', title: 'Keepsakes',
+    id: 'keepsakes', chip: '◆ Keepsakes', title: 'Keepsakes',
     html() {
       const f = items.keepsakes().found, hint = k => (KEEPSAKES.find(q => q.kind === k) || {}).hint || '';
       return `<p>Ten old things are hidden round the island, for the shelves in the cabin. ${f.length} of ${KEEPSAKES.length} found.</p><ul class="keeps">${KEEPSAKES.map(q => f.includes(q.kind) ? `<li class="got">${KINDS[q.kind].name}</li>` : `<li><i>${hint(q.kind)}</i></li>`).join('')}</ul>`;
