@@ -292,11 +292,11 @@ export const FOOTPATH = (() => {
   return { stones, len, routes: FOOTPATH_ROUTES.length, grid: { x0, z0, nx, nz, cells, reach } };
 })();
 /** Distance to the nearest path stone's rim (< 0 on a stone); FOOTPATH.grid.reach (2.2 m) when none is that close. */
-export function footpathDist(x, z) {
+export function footpathDist(x, z, routes = Infinity) {   // routes: only the routes before this one
   const G = FOOTPATH.grid, i = Math.floor(x - G.x0), j = Math.floor(z - G.z0);
   if (i < 0 || j < 0 || i >= G.nx || j >= G.nz) return G.reach;
   let d = G.reach;
-  for (const s of G.cells[j * G.nx + i]) d = Math.min(d, Math.hypot(x - s.x, z - s.z) - s.r * (1 + 0.5 * (s.sx - 1)));
+  for (const s of G.cells[j * G.nx + i]) if (s.route < routes) d = Math.min(d, Math.hypot(x - s.x, z - s.z) - s.r * (1 + 0.5 * (s.sx - 1)));
   return d;
 }
 /** Distance to a bench's footprint, its lantern's end included (< 0 inside). */
@@ -470,7 +470,7 @@ export function builtDist(x, z) {
 /** Distance to the nearest signpost's foot (< 0 at it). */
 export function signDist(x, z) { let d = Infinity; for (const S of SIGNS) d = Math.min(d, Math.hypot(x - S.x, z - S.z) - 0.3); return d; }
 /** Distance to anything built to walk on or sit at (path stones, bridge, benches, jetty, firepits): the island's scatter is cleared off these. */
-export function walkwayDist(x, z) { return Math.min(footpathDist(x, z), bridgeDist(x, z), benchDist(x, z), jettyDist(x, z), firepitDist(x, z)); }
+export function walkwayDist(x, z, routes) { return Math.min(footpathDist(x, z, routes), bridgeDist(x, z), benchDist(x, z), jettyDist(x, z), firepitDist(x, z)); }
 /** Distance to the bridge's footprint (< 0 under the deck). */
 export function bridgeDist(x, z) {
   const B = BRIDGE, dx = x - B.x, dz = z - B.z, u = Math.abs(dx * B.ax + dz * B.az) - B.half, v = Math.abs(dx * B.az - dz * B.ax) - B.width / 2;
