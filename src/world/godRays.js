@@ -15,9 +15,9 @@ import { H, forest } from './layout.js';
  */
 const VS = `
   attribute vec3 aBase; attribute vec3 aSize;   // ground point; width, length, seed
-  uniform vec3 uSunDir; varying vec2 vUv; varying float vSeed; varying float vNear; varying float vFacing;
+  uniform vec3 uSunDir; uniform float uSteep; varying vec2 vUv; varying float vSeed; varying float vNear; varying float vFacing;
   void main() {
-    vec3 A = normalize(uSunDir);
+    vec3 A = normalize(mix(normalize(uSunDir), vec3(0.0, 1.0, 0.0), uSteep));   // steeper than the sun: shafts come down through the crowns
     vec3 mid = aBase + A * aSize.y * 0.5, V = normalize(cameraPosition - mid);
     vec3 S = normalize(cross(A, V));
     vec3 p = aBase + A * (position.y * aSize.y) + S * (position.x * aSize.x);
@@ -44,7 +44,7 @@ export function createGodRays(ctx, { skyUniforms, skyWeather } = {}) {
   const geo = new THREE.InstancedBufferGeometry(); geo.index = quad.index; geo.setAttribute('position', quad.attributes.position);
   const base = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3), size = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3);
   geo.setAttribute('aBase', base); geo.setAttribute('aSize', size); geo.instanceCount = 0;
-  const uni = { uSunDir: skyUniforms ? skyUniforms.uSunDir : { value: new THREE.Vector3(0.3, 0.4, 0.2) }, uCol: { value: new THREE.Color() }, uStrength: { value: 0 }, uTime: U.uTime };
+  const uni = { uSunDir: skyUniforms ? skyUniforms.uSunDir : { value: new THREE.Vector3(0.3, 0.4, 0.2) }, uCol: { value: new THREE.Color() }, uStrength: { value: 0 }, uSteep: { value: C.steep }, uTime: U.uTime };
   const mat = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: FS, uniforms: uni, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false; mesh.renderOrder = 5; mesh.visible = false; scene.add(mesh);
 
