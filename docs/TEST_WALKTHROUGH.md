@@ -29,7 +29,7 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
       potatoes and a pumpkin cooked at a fire).
 - [ ] Signposts (#19): at the three forks (bridge, jetty path, forest path) every board points along its path and the
       distances look right; walk round a post (it is solid); read a board from both sides.
-- [ ] The treasure map (#16) is found in the cabin; keep it for step 5.
+- [ ] The treasure map (#16) lies rolled up on the crate in the treehouse: take it with the icon (T); select it, Read (the map unfolds, tap to fold it; it stays in your slots).
 
 ## 2. Meadow and forest (midday)
 - [ ] Rabbits (#38) nibble and hop in the meadow; walk towards one: it bolts in long hops and is gone.
@@ -49,7 +49,7 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 ## 3. The hill, the stones, the cave, the treehouse (afternoon)
 - [ ] Standing stones (#66) on the east hilltop: follow the "Standing stones" board from the jetty fork, past the sunrise bench and up the path; walk round and through the ring, bump into the stones, step onto the fallen one. Winter: snow on their tops.
 - [ ] Lie down (#99) at the five places (stone ring, north hill, east wood glade, south slope, west meadow): the grass is lower there; the seat button shows a lying figure; lie back, look round, hold the time-lapse button; get up. The button shows nowhere else outdoors, and never offers sleep.
-- [ ] Cave (#63): walk in with and without the lantern; find what is inside; walk out.
+- [ ] Cave (#63): the rocky knoll on the slope south of the pond. Walk in by day without the lantern (dim at the mouth, near dark at the back), then with it (the walls, the paintings on the back wall and the crystals in a niche light up); listen for drips; try to walk through the rock from outside and through the walls from inside (both hold); walk out.
 - [ ] Treehouse (#58): from the signpost on the stones' path follow "Treehouse" into the east wood; at the ladder's foot the icon (T) climbs up; walk round the deck and into the hut (the railings and walls hold you); step off through the ladder's gap (you drop to the ground); climb up again and down with the icon. Walk under the deck (the posts block you). Winter: snow on the roof.
 - [ ] Album picture (#13): be at a picture's place at its time (or do its action there); the picture arrives in the album.
 
@@ -63,11 +63,11 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Message in a bottle (#17): find one, read it; it goes into the album / journal.
 - [ ] Fishing from the jetty: cast, strike, catch; miss once on purpose; reel in empty once.
 - [ ] Board the boat, sail out to the islet (#26); anchor (#30) off it; fish from the boat; weigh anchor.
-- [ ] Land on the islet (jump ashore), find what is there, sail back, dock.
+- [ ] Land on the islet (sail north from the jetty; the boat runs aground on its sand, step off), find what is there (a cairn, a wrecked rowing boat, driftwood), wade out a little (you are eased back onto it), board again, sail back, dock.
 - [ ] **fps** on the boat at sea, and at the lit beach firepit.
 
 ## 5. Evening and night
-- [ ] Treasure (#16): follow the map to the dirt pile, interact, open the chest.
+- [ ] Treasure (#16): sail to the islet (the X is three paces from the cairn); after reading the map a mound of sand shows there; dig with the icon (three scoops), the chest comes up; take the coins; put them on the cabin shelf. Reload: the chest stays dug up and open.
 - [ ] Daily tasks (#15): finish today's; the stamp appears in the journal; leave one unfinished (nothing happens).
 - [ ] Frogs (#40) on the lily pads and the pond's bank croak from dusk (throat puffing) and jump in as you pass.
 - [ ] Cook a fish at a firepit at night; eat it; the hunger meter rises.

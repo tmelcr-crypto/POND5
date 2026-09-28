@@ -51,13 +51,19 @@ export function createCave(ctx, { ambience } = {}) {
     return [x, H(x, z) - 0.1 + (C.b - C.wall - 0.25) * Math.pow(dy, 0.8) * (1 + n * 0.6), z];
   };
   const wrap = u => Math.atan2(Math.sin(u), Math.cos(u));
-  const open = (u, v) => Math.abs(wrap(u)) < C.mouth * Math.sqrt(Math.max(0, 1 - (v / 1.02) ** 2));   // the arched mouth
+  const ARCH = 1.02, open = (u, v) => Math.abs(wrap(u)) < C.mouth * Math.sqrt(Math.max(0, 1 - (v / ARCH) ** 2));   // the arched mouth: ARCH the angle of its top
   const depth = (x, z) => { const [, lz] = C.toLocal(x, z); return clamp((C.c - lz) / (2 * C.c)); };   // 0 at the mouth, 1 at the back
-  const aoIn = (x, y, z) => { const d = depth(x, z); return 0.04 + 0.5 * Math.pow(1 - d, 2.2) + 0.05 * clamp(1 - (y - H(x, z)) / 2); };
+  const aoIn = (x, y, z) => { const d = depth(x, z); return 0.05 + 0.85 * Math.pow(1 - d, 1.8) + 0.04 * clamp(1 - (y - H(x, z)) / 2); };   // daylight from the mouth, dark at the back
 
   function shell(at, keep) {
-    const pos = [], idx = [], cell = (i, j) => keep(((i + 0.5) / NU) * Math.PI * 2, ((j + 0.5) / NV) * Math.PI / 2);
-    for (let j = 0; j <= NV; j++) for (let i = 0; i <= NU; i++) pos.push(...at((i / NU) * Math.PI * 2, (j / NV) * Math.PI / 2));
+    const pos = [], idx = [], cell = (i, j) => keep(((((i % NU) + NU) % NU) + 0.5) / NU * Math.PI * 2, ((j + 0.5) / NV) * Math.PI / 2);
+    for (let j = 0; j <= NV; j++) for (let i = 0; i <= NU; i++) {
+      let u = (i / NU) * Math.PI * 2, v = (j / NV) * Math.PI / 2;
+      // a vertex on the mouth's edge (between an open and a closed cell) goes onto the arch itself, so the edge is smooth
+      const around = [[i - 1, j - 1], [i, j - 1], [i - 1, j], [i, j]].filter(([a, b]) => b >= 0 && b < NV).map(([a, b]) => cell(a, b));
+      if (around.some(Boolean) && around.some(k => !k)) { const w = wrap(u), th = Math.atan2(v / ARCH, w / C.mouth); u = C.mouth * Math.cos(th); v = ARCH * Math.sin(th); }
+      pos.push(...at(u, v));
+    }
     const k = (i, j) => j * (NU + 1) + i;
     for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) if (cell(i, j)) idx.push(k(i, j), k(i + 1, j), k(i + 1, j + 1), k(i, j), k(i + 1, j + 1), k(i, j + 1));
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
@@ -82,7 +88,7 @@ export function createCave(ctx, { ambience } = {}) {
   const outG = finishRock(out.g, H); outG.setAttribute('ao', new THREE.Float32BufferAttribute(new Float32Array(outG.attributes.position.count).fill(1), 1));
   const dampRock = (g, aoFn) => {
     const p = g.attributes.position, n = p.count, col = new Float32Array(n * 3), ao = new Float32Array(n), uv = new Float32Array(n * 2), c = new THREE.Color();
-    const r0 = lin(0x6e6454), r1 = lin(0x4a4239), wet = lin(0x2f2a24), min = lin(0xb9ab8c);
+    const r0 = lin(0x857865), r1 = lin(0x5a5045), wet = lin(0x2f2a24), min = lin(0xb9ab8c);
     for (let i = 0; i < n; i++) {
       const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
       c.copy(r0).lerp(r1, clamp(fbm3(x * 2.2, y * 2.2, z * 2.2) + 0.5)).multiplyScalar(0.85 + 0.25 * vnoise3(x * 25, y * 25, z * 25));
@@ -155,8 +161,9 @@ export function createCave(ctx, { ambience } = {}) {
     m.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler((crnd() - 0.5) * 1.1, crnd() * 6.28, (crnd() - 0.5) * 1.1)));
     const [x, z] = W(bl * 0.93 + (crnd() - 0.5) * 0.35, bz * 0.93 + (crnd() - 0.5) * 0.35); m.translate(x, H(x, z) + 0.02, z); cry.push(m);
   }
-  const cryMat = new THREE.MeshStandardMaterial({ color: 0xcfe2f2, emissive: 0x3a5a78, emissiveIntensity: 0.35, roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.88 });
-  const crystals = new THREE.Mesh(mergeGeos(cry, ['position', 'normal']), cryMat); crystals.castShadow = false; scene.add(crystals);
+  const cryMat = addCaveDark(new THREE.MeshStandardMaterial({ color: 0xcfe2f2, emissive: 0x2f4d6a, emissiveIntensity: 0.22, roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.88 }));
+  const cryG = mergeGeos(cry, ['position', 'normal']); cryG.setAttribute('ao', new THREE.Float32BufferAttribute(new Float32Array(cryG.attributes.position.count).fill(0.06), 1));
+  const crystals = new THREE.Mesh(cryG, cryMat); crystals.castShadow = false; crystals.receiveShadow = true;   // (the knoll's shadow keeps the sun off them) scene.add(crystals);
 
   /* ---- drips: a soft plink now and then while you are inside ---- */
   let next = 2;

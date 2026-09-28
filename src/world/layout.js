@@ -86,7 +86,23 @@ export function hillsH(x, z) {
   const c = coastDist(x, z);
   // beach: a gentle slope up from the waterline; offshore: steeper down to the sea floor
   const shore = c > 0 ? SEA_Y + 0.12 * c : Math.max(SEA_Y - IC.seaDepth, SEA_Y + 0.25 * c);
-  return land + (shore - land) * (1 - smooth(IC.beachWidth * 0.4, IC.beachWidth * 1.6, c));
+  const h = land + (shore - land) * (1 - smooth(IC.beachWidth * 0.4, IC.beachWidth * 1.6, c));
+  return Math.abs(x - ISLET.x) < ISLET.reach && Math.abs(z - ISLET.z) < ISLET.reach ? Math.max(h, isletH(x, z)) : h;
+}
+/**
+ * The islet off the north-east shore (#26; assets/water/islet.js): a low hump of sand `top` m above the sea, about r m
+ * across its waterline (a little uneven), its flanks running down into the sea floor. Part of the terrain height (so
+ * the boat grounds on it, you can walk on it, the water shallows round it), but not of coastDist: the island's scatter
+ * never reaches it.
+ */
+export const ISLET = { x: 38.5, z: -38.5, r: 5.2, top: 0.85, reach: 16 };
+/** Where the treasure is buried (#16; app/treasure.js): on the islet, three paces from the cairn. */
+export const TREASURE = { x: 38.64, z: -40.05 };
+export function isletH(x, z) {
+  const I = ISLET, dx = x - I.x, dz = z - I.z, a = Math.atan2(dz, dx), r = I.r * (1 + 0.14 * Math.sin(a * 3 + 0.8) + 0.08 * Math.sin(a * 5 - 1.3));
+  const s = Math.hypot(dx, dz) / r;
+  if (s < 1) return SEA_Y + I.top * (1 - s * s) * (1 - s * s * 0.35) + 0.05 * fbm2(x * 0.7, z * 0.7, 2);   // the hump
+  return SEA_Y - (s - 1) * r * 0.45;                                                                        // its flanks into the sea
 }
 /**
  * Terrain height before the stream is carved: exactly dioramaH() inside the plot. The plot's builders use it for their

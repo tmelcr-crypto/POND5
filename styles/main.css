@@ -117,6 +117,9 @@ body.touch.playing #touchHelp{display:block}
 /* fires (app/fires.js): the cost on the light button, the note when you lack it */
 #fireIcon,#lanternIcon,.actIcon{position:fixed;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;display:grid;place-items:center;color:#fff3dc;border:0;z-index:4;cursor:pointer;touch-action:none;padding:0}
 #fireIcon .cost{position:absolute;right:4px;bottom:2px;font-size:.8rem;font-weight:700;color:#ffd79a}
+#mapView{position:fixed;inset:0;z-index:8;display:grid;place-items:center;background:rgba(10,8,5,.55);touch-action:none;cursor:pointer}#mapView.hide{display:none}
+#mapView canvas{width:min(88vw,82vh);height:min(88vw,82vh);border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.55)}
+#mapView .mapCap{position:absolute;bottom:4vh;left:50%;transform:translateX(-50%);color:#f2e6c8;font-size:.9rem;opacity:.8;pointer-events:none}
 #fireNote{position:fixed;left:50%;top:62%;transform:translateX(-50%);padding:9px 16px;border-radius:12px;font-size:.95rem;z-index:4;pointer-events:none;white-space:nowrap}#fireNote.hide{display:none}
 /* body (app/body.js): the hunger bar under the quick slots, frost round the screen's edges */
 #hungerBar{position:fixed;top:calc(84px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);width:120px;height:5px;border-radius:3px;background:rgba(20,24,18,.45);overflow:hidden;z-index:4;pointer-events:none}
