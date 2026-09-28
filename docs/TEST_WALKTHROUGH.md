@@ -47,7 +47,8 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Time-lapse (#79) while sitting or lying: hold it; the sun and clouds move; letting go returns to normal speed.
 
 ## 3. The hill, the stones, the cave, the treehouse (afternoon)
-- [ ] Standing stones / ruins (#66) on the highest hill: walk round them, nothing to fall through.
+- [ ] Standing stones (#66) on the east hilltop: follow the "Standing stones" board from the jetty fork, past the sunrise bench and up the path; walk round and through the ring, bump into the stones, step onto the fallen one. Winter: snow on their tops.
+- [ ] Lie down (#99) at the five places (stone ring, north hill, east wood glade, south slope, west meadow): the grass is lower there; the seat button shows a lying figure; lie back, look round, hold the time-lapse button; get up. The button shows nowhere else outdoors, and never offers sleep.
 - [ ] Cave (#63): walk in with and without the lantern; find what is inside; walk out.
 - [ ] Treehouse (#58): climb the rope ladder, look out, climb down; try to walk off the edge.
 - [ ] Album picture (#13): be at a picture's place at its time (or do its action there); the picture arrives in the album.
