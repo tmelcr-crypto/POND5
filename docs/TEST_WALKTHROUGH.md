@@ -76,8 +76,9 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Rainbow (#33) when the sun comes out after rain.
 - [ ] A fog morning (#32).
 - [ ] The garden is grown; harvest it. The planted sapling has grown a little.
-- [ ] Decorate the cabin (#47): place shells, flowers, pebbles on the shelves and table; the unique shell (#18) and
-      the golden fish go on the keepsake shelf.
+- [ ] Hidden keepsakes (#47): find the ten (the journal's ◆ page has a hint for each still hidden); each chimes and
+      says how many are found; none comes back after a day. Put each on the cabin's shelves: each has its own place,
+      the horseshoe hangs on the wall. Reload: the shelves keep them, the found ones stay gone.
 - [ ] Seasonal sky (#93): note the summer light; compare in autumn and winter.
 
 ## 7. The seasons

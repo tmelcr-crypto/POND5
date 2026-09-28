@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
-import { H, SEA_Y, coastDist, jettyDist, walkwayDist, firepitDist, WORLD_HALF } from '../world/layout.js';
+import { H, SEA_Y, coastDist, jettyDist, walkwayDist, firepitDist, WORLD_HALF, KEEPSAKES } from '../world/layout.js';
+import { KINDS } from './itemKinds.js';
 import { obstacles } from '../world/bounds.js';
 import { MESSAGES, messageHtml } from '../story/bottleMessages.js';
 import { drawPhoto } from '../assets/story/friendship.js';
@@ -88,12 +89,14 @@ export function createBottles({ scene, camera, st, inventory, items, hours, thin
     view.innerHTML = `<div class="page"><h2>Day ${i + 1}</h2>${messageHtml(MESSAGES[i])}<div class="foot">Written into your journal · ${S.found.length} of ${N} · tap to close</div></div>`;
   }
   let sel = null;
+  const pages = [];   // more pages at the journal's end (addPage): { id, chip, title, html() }
   function showJournal(pick) {
     viewing = 'journal'; view.classList.remove('hide');
     const got = S.found.slice().sort((a, b) => a - b);
-    if (pick !== undefined) sel = pick; else if (sel === null || (sel !== 'chest' && !got.includes(sel))) sel = S.open ? 'chest' : got.length ? got[got.length - 1] : null;
-    const chips = Array.from({ length: N }, (_, i) => `<button class="day${got.includes(i) ? '' : ' none'}${sel === i ? ' on' : ''}" data-i="${i}" ${got.includes(i) ? '' : 'disabled'}>${i + 1}</button>`).join('') + (S.open ? `<button class="day chest${sel === 'chest' ? ' on' : ''}" data-i="chest">★</button>` : '');
-    const body = sel === 'chest' ? `<h3>The Friendship Chest</h3><canvas class="photo" width="320" height="224"></canvas>${CHEST_PAGE}` : sel !== null ? `<h3>Day ${sel + 1}</h3>${messageHtml(MESSAGES[sel])}` : '<p class="empty">No messages yet. Walk the beaches: the sea brings bottles now and then.</p>';
+    if (pick !== undefined) sel = pick; else if (sel === null || (sel !== 'chest' && !got.includes(sel) && !pages.some(p => p.id === sel))) sel = S.open ? 'chest' : got.length ? got[got.length - 1] : null;
+    const chips = Array.from({ length: N }, (_, i) => `<button class="day${got.includes(i) ? '' : ' none'}${sel === i ? ' on' : ''}" data-i="${i}" ${got.includes(i) ? '' : 'disabled'}>${i + 1}</button>`).join('') + (S.open ? `<button class="day chest${sel === 'chest' ? ' on' : ''}" data-i="chest">★</button>` : '') + pages.map(p => `<button class="day page${sel === p.id ? ' on' : ''}" data-i="${p.id}" aria-label="${p.title}">${p.chip}</button>`).join('');
+    const pg = pages.find(p => p.id === sel);
+    const body = pg ? `<h3>${pg.title}</h3>${pg.html()}` : sel === 'chest' ? `<h3>The Friendship Chest</h3><canvas class="photo" width="320" height="224"></canvas>${CHEST_PAGE}` : sel !== null ? `<h3>Day ${sel + 1}</h3>${messageHtml(MESSAGES[sel])}` : '<p class="empty">No messages yet. Walk the beaches: the sea brings bottles now and then.</p>';
     view.innerHTML = `<div class="page journal"><button class="close" aria-label="Close the journal">×</button><h2>Captain Elias’s messages</h2><div class="sub">${got.length} of ${N} found${revealed() && !S.open ? ' · the old dock, the crooked tree…' : ''}</div><div class="days">${chips}</div><div class="entry">${body}</div></div>`;
     const cv = view.querySelector('canvas.photo'); if (cv) drawPhoto(cv.getContext('2d'), cv.width, cv.height);
   }
@@ -101,7 +104,7 @@ export function createBottles({ scene, camera, st, inventory, items, hours, thin
   view.addEventListener('pointerdown', e => {
     e.stopPropagation();
     const b = e.target.closest && e.target.closest('button');
-    if (viewing === 'journal') { if (b && b.classList.contains('close')) { e.preventDefault(); close(); } else if (b && b.dataset.i !== undefined && !b.disabled) { e.preventDefault(); showJournal(b.dataset.i === 'chest' ? 'chest' : +b.dataset.i); } return; }
+    if (viewing === 'journal') { if (b && b.classList.contains('close')) { e.preventDefault(); close(); } else if (b && b.dataset.i !== undefined && !b.disabled) { e.preventDefault(); showJournal(b.dataset.i === 'chest' || pages.some(p => p.id === b.dataset.i) ? b.dataset.i : +b.dataset.i); } return; }
     e.preventDefault(); close();
   });
   addEventListener('keydown', e => { if (!viewing || e.repeat) return; if (e.code === 'Escape' || e.code === 'KeyJ' || viewing === 'letter') { e.stopPropagation(); close(); } }, true);
@@ -149,7 +152,22 @@ export function createBottles({ scene, camera, st, inventory, items, hours, thin
     },
     washUp, get state() { return { found: S.found.slice(), shore: S.shore.map(b => ({ ...b })), key: S.key, open: S.open, spots: spots.length }; },
     get viewing() { return viewing; },
+    /** A page of its own at the journal's end (its chip after the days). */
+    addPage(p) { pages.push(p); },
+    showJournal,
     /** For testing: mark messages read. */
     _read(list) { list.forEach(i => { if (!S.found.includes(i)) S.found.push(i); }); save(); things.reveal(revealed(), S.key, S.open); },
+  };
+}
+
+/** The journal's page of the keepsakes hidden round the island (items.keepsakes(): which are found): each found one by
+ *  name, each still hidden by its hint. */
+export function keepsakePage(items) {
+  return {
+    id: 'keepsakes', chip: '◆', title: 'Keepsakes',
+    html() {
+      const f = items.keepsakes().found, hint = k => (KEEPSAKES.find(q => q.kind === k) || {}).hint || '';
+      return `<p>Ten old things are hidden round the island, for the shelves in the cabin. ${f.length} of ${KEEPSAKES.length} found.</p><ul class="keeps">${KEEPSAKES.map(q => f.includes(q.kind) ? `<li class="got">${KINDS[q.kind].name}</li>` : `<li><i>${hint(q.kind)}</i></li>`).join('')}</ul>`;
+    },
   };
 }

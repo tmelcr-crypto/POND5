@@ -85,7 +85,8 @@ import { createIslet } from './assets/water/islet.js';
 import { createTreasureThings } from './assets/cabin/treasureChest.js';
 import { createTreasure } from './app/treasure.js';
 import { createStoryThings } from './assets/story/friendship.js';
-import { createBottles } from './app/bottles.js';
+import { createBottles, keepsakePage } from './app/bottles.js';
+import { createKeepsakes } from './assets/story/keepsakes.js';
 import { createClimbing } from './app/climbing.js';
 import { createGarden } from './assets/cabin/garden.js';
 import { createSaplings } from './assets/trees/sapling.js';
@@ -254,6 +255,7 @@ const frogs = createFrogs(ctx, { ambience, seasons, waterLife, skyUniforms, pads
 const climbing = createClimbing({ scene: ctx.scene, camera: ctx.camera, st, treehouse, softDot: ctx.tex.softDot }); addTakeover(climbing.takeover);   // the treehouse's rope ladder
 const treasure = createTreasure({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, things: treasureThings, softDot: ctx.tex.softDot }); addTakeover(treasure.takeover);   // the map, the X, digging
 const bottles = createBottles({ scene: ctx.scene, camera: ctx.camera, st, inventory, items, hours, things: storyThings, softDot: ctx.tex.softDot });   // Captain Elias's messages, the journal, the Friendship Chest
+const keepsakes = createKeepsakes(ctx); items.addKeepsakes(keepsakes); bottles.addPage(keepsakePage(items));   // the ten keepsakes hidden round the island (own random numbers), their page in the journal
 const lantern = createLantern({ scene: ctx.scene, camera: ctx.camera, st, softDot: ctx.tex.softDot, skyUniforms, darkHere: cave.inside });   // the hand lantern on the porch bench, to carry about
 const seasonLooks = createSeasonLooks(scene, seasons);   // the season's colours, snow and what comes and goes (before finalizeScene)
 const weather = createWeather(ctx, { apples: scatter.apple });   // snowfall, autumn leaves, spring blossom
@@ -264,7 +266,7 @@ seasons.on(s => { if (s !== bakedFor) { bakedFor = s; scatter.rebake(s); } items
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { bottles, storyThings, ocean, tide, godRays, stones, treehouse, climbing, cave, islet, treasure, renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, lantern, hours, well, garden, drawWater, gardening, planting, saplings, rabbits, squirrels, frogs, gulls, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { keepsakes, bottles, storyThings, ocean, tide, godRays, stones, treehouse, climbing, cave, islet, treasure, renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, lantern, hours, well, garden, drawWater, gardening, planting, saplings, rabbits, squirrels, frogs, gulls, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);

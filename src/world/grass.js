@@ -3,7 +3,7 @@ import { clamp, smooth, lin } from '../core/math.js';
 import { fbm2 } from '../core/noise.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { H, HALF, WORLD_HALF, forest, excluded, coastDist, streamDist, footpathDist, bridgeDist, benchDist, chestDist, firepitDist, builtDist, signDist, lieDist } from './layout.js';
+import { H, HALF, WORLD_HALF, forest, excluded, coastDist, streamDist, footpathDist, bridgeDist, benchDist, chestDist, firepitDist, builtDist, signDist, lieDist, keepsakeDist } from './layout.js';
 
 /**
  * Bake the world into a small RGBA half-float texture the grass vertex shader samples:
@@ -23,7 +23,7 @@ export function createGroundTexture() {
     d *= smooth(-0.3, 0.6, firepitDist(x, z));                                         // trodden round the firepits, none under the woodpiles
     d *= smooth(-0.05, 0.45, builtDist(x, z)) * smooth(0.0, 0.35, signDist(x, z));   // none in the garden beds or the well; a little round the signposts
     d *= smooth(0.0, 0.4, footpathDist(x, z)) * smooth(0.0, 0.15, bridgeDist(x, z)) * smooth(-0.1, 0.25, benchDist(x, z)) * smooth(0.3, 0.7, chestDist(x, z));   // swaying blades would reach into a chest   // off the path stones, from under the bridge and the benches
-    data[k] = half(H(x, z)); data[k + 1] = half(clamp(d)); data[k + 2] = half(clamp(fbm2(x * 0.9 + 4, z * 0.9 - 2) + 0.5)); data[k + 3] = half(0.3 + 0.7 * smooth(1.4, 2.6, lieDist(x, z)));
+    data[k] = half(H(x, z)); data[k + 1] = half(clamp(d)); data[k + 2] = half(clamp(fbm2(x * 0.9 + 4, z * 0.9 - 2) + 0.5)); data[k + 3] = half(0.3 + 0.7 * Math.min(smooth(1.4, 2.6, lieDist(x, z)), smooth(0.3, 1.0, keepsakeDist(x, z))));
   }
   const tex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat, THREE.HalfFloatType);
   tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.needsUpdate = true;

@@ -5,7 +5,7 @@ import { fbm2 } from '../core/noise.js';
 import { addFlutter, addWorldSway, addDistanceFade, THIN_SMALL } from '../core/shaderPatches.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { H, WORLD_HALF, SEA_Y, forest, excluded, coastDist, walkwayDist, signDist, builtDist, lieDist, STONES } from './layout.js';
+import { H, WORLD_HALF, SEA_Y, forest, excluded, coastDist, walkwayDist, signDist, builtDist, lieDist, keepsakeDist, STONES } from './layout.js';
 import { obstacles, rockBodies } from './bounds.js';
 import { placer, plantGroups, updateGroups, seasonalBillboards } from './scatter.js';
 import { createBushVariants } from '../assets/vegetation/bush.js';
@@ -150,6 +150,8 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
   keep(logs, logClear); keep(bushes, t => walkwayDist(t.x, t.z) > 0.6 * t.s + 0.4); keep(roses, t => walkwayDist(t.x, t.z) > 0.6 * t.s + 0.4);
   const lie = m => it => lieDist(it[0].elements[12], it[0].elements[14]) > m;   // nothing under you where you lie down
   keep(ferns, lie(1.8)); keep(sticks, lie(1.3)); mush.forEach(l => keep(l, lie(1.3))); keep(cones, lie(1.3));
+  const ks = m => it => keepsakeDist(it[0].elements[12], it[0].elements[14]) > m;   // nor over a hidden keepsake
+  keep(ferns, ks(0.8)); keep(sticks, ks(0.5)); mush.forEach(l => keep(l, ks(0.4))); keep(cones, ks(0.4));
   { const gone = placed.spruce.filter(t => Math.hypot(t.x - STONES.x, t.z - STONES.z) < STONES.r + 1.8);   // the spruce that gave way to the standing stones: its cones too
     keep(cones, it => gone.every(t => Math.hypot(it[0].elements[12] - t.x, it[0].elements[14] - t.z) > 3 * t.s + 0.3)); }
   keep(ferns, off(0.45)); mush.forEach(l => keep(l, off(0.1))); keep(sticks, off(0.5)); keep(cones, off(0.05));
