@@ -326,12 +326,18 @@ export function createRoseBush(ctx) {
   turns and creaks, a splash far down), winds it back up full, and a cup of fresh water goes into your quick slots
   (Use says Drink).
 - **Vegetable garden** (`GARDEN` in `world/layout.js`, `assets/cabin/garden.js`, `app/gardening.js`, `CONFIG.garden`):
-  three raised beds at the end of the garden path, carrots, potatoes and pumpkins, three plots each. Seeds come from the
-  seed box at the path's end (carrot seeds, seed potatoes, pumpkin seeds; picked up like anything else, 6 of each a
-  day). With a bed's seeds selected (or a potato you dug up, for the potato bed), look at one of its bare plots and Use
-  says Sow; without them, a note says what the bed needs. It grows by itself over 2 / 3 / 4 in-game days (sleeping counts; nothing grows or
-  is sown in winter, when the beds are under snow), then an icon beside it (T) harvests it: 3 carrots (eaten raw), 3 potatoes or a
-  pumpkin (both cooked on the stick into baked potatoes and roasted pumpkin). Saved in the browser.
+  four raised beds of four plots at the end of the garden path; any crop grows in any plot. Seeds come from the potting
+  table at the path's end: seven trays, each with a little painted sign (carrot seeds, seed potatoes, pumpkin seeds,
+  onion sets, lettuce seeds, bean seeds, strawberry runners; picked up like anything else, 6 of each a day; a potato you
+  dug up also plants). With seeds selected, look at a bare plot and Use says Sow. It grows by itself over 2-4 in-game
+  days (sleeping counts; nothing grows or is sown in winter, under the snow), then an icon beside it (T) harvests it:
+  carrots, potatoes, onions (roast them), a pumpkin, a lettuce, beans, strawberries.
+  **Companion planting:** a plot's neighbours are the plots before and after it in its bed and the same row in the
+  beds either side. Carrots and onions give each other one more; beans make everything beside them grow faster (x1.4)
+  and give a pumpkin or a potato beside them one more; strawberries beside lettuce give two more, the lettuce one
+  more. The **grow book** lies open on the potting table: looking at it, the icon (T) opens it, a page for each
+  pairing and one for how long each crop takes (tap to turn the pages). Looking at a growing plot says how far it is
+  and which bonuses it has. Saved in the browser.
 - **Standing stones** (`STONES` in `world/layout.js`, `assets/rocks/standingStones.js`): a ring of weathered, lichened
   stones on the east hilltop (the island's hilltops are all 2.9-3.2 m; the two highest are inside the spruce forest, so
   the ring stands on the highest open one, with the sea and the jetty below). Ten places round a 2.8 m ring: seven stand,
@@ -378,6 +384,17 @@ export function createRoseBush(ctx) {
   long additive light planes in one instanced mesh (one draw call), each from a sunlit spot on the forest floor up
   towards the sun, turned to face you, at fixed places round you (picked by a hash, so they do not swim), hidden by the
   trees and hills in front of them.
+- **Messages in bottles** (`story/bottleMessages.js`, `app/bottles.js`, `assets/story/friendship.js`, `STORY` in
+  `world/layout.js`, `CONFIG.bottles`): Captain Elias's 25 messages wash up on the island's beaches in bottles, above
+  the high-water line, now and then (about every 5 in-game hours, the first soon after you arrive), each a day you have
+  not read yet, in no order; never more than two lie on the shore at once, and a new one washes up out of your sight.
+  Looking at one, the icon (T) opens it: the letter unfolds and is written into the **journal**, which the book button at
+  the top left (or J) opens at any time (the days you have, in order, and the gaps). The messages lead here: the old
+  dock is the jetty, the crooked tree stands on the dune beside it with a star carved in it, and a star is carved over the
+  cave's mouth. Once 15 messages have been read, a brass key glints at the crooked tree's foot and a wooden lid shows in
+  the sand under the jetty's first span, seven steps away; with the key, the icon lifts it: the **Friendship Chest**,
+  Elias's grandfather's and Arthur's memories (a page in the journal) and an old photograph to keep (the cabin shelf's
+  fourth place). Saved in the browser.
 - **Lying in the grass** (`LIE_SPOTS` in `world/layout.js`, `app/controls.js`, `CONFIG.player.lie`): five places to lie
   down and watch the sky: inside the stone ring, the north hill over the shore, a glade in the east wood by the treehouse, the south
   slope above the sea and the west meadow facing the sunset. The grass is lower round each (the ground texture's alpha,

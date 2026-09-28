@@ -24,9 +24,7 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Hunger meter (#1): note where it is; it slowly drains; it never reaches empty.
 - [ ] Well (#12, in the meadow west of the pond: follow the Garden & well signs off the forest path): the icon (or T) draws a bucket: crank, splash, the bucket comes up full; a cup of
       water in your slots, Use says Drink.
-- [ ] Garden (#8): with nothing selected a bare plot only shows a note; take seeds from the seed box and sow
-      every plot of the three beds (Use says Sow with the bed's own seeds selected); come back in step 6 to harvest (carrots raw,
-      potatoes and a pumpkin cooked at a fire).
+- [ ] Garden (#8): at the potting table read the seed signs; take seeds of several kinds; with nothing selected a bare plot only shows a note; sow any seed in any plot (Use says Sow). Try the pairings from the grow book (open it on the table with the icon, tap through the pages): carrots next to onions, beans between other crops, strawberries next to lettuce; looking at a growing plot names its bonuses. Come back in step 6 to harvest (the note says how many more the neighbours gave); roast an onion.
 - [ ] Signposts (#19): at the three forks (bridge, jetty path, forest path) every board points along its path and the
       distances look right; walk round a post (it is solid); read a board from both sides.
 - [ ] The treasure map (#16) lies rolled up on the crate in the treehouse: take it with the icon (T); select it, Read (the map unfolds, tap to fold it; it stays in your slots).
@@ -59,7 +57,7 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
       and land again once you are away.
 - [ ] Beachcombing (#18): pick shells and driftwood; throw a shell and a piece of driftwood; light the beach firepit
       with 3 driftwood. (The nautilus is 1 in 10 000 shells: do not wait for it.)
-- [ ] Message in a bottle (#17): find one, read it; it goes into the album / journal.
+- [ ] Messages in bottles (#17): walk the beaches; a bottle lies above the waterline (never more than two at a time); the icon (T) opens it, the letter shows; the journal button (top left, or J) lists the days found, in order. Come back after some hours for more. After 15: the brass key at the crooked tree by the jetty, the lid under the jetty's first span; lift it with the key: the Friendship Chest page in the journal, the old photograph for the shelf. The star over the cave's mouth.
 - [ ] Fishing from the jetty: cast, strike, catch; miss once on purpose; reel in empty once.
 - [ ] Board the boat, sail out to the islet (#26); anchor (#30) off it; fish from the boat; weigh anchor.
 - [ ] Land on the islet (sail north from the jetty; the boat runs aground on its sand, step off), find what is there (a cairn, a wrecked rowing boat, driftwood), wade out a little (you are eased back onto it), board again, sail back, dock.
