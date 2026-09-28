@@ -154,6 +154,9 @@ export const CONFIG = {
     boundaryMargin: 3,      // soft push-back starts this far inside the world edge (fly mode over the sea)
     // sitting on a bench (app/controls.js): the button shows within `reach` m of a seat, at least `front` m in front of it
     sit: { reach: 2.4, front: 0.35, approach: 0.8, seatF: 0.02, eye: 0.74, walk: 1.1, turn: 2.6, lower: 1.1, rise: 0.9 },   // m, m/s, rad/s, s
+    // lying in the grass (LIE_SPOTS in world/layout.js): the button within `reach` m of a place; eye heights over the
+    // ground sitting and lying, the head `head` m back from the middle, looking up `pitch` rad; sit / lie back in s
+    lie: { reach: 1.6, sitEye: 0.78, eye: 0.2, head: 0.75, pitch: 1.05, sit: 1.2, lie: 1.5 },
   },
 
   // The wind changing by itself (world/wind.js); the panel's Wind slider overrides the strength
