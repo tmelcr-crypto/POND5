@@ -105,7 +105,7 @@ export const ISLET = { x: 38.5, z: -38.5, r: 5.2, top: 0.5, reach: 16 };   // (t
  * (our jetty), with a star carved in it and, once 15 messages are read, a brass key glinting at its foot; seven steps
  * away, under the jetty's first span, the wooden lid over the Friendship Chest (hidden until then too).
  */
-export const STORY = { tree: { x: 25.15, z: -22.5 }, lid: { x: 30.0, z: -18.0 } };
+export const STORY = { tree: { x: 25.15, z: -22.5 }, lid: { x: 30.2, z: -17.3 } };   // (the lid half under the deck's edge)
 /** Where the treasure is buried (#16; app/treasure.js): on the islet, three paces from the cairn. */
 export const TREASURE = { x: 38.64, z: -40.05 };
 export function isletH(x, z) {

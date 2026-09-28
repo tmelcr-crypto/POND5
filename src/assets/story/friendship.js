@@ -106,8 +106,8 @@ export function createStoryThings(ctx) {
   for (const x of [0.1, 0.5]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.5), wood); b.position.set(x, -0.03, 0); lid.add(b); }
   { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.006, 6, 16), iron); ring.rotation.x = Math.PI / 2; ring.position.set(0.52, 0.022, 0); lid.add(ring); }
   starAt(new THREE.Vector3(0.25, 0.018, 0.05), new THREE.Vector3(0, 1, 0), 0.14, lid);
-  const pit = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.3, 16, 1, true), new THREE.MeshStandardMaterial({ color: lin(0x5a4a36), roughness: 1, side: THREE.BackSide })); pit.position.y = -0.14; pit.visible = false; hole.add(pit);
-  const chest = new THREE.Group(); chest.position.y = -0.27; chest.visible = false; hole.add(chest);
+  const pit = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.55, 20, 1).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: lin(0x6e5a3e), roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 })); pit.position.y = 0.012; pit.visible = false; hole.add(pit);   // dug-up sand round it
+  const chest = new THREE.Group(); chest.position.set(0.05, -0.12, 0); chest.rotation.y = 0.2; chest.visible = false; hole.add(chest);   // half in the sand
   { const box = (w, h, d, x, y, z, m) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; chest.add(b); };
     box(0.44, 0.02, 0.3, 0, 0.01, 0, wood); for (const s of [-1, 1]) { box(0.44, 0.2, 0.02, 0, 0.1, s * 0.14, wood); box(0.02, 0.2, 0.28, s * 0.21, 0.1, 0, wood); }
     for (const x of [-0.14, 0.14]) box(0.025, 0.21, 0.31, x, 0.1, 0, iron);

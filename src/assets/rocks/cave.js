@@ -52,7 +52,7 @@ export function createCave(ctx, { ambience } = {}) {
     return [x, H(x, z) - 0.1 + (C.b - C.wall - 0.25) * Math.pow(dy, 0.8) * (1 + n * 0.6), z];
   };
   const wrap = u => Math.atan2(Math.sin(u), Math.cos(u));
-  const ARCH = 1.02, open = (u, v) => Math.abs(wrap(u)) < C.mouth * Math.sqrt(Math.max(0, 1 - (v / ARCH) ** 2));   // the arched mouth: ARCH the angle of its top
+  const ARCH = 0.9, open = (u, v) => Math.abs(wrap(u)) < C.mouth * Math.sqrt(Math.max(0, 1 - (v / ARCH) ** 2));   // the arched mouth: ARCH the angle of its top
   const depth = (x, z) => { const [, lz] = C.toLocal(x, z); return clamp((C.c - lz) / (2 * C.c)); };   // 0 at the mouth, 1 at the back
   const aoIn = (x, y, z) => { const d = depth(x, z); return 0.05 + 0.85 * Math.pow(1 - d, 1.8) + 0.04 * clamp(1 - (y - H(x, z)) / 2); };   // daylight from the mouth, dark at the back
 
@@ -167,8 +167,9 @@ export function createCave(ctx, { ambience } = {}) {
   const crystals = new THREE.Mesh(cryG, cryMat); crystals.castShadow = false; crystals.receiveShadow = true; scene.add(crystals);   // (the knoll's shadow keeps the sun off them)
 
   /* ---- the star carved over the mouth (Captain Elias's clue, app/bottles.js) ---- */
-  { const v = ARCH + 0.07, p = new THREE.Vector3(...outerAt(0, v)), du = new THREE.Vector3(...outerAt(0.05, v)).sub(new THREE.Vector3(...outerAt(-0.05, v))), dv = new THREE.Vector3(...outerAt(0, v + 0.05)).sub(new THREE.Vector3(...outerAt(0, v - 0.05)));
+  { const v = ARCH + 0.1, p = new THREE.Vector3(...outerAt(0, v)), du = new THREE.Vector3(...outerAt(0.05, v)).sub(new THREE.Vector3(...outerAt(-0.05, v))), dv = new THREE.Vector3(...outerAt(0, v + 0.05)).sub(new THREE.Vector3(...outerAt(0, v - 0.05)));
     const n = new THREE.Vector3().crossVectors(dv, du).normalize(); if (n.dot(new THREE.Vector3(p.x - C.x, 0, p.z - C.z)) < 0) n.negate();   // the rock face's own slope, outwards
+    const out = new THREE.Vector3(p.x - C.x, 0, p.z - C.z).normalize(); n.lerp(out, 0.7).normalize(); p.addScaledVector(out, 0.1);   // stood up to face the pond, a hand's width out
     const m = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshStandardMaterial({ map: starTexture(), transparent: true, depthWrite: false, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -4 }));
     m.position.copy(p).addScaledVector(n, 0.03); m.lookAt(m.position.clone().add(n)); scene.add(m); }
 
