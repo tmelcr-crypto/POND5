@@ -159,6 +159,10 @@ export const CONFIG = {
     lie: { reach: 1.6, sitEye: 0.78, eye: 0.2, head: 0.75, pitch: 1.05, sit: 1.2, lie: 1.5 },
   },
 
+  // Climbing the treehouse's rope ladder (app/climbing.js): the icon within `reach` m of its foot (`reachTop` m of the top
+  // on the deck); the climber `off` m out from the ladder; `up` / `down` s on the ladder, `pulls` rungs' worth of bob
+  climb: { reach: 1.8, reachTop: 1.1, off: 0.35, up: 3.4, down: 2.8, pulls: 8 },
+
   // The wind changing by itself (world/wind.js); the panel's Wind slider overrides the strength
   wind: {
     hold: [30, 60],                // in-game minutes it holds a strength and direction

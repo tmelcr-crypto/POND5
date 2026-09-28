@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { V, lin } from '../../core/math.js';
 import { mergeGeos } from '../../core/geometry.js';
-import { H, SEA_Y, WORLD_HALF, coastDist, forest, walkwayDist } from '../../world/layout.js';
+import { H, SEA_Y, WORLD_HALF, coastDist, forest, walkwayDist, builtDist } from '../../world/layout.js';
 import { CONFIG } from '../../config.js';
 
 /**
@@ -71,7 +71,9 @@ export function createForage(ctx, { scatter, undergrowth }) {
     if (beach ? (c < 0.3 || c > beachW || H(x, z) < SEA_Y + 0.02) : (c < beachW + 2 || forest(x, z) > 0.25)) continue;
     const s = rr(...PB.size); pebbles.push([x, H(x, z) + s * 0.25, z, s, lin(tones[Math.floor(rnd() * tones.length)]).multiplyScalar(rr(0.85, 1.1))]); n++;
   }
-  { const k = pebbles.filter(p => walkwayDist(p[0], p[2]) >= 0.3); pebbles.length = 0; pebbles.push(...k); }   // none on the stones' path
+  // each pebble's turn drawn here, in set()'s order, before clearing: the ones left keep theirs and the stream after is unchanged
+  pebbles.forEach(p => { p[5] = new THREE.Quaternion().setFromEuler(new THREE.Euler(rr(-0.3, 0.3), rr(0, 6.28), rr(-0.3, 0.3))); });
+  { const k = pebbles.filter(p => walkwayDist(p[0], p[2]) >= 0.3 && builtDist(p[0], p[2]) > 0.2); pebbles.length = 0; pebbles.push(...k); }   // none on the newer paths, nor in anything built since (the cave)
   const pebbleMesh = set(pebGeo, new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0, flatShading: true }), pebbles, false);
 
   /* ---- shells on the beaches: a ribbed fan, cup down, half in the sand ---- */

@@ -58,7 +58,7 @@ A workflow is included in `.github/workflows/pages.yml`. Push to `main`, then en
 | `1`-`4`, wheel | Tap a slot | Select a quick slot |
 | `R` | Seat button | Sit down / stand up (benches, logs, the porch bench); lie down / get up at the five lying places |
 | `X` | Fire icon beside it | Light / put out a fire, lamp, candle or lantern |
-| `T` | The icon beside it | Take / put back the hand lantern, draw water at the well, sow or harvest a garden plot |
+| `T` | The icon beside it | Take / put back the hand lantern, draw water at the well, sow or harvest a garden plot, climb the treehouse ladder |
 | `V` | Curtain button | Open / close the curtains of the window you look at |
 | `B` | Boat button | Board, anchor, weigh anchor, leave the boat |
 | `H` | Fish button | Cast, reel in; tap to strike |
@@ -339,8 +339,36 @@ export function createRoseBush(ctx) {
   the west side is the way in, where a stepping-stone path arrives from the sunrise bench (signposted from the jetty
   fork). One merged mesh with a grain texture; snow on their tops in winter. The one spruce on the hilltop was dropped
   after placement (with its cones), so nothing else on the island moved.
+- **Treehouse** (`TREEHOUSE` in `world/layout.js`, `assets/cabin/treehouse.js`, `app/climbing.js`, `CONFIG.climb`): in
+  the east wood among the spruces, a plank deck 2.5 m up on four log posts, a little hut with an open front and a
+  shingle roof over its back half (a crate and a rolled blanket inside), railings round the front half and a rope
+  ladder through a gap in them. A path leaves the stones' path at a signpost and runs north through the wood to the
+  ladder. At its foot, looking at it, the icon beside it (T) climbs up; on the deck by the gap the same icon climbs
+  down. The deck is walkable (`treehouseDeckY`) and its railings and the hut's walls keep you on it
+  (`treehouseRails`); through the gap you can step off and drop to the ground. Three merged meshes; snow on the roof
+  and deck in winter.
+- **Cave** (`CAVE` in `world/layout.js`, `assets/rocks/cave.js`): a rocky knoll on the meadow slope south of the plot,
+  painted like the island's boulders, with an arched mouth facing the pond. Inside is a dome-shaped cave, one wall's
+  thickness smaller, with a floor of packed earth. Every surface carries a baked occlusion (a vertex attribute that
+  scales the sky and bounce light), so the daylight fades from the mouth to near darkness at the back; carry the hand
+  lantern in and it lights the walls (inside the cave it shines by day too). On the back wall, ochre paintings of
+  deer, hands, a sun and people with bows; in a niche, pale crystals that glimmer. Water drips now and then while you
+  are inside. `caveWalls` keeps you out of the rock (in by the mouth only) and inside the walls; the grass, flowers,
+  pebbles and one boulder are kept out of it.
+- **Islet** (`ISLET` / `isletH` in `world/layout.js`, `assets/water/islet.js`): a low sandy islet some 20 m off the
+  north-east shore, a short sail north of the jetty. It is part of the terrain height (the boat runs aground on its sand,
+  you step off and walk round it, the water is shallow round it) but not of `coastDist`, so the island's scatter never
+  reaches it. On it: weathered boulders at the waterline, a bleached driftwood log, a cairn on its top and an old rowing
+  boat half sunk in the sand. Wading off it eases you back onto it.
+- **Treasure map** (`TREASURE` in `world/layout.js`, `assets/cabin/treasureChest.js`, `app/treasure.js`): an old map lies
+  rolled up on the crate in the treehouse; looking at it there, the icon beside it (T) takes it. Selected, the Use
+  button says Read and unfolds it: the island drawn by hand (its coasts, woods, paths, the pond and the cabin, the
+  stones, the treehouse, the cave and the islet) with a red X by the islet's cairn; tap anywhere to fold it (it is not
+  used up). Once read, a mound of loose sand shows at the X; there the icon digs by hand (no shovel), three scoops, and
+  a small iron-bound chest comes up, lid open, full of old gold coins. The icon takes them: a keepsake for the cabin
+  shelf (its third place). Saved in the browser.
 - **Lying in the grass** (`LIE_SPOTS` in `world/layout.js`, `app/controls.js`, `CONFIG.player.lie`): five places to lie
-  down and watch the sky: inside the stone ring, the north hill over the shore, a glade in the east wood, the south
+  down and watch the sky: inside the stone ring, the north hill over the shore, a glade in the east wood by the treehouse, the south
   slope above the sea and the west meadow facing the sunset. The grass is lower round each (the ground texture's alpha,
   `world/grass.js`) and ferns, sticks and cones are kept off it. Near one, the seat button (R) shows a lying figure: you
   walk to it, turn to the view, sit and lie back looking up; you can look round and hold the time-lapse button, but not

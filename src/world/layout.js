@@ -86,7 +86,23 @@ export function hillsH(x, z) {
   const c = coastDist(x, z);
   // beach: a gentle slope up from the waterline; offshore: steeper down to the sea floor
   const shore = c > 0 ? SEA_Y + 0.12 * c : Math.max(SEA_Y - IC.seaDepth, SEA_Y + 0.25 * c);
-  return land + (shore - land) * (1 - smooth(IC.beachWidth * 0.4, IC.beachWidth * 1.6, c));
+  const h = land + (shore - land) * (1 - smooth(IC.beachWidth * 0.4, IC.beachWidth * 1.6, c));
+  return Math.abs(x - ISLET.x) < ISLET.reach && Math.abs(z - ISLET.z) < ISLET.reach ? Math.max(h, isletH(x, z)) : h;
+}
+/**
+ * The islet off the north-east shore (#26; assets/water/islet.js): a low hump of sand `top` m above the sea, about r m
+ * across its waterline (a little uneven), its flanks running down into the sea floor. Part of the terrain height (so
+ * the boat grounds on it, you can walk on it, the water shallows round it), but not of coastDist: the island's scatter
+ * never reaches it.
+ */
+export const ISLET = { x: 38.5, z: -38.5, r: 5.2, top: 0.5, reach: 16 };   // (top: all of it below the beach sand's upper edge)
+/** Where the treasure is buried (#16; app/treasure.js): on the islet, three paces from the cairn. */
+export const TREASURE = { x: 38.64, z: -40.05 };
+export function isletH(x, z) {
+  const I = ISLET, dx = x - I.x, dz = z - I.z, a = Math.atan2(dz, dx), r = I.r * (1 + 0.14 * Math.sin(a * 3 + 0.8) + 0.08 * Math.sin(a * 5 - 1.3));
+  const s = Math.hypot(dx, dz) / r;
+  if (s < 1) return SEA_Y + I.top * (1 - s * s) * (1 - s * s * 0.35) + 0.05 * fbm2(x * 0.7, z * 0.7, 2);   // the hump
+  return SEA_Y - (s - 1) * r * 0.45;                                                                        // its flanks into the sea
 }
 /**
  * Terrain height before the stream is carved: exactly dioramaH() inside the plot. The plot's builders use it for their
@@ -270,6 +286,8 @@ const FOOTPATH_ROUTES = [
   { course: [[-12.0, 4.75], [-11.0, 5.05], [-10.0, 5.6], [-9.0, 6.3], [-8.0, 6.75]], from: 0.6 },
   // on from the sunrise bench up the east hill to the standing stones, round the apple tree and the boulders (picked offline)
   { course: [[24.75, -15.0], [23.7, -14.2], [22.75, -13.2], [22.3, -12.0], [22.3, -10.5], [22.55, -9.0], [22.9, -7.5], [23.8, -6.3], [24.9, -5.35], [26.0, -5.0]], from: 0.6 },
+  // off the stones' path north through the east wood to the treehouse's ladder (picked offline round every tree and rock)
+  { course: [[24.85, -5.2], [24.5, -3.5], [24.6, -1.5], [25.1, 0.5], [25.6, 2.5], [25.8, 4.5], [25.3, 6.2], [24.5, 7.4], [23.9, 8.1]], from: 0.6 },
 ];
 export const FOOTPATH = (() => {
   let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }, rr = (a, b) => a + (b - a) * rnd();
@@ -379,6 +397,11 @@ export const SIGNS = [
     { text: 'Forest fire', way: [...onFrom(course(4), -12.5, 7), pitAt('forest')] },
     { text: 'Sunset bench', way: [...rev(upTo(course(4), -12, 4.5)), ...onFrom(course(2), -10, -16.0)] },
   ] },   // (no Cabin board: across the pond it is in sight, much nearer than round by the paths)
+  { x: 23.9, z: -5.0, boards: [   // where the treehouse path leaves the stones' path
+    { text: 'Treehouse', way: course(7) },
+    { text: 'Standing stones', way: onFrom(course(6), 24.9, -5.35) },
+    { text: 'Sunrise bench', way: rev(upTo(course(6), 24.9, -5.35)) },
+  ] },
 ].map(S => ({ ...S, y: H(S.x, S.z), boards: S.boards.map(b => {
   const pts = [[S.x, S.z], ...b.way]; let len = 0, aim = null;
   for (let i = 1; i < pts.length; i++) {
@@ -452,18 +475,72 @@ export const STONES = (() => {
 export const LIE_SPOTS = [
   { name: 'stones', x: 30.25, z: -4.7, fx: 1, fz: 0 },            // in the stone ring, feet to the sunrise and the sea
   { name: 'north hill', x: -11.5, z: -23.5, fx: -0.57, fz: -0.82 }, // over the north shore
-  { name: 'glade', x: 24, z: 11.5, fx: 0, fz: 1 },                 // a glade in the east wood: spruce crowns all round the sky
+  { name: 'glade', x: 24, z: 13.5, fx: 0, fz: 1 },                 // a glade in the east wood by the treehouse: spruce crowns all round the sky
   { name: 'south hill', x: 7, z: 21.5, fx: 0.27, fz: 0.96 },       // the south slope down to the sea
   { name: 'west meadow', x: -16.5, z: -12, fx: -1, fz: 0 },        // feet to the sunset
 ].map(s => ({ ...s, y: H(s.x, s.z) }));
+/**
+ * The treehouse in the east wood (#58; assets/cabin/treehouse.js, climbing: app/climbing.js): a square deck `half` m
+ * from its middle each way, `deck` m up on four log posts, turned so its front (local +z) faces `face`, where the rope
+ * ladder hangs from a gap in the railing and the path from the stones arrives. A hut with an open front covers the back
+ * of the deck. treehouseDeckY: the deck's height where you stand on it; treehouseRails keeps you on it (but for the gap).
+ */
+export const TREEHOUSE = (() => {
+  const x = 22.5, z = 10, half = 1.3, face = [0.65, -0.76], rot = Math.atan2(face[0], face[1]);
+  const ground = Math.max(...[[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]].map(([a, b]) => H(x + a * half, z + b * half)));
+  const deck = ground + 2.55, s = Math.sin(rot), c = Math.cos(rot);
+  const toWorld = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c], toLocal = (wx, wz) => { const dx = wx - x, dz = wz - z; return [dx * c - dz * s, dx * s + dz * c]; };
+  const gap = 0.36, foot = toWorld(0, half + 0.55);   // the ladder's gap (half width) and where its foot stands on the ground
+  return { x, z, half, rot, deck, gap, toWorld, toLocal, foot: { x: foot[0], z: foot[1], y: H(foot[0], foot[1]) }, top: (() => { const t = toWorld(0, half - 0.35); return { x: t[0], z: t[1] }; })() };
+})();
+export function treehouseDeckY(x, z) { const T = TREEHOUSE, [lx, lz] = T.toLocal(x, z); return Math.abs(lx) <= T.half && Math.abs(lz) <= T.half ? T.deck : -Infinity; }
+/** Keep a body of `radius` whose feet are at deck height on the treehouse deck: inside the railings and the hut's walls
+ *  (on the deck's edges), except through the ladder's gap. p moves; prev says whether it was on the deck. */
+export function treehouseRails(p, prev, radius, feet) {
+  const T = TREEHOUSE; if (Math.abs(feet - T.deck) > 0.5) return;
+  const [pl, pz] = T.toLocal(prev.x, prev.z); if (Math.abs(pl) > T.half || Math.abs(pz) > T.half) return;   // not on it
+  let [lx, lz] = T.toLocal(p.x, p.z); const m = T.half - radius - 0.06;
+  if (Math.abs(lx) < T.gap - radius && lz > 0) { lx = Math.max(-m, Math.min(m, lx)); }   // through the gap: fall off the front
+  else { lx = Math.max(-m, Math.min(m, lx)); lz = Math.max(-m, Math.min(m, lz)); }
+  const [wx, wz] = T.toWorld(lx, lz); p.x = wx; p.z = wz;
+}
+
+/**
+ * The cave (#63; assets/rocks/cave.js): a rocky knoll on the meadow slope south of the plot with a cave inside, its
+ * mouth (local +z) facing the pond. The knoll's footprint is an ellipse a x c (half-axes, m) turned by rot, b m high;
+ * the cave inside is the same shape `wall` m smaller. mouth: the entrance's half-angle at the ground (rad).
+ * caveWalls keeps you out of the rock (in by the mouth only) and, inside, within the walls at head height.
+ */
+export const CAVE = (() => {
+  const x = -4.5, z = 17.5, a = 3.7, c = 3.4, b = 3.4, wall = 0.65, face = [0.25, -0.97], rot = Math.atan2(face[0], face[1]), mouth = 0.4;
+  const s = Math.sin(rot), co = Math.cos(rot);
+  const toWorld = (lx, lz) => [x + lx * co + lz * s, z - lx * s + lz * co], toLocal = (wx, wz) => { const dx = wx - x, dz = wz - z; return [dx * co - dz * s, dx * s + dz * co]; };
+  return { x, z, a, c, b, wall, rot, mouth, toWorld, toLocal, y: H(x, z) };
+})();
+/** Distance (roughly, m) to the knoll's footprint: < 0 under the rock or in the cave. */
+export function caveDist(x, z) { const C = CAVE, [lx, lz] = C.toLocal(x, z); return (Math.hypot(lx / C.a, lz / C.c) - 1) * Math.min(C.a, C.c); }
+export function caveWalls(p, prev, radius) {
+  const C = CAVE; let [lx, lz] = C.toLocal(p.x, p.z); const rho = Math.hypot(lx / C.a, lz / C.c); if (rho > 1.25) return;
+  const [px, pz] = C.toLocal(prev.x, prev.z), prho = Math.hypot(px / C.a, pz / C.c), ang = Math.atan2(lx, lz);
+  const inner = 0.74 - radius / Math.min(C.a, C.c), outer = 1.02 + radius / Math.min(C.a, C.c);
+  let k = 1;
+  if (Math.abs(ang) < C.mouth && rho < outer + 0.05 && rho > inner - 0.05) {   // in the mouth: between its sides
+    const lim = C.mouth - 0.1 - radius / (rho * Math.min(C.a, C.c) + 0.01);
+    if (Math.abs(ang) > lim) { const r = Math.hypot(lx, lz), q = Math.sign(ang) * lim; lx = Math.sin(q) * r; lz = Math.cos(q) * r; }
+  } else if (prho < (inner + outer) / 2) { if (rho > inner) k = inner / rho; }   // inside: the walls
+  else if (rho < outer) k = outer / rho;                                          // outside: the rock
+  const [wx, wz] = C.toWorld(lx * k, lz * k); p.x = wx; p.z = wz;
+}
+
 /** Distance to the nearest lie-down place's middle. */
 export function lieDist(x, z) { let d = Infinity; for (const s of LIE_SPOTS) d = Math.min(d, Math.hypot(x - s.x, z - s.z)); return d; }
 
-/** Distance to the garden's beds (as one rectangle round them), its seed box, the well or a standing stone's foot (< 0 inside). */
+/** Distance to the garden's beds (as one rectangle round them), its seed box, the well, a standing stone's foot or the cave's knoll (< 0 inside). */
 export function builtDist(x, z) {
   const rect = (cx, cz, hx, hz) => { const a = Math.abs(x - cx) - hx, b = Math.abs(z - cz) - hz; return Math.max(a, b) < 0 ? Math.max(a, b) : Math.hypot(Math.max(a, 0), Math.max(b, 0)); };
   const S = GARDEN.seedBox;
   let d = Math.min(rect(GARDEN.x, GARDEN.z, GARDEN.half[0], GARDEN.half[1]), rect(S.x, S.z, S.w / 2, S.l / 2), Math.hypot(x - WELL.x, z - WELL.z) - WELL.r);
+  d = Math.min(d, caveDist(x, z));
   if (Math.abs(x - STONES.x) < STONES.r + 3 && Math.abs(z - STONES.z) < STONES.r + 3) for (const [a, b, r] of STONES.foot) d = Math.min(d, Math.hypot(x - a, z - b) - r);
   return d;
 }

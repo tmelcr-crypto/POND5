@@ -16,7 +16,7 @@ import { handLantern } from '../assets/cabin/handLantern.js';
 const ICON_TAKE = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6.5a4 4 0 0 1 8 0"/><path d="M9 7.5h6l1 2.5v6.5l-1.2 1.5H9.2L8 16.5V10z"/><path d="M12 11.5c.9 1 .9 2.3 0 3-.9-.7-.9-2 0-3z"/><path d="M7 21h10"/></svg>';
 const ICON_PUT = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4.5a4 4 0 0 1 8 0"/><path d="M9 5.5h6l1 2.5v5.5l-1.2 1.5H9.2L8 13.5V8z"/><path d="M12 17v4M9.5 19l2.5 2 2.5-2"/></svg>';
 
-export function createLantern({ scene, camera, st, softDot, skyUniforms }) {
+export function createLantern({ scene, camera, st, softDot, skyUniforms, darkHere = () => false }) {
   const LC = CONFIG.lantern, KEY = 'meadow.lantern';
   const L = handLantern({ softDot }); scene.add(L.group);
   const home = new V(HOUSE.x + LC.home[0], PAD_H + LC.home[1], HOUSE.z + CB.ZW + LC.home[2]);   // on the porch bench, its far end from the door
@@ -73,7 +73,7 @@ export function createLantern({ scene, camera, st, softDot, skyUniforms }) {
     e.set(0, st.yaw + 0.35, 0); q.setFromEuler(e); L.group.quaternion.copy(q); L.group.rotateZ(swing * 0.5); L.group.rotateX(swing * 0.25);
     L.group.position.copy(hand); L.group.updateMatrixWorld(true);
     // the light: where its flame is, in view space; only at dusk and night
-    const night = skyUniforms ? Math.min(1, skyUniforms.uNight.value * 1.4) : 1;
+    const night = Math.max(skyUniforms ? Math.min(1, skyUniforms.uNight.value * 1.4) : 1, darkHere() ? 1 : 0);   // (and by day in the cave)
     wp.copy(L.top).applyMatrix4(L.group.matrixWorld);
     if (away) wp.copy(camera.position);
     camera.updateMatrixWorld(); vp.copy(wp).applyMatrix4(camera.matrixWorldInverse.copy(camera.matrixWorld).invert());
