@@ -80,7 +80,7 @@ import { createSignposts } from './assets/cabin/signposts.js';
 import { createWell } from './assets/cabin/well.js';
 import { createStandingStones } from './assets/rocks/standingStones.js';
 import { createTreehouse } from './assets/cabin/treehouse.js';
-import { createCave } from './assets/rocks/cave.js';
+import { createCaverns } from './assets/rocks/caverns.js';
 import { createIslet } from './assets/water/islet.js';
 import { createTreasureThings } from './assets/cabin/treasureChest.js';
 import { createTreasure } from './app/treasure.js';
@@ -181,7 +181,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); seasons.update(); tide.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt, t); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); climbing.update(dt, t); cave.update(dt); treasure.update(dt, t); bottles.update(dt, t); dailyTasks.update(dt); keepsakes.update(ctx.camera); godRays.update(); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); rabbits.update(dt); squirrels.update(dt); frogs.update(dt); gulls.update(dt); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt); lighthouse.update(dt);
+  tod.update(dt); seasons.update(); tide.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt, t); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); climbing.update(dt, t); cave.update(dt, t); { const ug = cave.inside(); ocean.sea.visible = ocean.patch.visible = !ug; weather.under(ug); } treasure.update(dt, t); bottles.update(dt, t); dailyTasks.update(dt); keepsakes.update(ctx.camera); godRays.update(); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); rabbits.update(dt); squirrels.update(dt); frogs.update(dt); gulls.update(dt); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt); lighthouse.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
@@ -219,7 +219,7 @@ createSignposts(ctx);   // signposts at the forks of the paths (own random numbe
 const well = createWell(ctx), garden = createGarden(ctx);   // the well and the vegetable garden behind the cabin (own random numbers)
 const stones = createStandingStones(ctx);   // the standing stones on the east hilltop (no shared random numbers)
 const treehouse = createTreehouse(ctx);   // the treehouse in the east wood (own random numbers)
-const cave = createCave(ctx, { ambience });   // the cave in the knoll south of the plot (no shared random numbers)
+const cave = createCaverns(ctx, { ambience });   // the caverns under the south slope: two ramps, two halls, the tunnel (no random numbers)
 const islet = createIslet(ctx);   // what is on the islet off the north-east shore (own random numbers)
 const storyThings = createStoryThings(ctx);   // the crooked tree, the key and the lid under the jetty (own random numbers)
 const treasureThings = createTreasureThings(ctx);   // the map in the treehouse, the mound and the chest on the islet (own random numbers)

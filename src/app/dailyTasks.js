@@ -1,6 +1,6 @@
 import { KINDS } from './itemKinds.js';
 import { SHOWN } from '../world/seasonLooks.js';
-import { treehouseDeckY, caveDist, ISLET, STONES, BENCHES, LIGHTHOUSE } from '../world/layout.js';
+import { treehouseDeckY, underground, ISLET, STONES, BENCHES, LIGHTHOUSE } from '../world/layout.js';
 import { CONFIG } from '../config.js';
 
 /**
@@ -29,7 +29,7 @@ const TASKS = [
   { id: 'fire', text: 'Light a fire', short: 'Light a fire', on: 'fire', n: 1 },
   { id: 'bottle', text: 'Find a message in a bottle', short: 'A bottle', on: 'bottle', n: 1 },
   { id: 'treehouse', text: 'Climb up to the treehouse', short: 'Treehouse', on: 'visit', n: 1, at: p => p.y - treehouseDeckY(p.x, p.z) < 2 },
-  { id: 'cave', text: 'Explore the cave', short: 'The cave', on: 'visit', n: 1, at: p => caveDist(p.x, p.z) < -1.2 },
+  { id: 'cave', text: 'Explore the caverns under the south slope', short: 'The caverns', on: 'visit', n: 1, at: p => underground(p.x, p.z, p.y) },
   { id: 'lighthouse', text: 'Sail to the lighthouse and climb to its gallery', short: 'Lighthouse', on: 'visit', n: 1, at: p => p.y > LIGHTHOUSE.tower.topY - 0.3 && Math.hypot(p.x - LIGHTHOUSE.tower.x, p.z - LIGHTHOUSE.tower.z) < 3 },
   { id: 'islet', text: 'Set foot on the islet', short: 'The islet', on: 'visit', n: 1, at: (p, st) => !st.aboard && Math.hypot(p.x - ISLET.x, p.z - ISLET.z) < ISLET.r * 0.8 },
   { id: 'stones', text: 'Lie down in the stone ring', short: 'Stone ring', on: 'visit', n: 1, at: (p, st) => st.seat && st.seat.lie && st.seat.seated && Math.hypot(p.x - STONES.x, p.z - STONES.z) < STONES.r },

@@ -1,5 +1,5 @@
 import { U } from '../core/uniforms.js';
-import { coastDist, forest, houseRectDist, LAKE, lakeR, lakeD, STREAM, ROUGH, roughAt } from '../world/layout.js';
+import { coastDist, forest, houseRectDist, LAKE, lakeR, lakeD, STREAM, ROUGH, roughAt, underground } from '../world/layout.js';
 
 /**
  * Ambient sound, all synthesised with the Web Audio API (no audio files): wind with gusts, ocean swell, fire crackle and
@@ -147,21 +147,22 @@ function streamMix(p) {
  */
 export function mixAt(p, night, wind, fire, onBoat = false) {
   const A = AMB, c = coastDist(p.x, p.z), inside = houseRectDist(p.x, p.z) <= 0 && p.y < 4;
+  const under = underground(p.x, p.z, p.y - 1.55), sky = under ? 0.05 : 1;   // in the caverns the world outside is far away
   const day = 1 - smooth(A.birds.night[0], A.birds.night[1], night), dark = smooth(A.crickets.night[0], A.crickets.night[1], night);
   const pondD = Math.max(0, (lakeD(p.x, p.z) - 1) * lakeR(Math.atan2(p.z - LAKE.z, p.x - LAKE.x)));
   const fireD = fire ? Math.hypot(p.x - fire.x, p.y - fire.y, p.z - fire.z) : Infinity;
   const land = smooth(-6, 4, c);                                  // 0 out at sea .. 1 on the island
   return {
     inside,
-    wind: (0.25 + 0.55 * Math.min(1, wind)) * (1 + A.wind.shoreBoost * (1 - smooth(0, 20, c))) * (inside ? 0.5 : 1),
+    wind: sky * (0.25 + 0.55 * Math.min(1, wind)) * (1 + A.wind.shoreBoost * (1 - smooth(0, 20, c))) * (inside ? 0.5 : 1),
     windStrength: Math.min(1.4, wind),
-    leaves: forest(p.x, p.z),                                     // rustle of leaves among the island's trees
-    ocean: onBoat ? 1 : A.ocean.inland + (1 - A.ocean.inland) * (1 - smooth(A.ocean.near, A.ocean.far, c)),
+    leaves: sky * forest(p.x, p.z),                                     // rustle of leaves among the island's trees
+    ocean: onBoat ? 1 : sky * A.ocean.inland + (1 - A.ocean.inland) * (1 - smooth(A.ocean.near, A.ocean.far, c)),
     pond: A.pond.enabled ? 1 - smooth(A.pond.range[0], A.pond.range[1], pondD) : 0,
     ...streamMix(p),
     fire: inside ? 1 - smooth(A.fire.range[0], A.fire.range[1], fireD) * 0.4 : A.fire.outsideLevel * (1 - smooth(A.fire.outside[0], A.fire.outside[1], fireD)),
-    birds: day * land * (0.55 + 0.45 * forest(p.x, p.z)),
-    crickets: dark * land * (0.6 + 0.4 * (1 - forest(p.x, p.z))),
+    birds: sky * day * land * (0.55 + 0.45 * forest(p.x, p.z)),
+    crickets: sky * dark * land * (0.6 + 0.4 * (1 - forest(p.x, p.z))),
     boat: onBoat ? 1 : 0,
   };
 }
