@@ -164,7 +164,7 @@ export function createLighthouse({ scene, camera, skyUniforms, tex }) {
       for (const sgn of [-1, 1]) tower.add(out(new THREE.BoxGeometry(0.16, 2.2, 0.12), T.door + sgn * (T.doorHalf + 0.03), rO(T.floor + 1) + 0.03, T.floor + 1.1), sr);
       tower.add(out(new THREE.BoxGeometry(1.55, 0.18, 0.14), T.door, rO(T.floor + 2.2) + 0.04, T.floor + 2.2), sr);
       tower.add(out(new THREE.BoxGeometry(1.8, 0.08, 0.14), T.door, rO(T.floor) + 0.05, T.floor + 0.02), sr);   // the threshold
-      for (const sgn of [-1, 1]) { const g = new THREE.BoxGeometry(0.95, 0.05, 0.62); g.rotateZ(sgn * 0.42); g.translate(sgn * 0.42, 0, 0.26); tower.add(out(g, T.door, rO(T.floor + 2.6) + 0.02, T.floor + 2.62), lin(0x3d4146)); }   // the canopy's two slopes
+      for (const sgn of [-1, 1]) { const g = new THREE.BoxGeometry(0.95, 0.05, 0.62); g.rotateZ(-sgn * 0.42); g.translate(sgn * 0.42, 0, 0.26); tower.add(out(g, T.door, rO(T.floor + 2.6) + 0.02, T.floor + 2.62), lin(0x3d4146)); }   // the canopy's two slopes
       tower.add(out(new THREE.BoxGeometry(0.26, 0.18, 0.02), T.door + T.doorHalf + 0.16, rO(T.floor + 1.5) + 0.01, T.floor + 1.5), lin(0xb08a3a));
     }
     // slit windows: dark outside, bright inside
@@ -369,7 +369,7 @@ export function createLighthouse({ scene, camera, skyUniforms, tex }) {
     update(dt) {
       const isNear = camera.position.distanceTo(at) < LK.near; near.forEach(o => { o.visible = isNear; });
       const lit = smooth(B.night[0], B.night[1], skyUniforms.uNight.value);
-      lampMat.color.setScalar(0.45 + 1.1 * lit); glowMat.opacity = 0.75 * lit; glow.visible = isNear && lit > 0.02; innerMat.emissiveIntensity = 0.16 * lit;
+      lampMat.color.setScalar(0.45 + 1.1 * lit); glowMat.opacity = 0.75 * lit; glow.visible = isNear && lit > 0.02; innerMat.emissiveIntensity = 0.05 * lit;
       lensMat.emissiveIntensity = 0.1 + 2.2 * lit;
       beam.visible = lit > 0.01; beamU.uBeamA.value = B.opacity * lit; beam.rotation.y += dt * Math.PI * 2 / B.period;
     },

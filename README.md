@@ -481,7 +481,11 @@ export function createRoseBush(ctx) {
   red-and-white tower a wooden spiral stair (4 turns, 64 steps) winds round a railed well up to the lantern room and
   its lens; a door opens onto the gallery. At night the lens glows and two beams turn over the sea. Its materials fog
   at half the scene's density so it reads from home; the camera's far plane is 240 m so it is in view from anywhere;
-  the interior is drawn only within 45 m. A daily task sends you up it.
+  the interior is drawn only within 45 m. A daily task sends you up it. Round it: a flagstone path to the door (a stone
+  surround, a slate canopy, a planked door open inward), a bench facing home, a life ring and an old anchor, barrels, a
+  crate and rope on the jetty, the keeper's table inside, a weather vane; grass tufts, sea thrift and junipers on the
+  plateau (instanced, drawn within 45 m). Lanterns by the door, on the jetty's post and along the stair glow at night
+  (emissive with soft halos, no lights of their own; the whitewash inside takes a faint warm tint).
 - **Cloud shadows** (`core/shaderPatches.js` `addCloudShadow`, `CONFIG.clouds`): one tileable canvas texture of soft
   cloud footprints (`cloudField` in `core/noise.js`, roughly 20-60 m across) lies flat over the world and drifts with the
   wind. `finalizeScene` puts it on every lit material except the cabin interior. It dims only the sun's direct light
