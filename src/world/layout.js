@@ -741,3 +741,23 @@ export const KEEPSAKES = (() => {
 })();
 /** Distance to the nearest keepsake's place on the ground. */
 export function keepsakeDist(x, z) { let d = Infinity; for (const k of KEEPSAKES) d = Math.min(d, Math.hypot(x - k.x, z - k.z)); return d; }
+
+/**
+ * Rough water round the lighthouse rock: 1 within ROUGH.full m of it, fading to 0 at ROUGH.edge (the sea patch in
+ * assets/water/pond.js carries the swell there; app/boating.js rides it and feels a stronger wind). SWELL: the three
+ * long waves rolling in from the open sea to the east, as [direction x, direction z, wavelength m, share]; swellAt
+ * gives the height and slope, the same sum as the patch's vertex shader.
+ */
+export const ROUGH = { full: 16, edge: 44, amp: 0.42, wind: 0.6 };
+export const SWELL = [[-0.97, 0.24, 11, 0.55], [-0.86, -0.51, 7.2, 0.3], [-0.6, 0.8, 4.6, 0.15]];
+export function roughAt(x, z) { return 1 - smooth(ROUGH.full, ROUGH.edge, Math.hypot(x - LIGHTHOUSE.x, z - LIGHTHOUSE.z)); }
+/** The swell's height and slope { h, dx, dz } at (x, z), time t (s), wind setting w (0 .. 1.6). */
+export function swellAt(x, z, t, w) {
+  const A = ROUGH.amp * roughAt(x, z) * (0.7 + 0.3 * Math.min(1, w)); let h = 0, dx = 0, dz = 0;
+  if (A <= 0) return { h, dx, dz };
+  for (const [ux, uz, L, s] of SWELL) {
+    const k = Math.PI * 2 / L, om = Math.sqrt(9.81 * k), ph = k * (ux * x + uz * z) - om * t;
+    h += A * s * Math.sin(ph); dx += A * s * k * ux * Math.cos(ph); dz += A * s * k * uz * Math.cos(ph);
+  }
+  return { h, dx, dz };
+}
