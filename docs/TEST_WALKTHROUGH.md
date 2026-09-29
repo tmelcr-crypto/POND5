@@ -107,3 +107,4 @@ Before you start: settings panel, Reset progress (#75), confirm. Reload the page
 - [ ] Soundtrack off again; settings panel values survive a reload.
 - [ ] Curtains: inside the cabin, look at a window: the icon beside it closes / opens its curtains (they slide).
 - [ ] Daily task: a note at a new day says today's task; do it: a note and a chime; the journal's Calendar has the day ticked by hand. Sleep past midnight: a new task.
+- [ ] Lighthouse: from the east beach it stands on its rock (day: red and white; night: the beams turn). Sail there, dock at its jetty (dock button), step ashore, climb the cleft's steps (the cliffs hold you), go in, up the spiral stair (the well's railing holds), out onto the gallery; look home. Board again and sail home, dock at the home jetty.

@@ -16,7 +16,7 @@ import { LIGHTHOUSE, lighthouseH, SEA_Y } from '../../world/layout.js';
  */
 export const LH_LOOK = {
   fogK: 0.5, near: 45,
-  bands: 4, white: 0xeeebe2, red: 0x9a2a22, stone: 0x8e877b, iron: 0x2e3032, wood: 0x7a5534, roof: 0x7e1e18,
+  bands: 4, white: 0xe6e2d8, red: 0x9a2a22, stone: 0x68635a, iron: 0x2e3032, wood: 0x7a5534, roof: 0x7e1e18,
   beam: { length: 140, spread: 0.08, period: 12, opacity: 0.22, night: [0.35, 0.6] },
 };
 const hash = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
@@ -77,12 +77,12 @@ export function createLighthouse({ scene, camera, skyUniforms }) {
     const R = 24, st = 0.4, n = Math.round(2 * R / st), hs = [];
     for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) hs.push(lighthouseH(L.x - R + i * st, L.z - R + j * st));
     const hAt = (i, j) => hs[j * (n + 1) + i];
-    const col = new THREE.Color(), grass = lin(0x5f7236), grass2 = lin(0x7d8a45), stone = lin(0x7e7a71), pale = lin(0x9c978c), wet = lin(0x3c3a36), sand = lin(0x8a7d62), step = lin(LK.stone);
+    const col = new THREE.Color(), grass = lin(0x46582a), grass2 = lin(0x5e6b34), stone = lin(0x55524b), pale = lin(0x6f6a61), dark = lin(0x3b3934), wet = lin(0x2a2826), sand = lin(0x6e6350), step = lin(LK.stone);
     const colour = (x, z, h, slope) => {
       const u = L.x - x, v = Math.abs(z - L.z), cleft = u > G.u0 && u < G.u1 + 0.4 && v < G.half + 0.05, nz = fbm2(x * 0.7, z * 0.7, 2);
       if (h < SEA_Y - 0.5) return col.copy(sand).lerp(wet, smooth(SEA_Y - 2.5, SEA_Y - 0.5, h));
       if (cleft) return col.copy(step).multiplyScalar(0.85 + 0.2 * hash(Math.floor(u / 0.5), 3));
-      col.copy(stone).lerp(pale, smooth(0.1, 0.5, nz + 0.2 * Math.sin(h * 6)));
+      col.copy(stone).lerp(pale, smooth(0.1, 0.5, nz + 0.25 * Math.sin(h * 5.3 + x * 0.4))).lerp(dark, 0.6 * smooth(0.3, 0.8, Math.abs(Math.sin(h * 2.7 + nz * 3))) * smooth(0.5, 1.2, slope));   // strata on the cliffs
       if (h < SEA_Y + 0.6) col.lerp(wet, 1 - smooth(SEA_Y - 0.1, SEA_Y + 0.6, h));
       const flat = 1 - smooth(0.35, 0.8, slope);
       if (h > L.top - 0.4) col.lerp(grass.clone().lerp(grass2, smooth(-0.3, 0.4, nz)), flat * smooth(-0.35, 0.05, fbm2(x * 0.35 + 7, z * 0.35, 2) + 0.25));
