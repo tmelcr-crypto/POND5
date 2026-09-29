@@ -143,7 +143,7 @@ export const LIGHTHOUSE = (() => {
   jetty.bollards = [[x - 19.5, z - jetty.head.halfW + 0.13], [x - 21.7, z - jetty.head.halfW + 0.13]];   // aft, fore
   const floor = top + 0.32, stair = { r0: 1.0, r1: 1.8, perTurn: 16, rise: 3.0, turns: 4, a0: Math.PI + 0.55 };
   const topDoor = Math.atan2(Math.sin(stair.a0 + 0.94), Math.cos(stair.a0 + 0.94));   // up top, the door to the gallery: over the floored side, clear of the stair's opening
-  const tower = { x: x + 2.2, z: z + 0.4, rIn: 1.85, rOut: [2.35, 2.0], floor, topY: floor + stair.rise * stair.turns, door: Math.PI, topDoor, doorHalf: 0.3, gallery: 2.75 };
+  const tower = { x: x + 2.2, z: z + 0.4, rIn: 1.85, rOut: [2.35, 2.0], floor, topY: floor + stair.rise * stair.turns, door: Math.PI, topDoor, doorHalf: 0.3, gallery: 3.0 };
   return { x, z, top, reach: 30, plateau: 8.6, gully, jetty, tower, stair };
 })();
 /** The rock's height (its plateau, cliffs and cleft) at (x, z); the sea floor well away from it. */
@@ -206,7 +206,7 @@ export function lighthouseWalls(p, prev, feet) {
   const back = () => { p.x = prev.x; p.z = prev.z; };
   const r1 = Math.hypot(p.x - T.x, p.z - T.z), a1 = Math.atan2(p.z - T.z, p.x - T.x);
   const high = feet > T.topY - 0.6, dA = high ? T.topDoor : T.door, inDoor = Math.abs(Math.atan2(Math.sin(a1 - dA), Math.cos(a1 - dA))) < T.doorHalf - 0.08;
-  const wallOut = (high ? T.rOut[1] : T.rOut[0]) + 0.22;
+  const wallOut = (high ? T.rOut[1] + 0.15 : T.rOut[0] + 0.22);
   // the tower's wall: you are only ever in it in a doorway (the ground-floor door, or the one to the gallery up top)
   if (r1 > T.rIn - 0.15 && r1 < wallOut && !(inDoor && (high || feet < T.floor + 0.6))) { back(); return; }
   if (r1 < T.rIn) {
