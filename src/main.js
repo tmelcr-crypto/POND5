@@ -87,6 +87,7 @@ import { createTreasure } from './app/treasure.js';
 import { createStoryThings } from './assets/story/friendship.js';
 import { createBottles, keepsakePage } from './app/bottles.js';
 import { createKeepsakes } from './assets/story/keepsakes.js';
+import { createLighthouse } from './assets/lighthouse/lighthouse.js';
 import { createDailyTasks } from './app/dailyTasks.js';
 import { createClimbing } from './app/climbing.js';
 import { createGarden } from './assets/cabin/garden.js';
@@ -180,7 +181,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); seasons.update(); tide.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt, t); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); climbing.update(dt, t); cave.update(dt); treasure.update(dt, t); bottles.update(dt, t); dailyTasks.update(dt); keepsakes.update(ctx.camera); godRays.update(); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); rabbits.update(dt); squirrels.update(dt); frogs.update(dt); gulls.update(dt); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt);
+  tod.update(dt); seasons.update(); tide.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt, t); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); climbing.update(dt, t); cave.update(dt); treasure.update(dt, t); bottles.update(dt, t); dailyTasks.update(dt); keepsakes.update(ctx.camera); godRays.update(); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); rabbits.update(dt); squirrels.update(dt); frogs.update(dt); gulls.update(dt); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt); lighthouse.update(dt);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   renderer.render(scene, camera);
@@ -205,7 +206,7 @@ const boat = createSailboat(ctx);   // the sailboat at the jetty
 const boating = createBoating({ camera: ctx.camera, st, boat, resetInput }); addTakeover(boating.update);   // boarding, sailing, docking
 const sleeping = createSleeping({ camera: ctx.camera, st, cabin, clock, setHours, scheduleEnv, resetInput, afterTimeJump: hrs => { seasons.slept(hrs); hours.slept(hrs); setLights(skyUniforms.uNight.value > 0.5); } }); addTakeover(sleeping.update);   // the bed: sleep, sit, album
 const wind = createWind({ clock, show: showWind });   // the wind shifts by itself (strength and direction)
-const horizon = createHorizon({ ...ctx, skyUniforms });   // distant sailboat, lighthouse
+const horizon = createHorizon({ ...ctx, skyUniforms });   // the distant sailboat
 const moments = createSmallMoments({ ...ctx, detail, plot: { apple: plotApple, spruce: plotSpruce, rose: plotRose } });   // falling leaves, apples, cones, rose petals
 const waterLife = createWaterLife({ ...ctx, detail, skyUniforms, ocean });
 boating.onSplash = (x, z) => waterLife.splash && waterLife.splash(x, seaY() + 0.002, z, 0.6);   // the anchor going in   // fish rises, dragonflies, shore foam
@@ -266,9 +267,10 @@ const godRays = createGodRays(ctx, { skyUniforms, skyWeather });   // shafts of 
 let bakedFor = 'summer';   // the far trees' billboards are baked as they look in summer; again for each season
 seasons.on(s => { if (s !== bakedFor) { bakedFor = s; scatter.rebake(s); } items.season(s); moments.setSeason(s); weather.setSeason(s); birds.setSeason(s); ambience.setBirdShare({ autumn: 0.55, winter: 0.12 }[s] ?? 1); tod.setSeasonSky(s); });   // what can be picked
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
+const lighthouse = createLighthouse({ ...ctx, skyUniforms });   // the lighthouse rock ~110 m east: its jetty, the tower you can climb (no random numbers)
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { dailyTasks, keepsakes, bottles, storyThings, ocean, tide, godRays, stones, treehouse, climbing, cave, islet, treasure, renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, lantern, hours, well, garden, drawWater, gardening, planting, saplings, rabbits, squirrels, frogs, gulls, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { lighthouse, dailyTasks, keepsakes, bottles, storyThings, ocean, tide, godRays, stones, treehouse, climbing, cave, islet, treasure, renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, lantern, hours, well, garden, drawWater, gardening, planting, saplings, rabbits, squirrels, frogs, gulls, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);

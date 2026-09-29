@@ -108,6 +108,7 @@ export function hillsH(x, z) {
   // beach: a gentle slope up from the waterline; offshore: steeper down to the sea floor
   const shore = c > 0 ? SEA_Y + 0.12 * c : Math.max(SEA_Y - IC.seaDepth, SEA_Y + 0.25 * c);
   const h = land + (shore - land) * (1 - smooth(IC.beachWidth * 0.4, IC.beachWidth * 1.6, c));
+  if (Math.abs(x - LIGHTHOUSE.x) < LIGHTHOUSE.reach && Math.abs(z - LIGHTHOUSE.z) < LIGHTHOUSE.reach) return Math.max(h, lighthouseH(x, z));
   return Math.abs(x - ISLET.x) < ISLET.reach && Math.abs(z - ISLET.z) < ISLET.reach ? Math.max(h, isletH(x, z)) : h;
 }
 /**
@@ -125,6 +126,107 @@ export const ISLET = { x: 38.5, z: -38.5, r: 5.2, top: 0.5, reach: 16 };   // (t
 export const STORY = { tree: { x: 25.15, z: -22.5 }, lid: { x: 30.2, z: -17.3 } };   // (the lid half under the deck's edge)
 /** Where the treasure is buried (#16; app/treasure.js): on the islet, three paces from the cairn. */
 export const TREASURE = { x: 38.64, z: -40.05 };
+/**
+ * The lighthouse rock (#27; meshes: assets/lighthouse/lighthouse.js): a rocky island ~65 m off the east shore, beyond
+ * the 100 m terrain (its own mesh), part of H so the boat grounds on it and you walk on it. A grassy plateau `top` m up
+ * on cliffs; from its west side a cleft with stone steps (`gully`: u m west of the middle, `rise` a step) runs down to
+ * a landing and the one jetty, which reaches west towards home with the boat's berth on its south side (the same shape
+ * as the home jetty's: head, berth, bollards). The tower stands on the plateau: inside, a spiral stair round an open
+ * well (`stair`: its inner and outer radius, `perTurn` steps a turn, `rise` m a turn, `turns`) up to the lantern room;
+ * a door out to the gallery round it. lighthouseWalls keeps you off the cliffs and inside the tower's walls.
+ */
+export const LIGHTHOUSE = (() => {
+  const x = 110, z = 18, top = SEA_Y + 5, deckY = SEA_Y + 1.15;
+  const gully = { u0: 4.6, u1: 13.4, top: 5.2, bottom: 12.8, half: 0.85, rise: 0.26 };   // u: metres west of the middle
+  const jetty = { z, deckY, halfW: 0.8, x0: x - 13.4, x1: x - 22, head: { x0: x - 19, halfW: 1.4 } };
+  jetty.berth = { x: x - 20.6, z: z - jetty.head.halfW - 1.15, heading: Math.PI };            // bow west, to the sea
+  jetty.bollards = [[x - 19.5, z - jetty.head.halfW + 0.13], [x - 21.7, z - jetty.head.halfW + 0.13]];   // aft, fore
+  const floor = top + 0.32, stair = { r0: 1.0, r1: 1.8, perTurn: 16, rise: 3.0, turns: 4, a0: Math.PI + 0.55 };
+  const topDoor = Math.atan2(Math.sin(stair.a0 + 0.94), Math.cos(stair.a0 + 0.94));   // up top, the door to the gallery: over the floored side, clear of the stair's opening
+  const tower = { x: x + 2.2, z: z + 0.4, rIn: 1.85, rOut: [2.35, 2.0], floor, topY: floor + stair.rise * stair.turns, door: Math.PI, topDoor, doorHalf: 0.3, gallery: 2.75 };
+  return { x, z, top, reach: 30, plateau: 8.6, gully, jetty, tower, stair };
+})();
+/** The rock's height (its plateau, cliffs and cleft) at (x, z); the sea floor well away from it. */
+export function lighthouseH(x, z) {
+  const L = LIGHTHOUSE, dx = x - L.x, dz = z - L.z, r = Math.hypot(dx, dz), a = Math.atan2(dz, dx);
+  const Rp = L.plateau * (1 + 0.1 * Math.sin(a * 3 + 1.1) + 0.06 * Math.sin(a * 5 - 0.4) + 0.04 * Math.sin(a * 9 + 2));
+  let h;
+  if (r < Rp) h = L.top + 0.25 * (1 - (r / Rp) ** 2) + 0.12 * fbm2(x * 0.5, z * 0.5, 2);                    // the plateau, a little domed
+  else if (r < Rp + 3.2) { const t = (r - Rp) / 3.2; h = L.top + (SEA_Y - 0.4 - L.top) * (t * t * (3 - 2 * t)) + 0.35 * fbm2(x * 0.9, z * 0.9, 2) * Math.sin(t * Math.PI); }   // the cliffs
+  else h = SEA_Y - 0.4 - (r - Rp - 3.2) * 0.55;                                                              // into the sea
+  // the cleft: stone steps from the plateau's edge down to the landing at the jetty's root
+  const G = L.gully, u = -dx, v = Math.abs(dz);
+  if (u > G.u0 && u < G.u1 + 0.4 && v < G.half + 0.5) {
+    const n = Math.ceil((L.top - L.jetty.deckY) / G.rise), k = Math.min(n, Math.max(0, Math.ceil((u - G.top) / (G.bottom - G.top) * n)));
+    const step = u >= G.bottom ? L.jetty.deckY : L.top - k * (L.top - L.jetty.deckY) / n, w = smooth(G.half, G.half + 0.35, v);
+    h = step + (Math.max(h, step) - step) * w;
+  }
+  return h;
+}
+/** The walkable top of the lighthouse jetty at (x, z), or -Infinity off it. */
+function lhJettyY(x, z) {
+  const J = LIGHTHOUSE.jetty; if (x > J.x0 + 0.05 || x < J.x1) return -Infinity;
+  return Math.abs(z - J.z) <= (x <= J.head.x0 ? J.head.halfW : J.halfW) ? J.deckY : -Infinity;
+}
+function lhJettyDist(x, z) {
+  const J = LIGHTHOUSE.jetty, hw = x <= J.head.x0 ? J.head.halfW : J.halfW, dx = Math.max(J.x1 - x, x - J.x0, 0), dz = Math.abs(z - J.z) - hw;
+  return dx > 0 || dz > 0 ? Math.hypot(dx, Math.max(dz, 0)) : Math.max(dx, dz);
+}
+/** The tower's spiral: the height of the tread at angle a (rad, world) on turn k. */
+function treadY(a, k) {
+  const S = LIGHTHOUSE.stair, T = LIGHTHOUSE.tower, s = (((a - S.a0) / (Math.PI * 2)) % 1 + 1) % 1;
+  return T.floor + S.rise * (k + (Math.floor(s * S.perTurn) + 1) / S.perTurn);
+}
+/** Every surface in the tower over (x, z): the ground floor, the treads, the lantern room's floor and the gallery. */
+function towerSurfaces(x, z) {
+  const T = LIGHTHOUSE.tower, S = LIGHTHOUSE.stair, dx = x - T.x, dz = z - T.z, r = Math.hypot(dx, dz), a = Math.atan2(dz, dx), out = [];
+  if (r > T.gallery) return out;
+  const s = (((a - S.a0) / (Math.PI * 2)) % 1 + 1) % 1;
+  if (r < T.rIn) {
+    out.push(T.floor);
+    if (r >= S.r0 - 0.05 && r <= S.r1 + 0.1) for (let k = 0; k < S.turns; k++) out.push(treadY(a, k));
+    if (!(r >= S.r0 - 0.1 && s > 0.3)) out.push(T.topY);            // the lantern room floor, but for the opening over the last of the stair
+  } else out.push(T.topY);                                          // the gallery
+  return out;
+}
+/** Where you stand in the tower (feet at `feet`), or -Infinity when outside it. */
+export function towerY(x, z, feet) {
+  const T = LIGHTHOUSE.tower; if (Math.abs(x - T.x) > 3 || Math.abs(z - T.z) > 3) return -Infinity;
+  const r = Math.hypot(x - T.x, z - T.z); if (r >= T.rIn && feet < T.topY - 0.6) return -Infinity;
+  let best = -Infinity; for (const h of towerSurfaces(x, z)) if (h <= feet + 0.45 && h > best) best = h;
+  return best;
+}
+/**
+ * Keep a walker (feet at `feet`, from prev to p) on the lighthouse rock: off the cliffs and the cleft's walls (no step
+ * steeper than 1.4 up or down), and in the tower through its doors only: the well's railing above the ground floor,
+ * nothing solid at head height (the treads above you), the gallery's railing, the lamp.
+ */
+export function lighthouseWalls(p, prev, feet) {
+  const L = LIGHTHOUSE, T = L.tower; if (Math.abs(p.x - L.x) > L.reach || Math.abs(p.z - L.z) > L.reach) return;
+  const back = () => { p.x = prev.x; p.z = prev.z; };
+  const r1 = Math.hypot(p.x - T.x, p.z - T.z), a1 = Math.atan2(p.z - T.z, p.x - T.x);
+  const high = feet > T.topY - 0.6, dA = high ? T.topDoor : T.door, inDoor = Math.abs(Math.atan2(Math.sin(a1 - dA), Math.cos(a1 - dA))) < T.doorHalf - 0.08;
+  const wallOut = (high ? T.rOut[1] : T.rOut[0]) + 0.22;
+  // the tower's wall: you are only ever in it in a doorway (the ground-floor door, or the one to the gallery up top)
+  if (r1 > T.rIn - 0.15 && r1 < wallOut && !(inDoor && (high || feet < T.floor + 0.6))) { back(); return; }
+  if (r1 < T.rIn) {
+    const S = L.stair;
+    if (feet > T.floor + 0.35 && !high && r1 < S.r0 + 0.12) { back(); return; }                                // the well's railing
+    if (high && r1 < 0.65) { back(); return; }                                                               // the lamp
+    if (high && r1 > S.r0 - 0.1) { const s = (((a1 - S.a0) / (Math.PI * 2)) % 1 + 1) % 1; if (s > 0.3 && s < 0.9 && feet > T.topY - 0.05) { back(); return; } }   // the opening's railing
+    for (const h of towerSurfaces(p.x, p.z)) if (h > feet + 0.5 && h < feet + 1.85) { back(); return; }     // your head
+    return;
+  }
+  if (high && r1 > T.gallery - 0.2) { back(); return; }                                                     // the gallery's railing
+  if (high) return;
+  // the rock: no climbing its cliffs or dropping off them
+  const d = Math.hypot(p.x - prev.x, p.z - prev.z); if (d < 1e-5) return;
+  const g0 = Math.max(lighthouseH(prev.x, prev.z), lhJettyY(prev.x, prev.z)), g1 = Math.max(lighthouseH(p.x, p.z), lhJettyY(p.x, p.z));
+  const G = L.gully, inCleft = q => { const u = L.x - q.x, v = Math.abs(q.z - L.z); return u > G.u0 && u < G.u1 + 0.4 && v < G.half - 0.1; };
+  if (inCleft(p) && inCleft(prev)) return;                                                                   // its steps
+  if (g0 > SEA_Y && Math.abs(g1 - g0) / d > 1.4 && g1 > SEA_Y - 0.3) back();
+  else if (g0 > SEA_Y + 0.5 && g1 < SEA_Y + 0.2) back();                                                   // off the edge into the sea
+}
 export function isletH(x, z) {
   const I = ISLET, dx = x - I.x, dz = z - I.z, a = Math.atan2(dz, dx), r = I.r * (1 + 0.14 * Math.sin(a * 3 + 0.8) + 0.08 * Math.sin(a * 5 - 1.3));
   const s = Math.hypot(dx, dz) / r;
@@ -287,6 +389,7 @@ export const JETTY = (() => {
 const jettyHalfW = x => x < JETTY.x0 - 0.05 || x > JETTY.x1 ? 0 : x >= JETTY.head.x0 ? JETTY.head.halfW : JETTY.halfW;
 /** The walkable top of the jetty (deck and side stairs) at (x, z), or -Infinity off it. */
 export function jettyDeckY(x, z) {
+  if (x > LIGHTHOUSE.x - 30) return lhJettyY(x, z);   // the lighthouse's jetty (app/boating.js docks at either)
   const J = JETTY, dz = z - J.z, hw = jettyHalfW(x);
   if (hw && Math.abs(dz) <= hw) return J.deckY;
   const S = J.stair, out = -dz * -S.side - J.halfW;   // metres out from the deck edge on the stair's side
@@ -295,6 +398,7 @@ export function jettyDeckY(x, z) {
 }
 /** Distance to the jetty's footprint, stairs included (< 0 on it). */
 export function jettyDist(x, z) {
+  if (x > LIGHTHOUSE.x - 30) return lhJettyDist(x, z);
   const J = JETTY, hw = Math.max(jettyHalfW(Math.min(Math.max(x, J.x0), J.x1)), 0.01), dx = Math.max(J.x0 - x, x - J.x1, 0), dz = Math.abs(z - J.z) - hw;
   let d = dx > 0 || dz > 0 ? Math.hypot(dx, Math.max(dz, 0)) : Math.max(-dz, 0) * -1;
   const S = J.stair, sz = J.z + S.side * (J.halfW + S.steps * S.run / 2), sx = Math.max(S.x0 - x, x - S.x1, 0), szd = Math.max(Math.abs(z - sz) - S.steps * S.run / 2, 0);

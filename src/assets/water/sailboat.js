@@ -129,10 +129,10 @@ export function createSailboat(ctx) {
   const cleats = [new V(L - 0.35, sheer(L - 0.35) + 0.02, 0.62), new V(-L + 0.3, sheer(-L + 0.3) + 0.02, 0.7)];
   const lineMat = new THREE.MeshStandardMaterial({ color: lin(0xd9cfb4), roughness: 0.9, metalness: 0 });
   const lines = new THREE.Group(); scene.add(lines);
-  function mooringLines(on) {
+  function mooringLines(on, dock = JETTY) {
     lines.visible = on; if (!on) return;
     lines.clear(); group.updateMatrixWorld();
-    const [aft, fore] = JETTY.bollards.map(([x, z]) => new V(x, JETTY.deckY + 0.42, z)), ends = [[cleats[0], fore], [cleats[1], aft]];   // bow to the fore bollard, stern to the aft one
+    const [aft, fore] = dock.bollards.map(([x, z]) => new V(x, dock.deckY + 0.42, z)), ends = [[cleats[0], fore], [cleats[1], aft]];   // bow to the fore bollard, stern to the aft one
     for (const [cl, bo] of ends) {
       const a = cl.clone().applyMatrix4(group.matrixWorld), pts = [];
       for (let i = 0; i <= 10; i++) { const t = i / 10, p = a.clone().lerp(bo, t); p.y -= Math.sin(Math.PI * t) * 0.18; pts.push(p); }

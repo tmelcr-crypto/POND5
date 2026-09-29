@@ -1,5 +1,5 @@
 import { CONFIG } from '../config.js';
-import { WORLD_HALF, H, SEA_Y, seaY, ISLET } from './layout.js';
+import { WORLD_HALF, H, SEA_Y, seaY, ISLET, LIGHTHOUSE } from './layout.js';
 
 /**
  * World edge and static obstacles for the player.
@@ -52,12 +52,14 @@ export function applyBounds(p, vel, dt, walking) {
   if (walking) {
     const over = (seaY() - H(p.x, p.z)) - CONFIG.island.wadeDepth;   // metres deeper than wading depth
     if (over > 0) {
-      const nearIslet = Math.hypot(p.x - ISLET.x, p.z - ISLET.z) < ISLET.r + 8, cx = nearIslet ? ISLET.x : 0, cz = nearIslet ? ISLET.z : 0;   // back to the islet if that is the nearer land
+      const nearIslet = Math.hypot(p.x - ISLET.x, p.z - ISLET.z) < ISLET.r + 8, nearLH = Math.hypot(p.x - LIGHTHOUSE.x, p.z - LIGHTHOUSE.z) < LIGHTHOUSE.reach;   // back to the islet or the lighthouse rock if that is the nearer land
+      const cx = nearLH ? LIGHTHOUSE.x : nearIslet ? ISLET.x : 0, cz = nearLH ? LIGHTHOUSE.z : nearIslet ? ISLET.z : 0;
       const r = Math.hypot(p.x - cx, p.z - cz) || 1, nx = (p.x - cx) / r, nz = (p.z - cz) / r, out = vel.x * nx + vel.z * nz;
       if (out > 0) { const k = 1 - Math.exp(-dt * 30 * over); vel.x -= nx * out * k; vel.z -= nz * out * k; } // damp seaward motion
       const push = Math.min(over * 6, 5) * dt; p.x -= nx * push; p.z -= nz * push;                          // ease back to shore
     }
   }
+  if (Math.hypot(p.x - LIGHTHOUSE.x, p.z - LIGHTHOUSE.z) < LIGHTHOUSE.reach) return;   // out on the lighthouse rock, beyond the world's square
   const hard = WORLD_HALF - 1.2, soft = hard - CONFIG.player.boundaryMargin;
   for (const a of ['x', 'z']) {
     const over = Math.abs(p[a]) - soft;
