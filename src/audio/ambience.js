@@ -1,5 +1,5 @@
 import { U } from '../core/uniforms.js';
-import { coastDist, forest, houseRectDist, LAKE, lakeR, lakeD, STREAM } from '../world/layout.js';
+import { coastDist, forest, houseRectDist, LAKE, lakeR, lakeD, STREAM, ROUGH, roughAt } from '../world/layout.js';
 
 /**
  * Ambient sound, all synthesised with the Web Audio API (no audio files): wind with gusts, ocean swell, fire crackle and
@@ -463,7 +463,7 @@ export function createAmbience(ctx) {
       if (!ac || ac.state !== 'running') { stats.running = false; return; }
       stats.running = true; acc += dt; if (acc < A.update) return; acc = 0;
       const t0 = performance.now(), t = ac.currentTime, p = camera.position, onBoat = !!(ctx.boat && ctx.boat.onBoard);
-      const m = mixAt(p, skyUniforms.uNight.value, U.uWind.value, fireAt, onBoat); m.fire *= fires[0].level; m.birds *= birdShare;
+      const m = mixAt(p, skyUniforms.uNight.value, U.uWind.value + ROUGH.wind * roughAt(p.x, p.z), fireAt, onBoat);   // (a stiffer wind by the lighthouse) m.fire *= fires[0].level; m.birds *= birdShare;
       let src = fires[0];   // the loudest fire is the one heard
       for (let i = 1; i < fires.length; i++) { const f = fires[i]; if (f.level <= 0) continue; const l = f.level * A.fire.openLevel * (1 - smooth(A.fire.open[0], A.fire.open[1], Math.hypot(p.x - f.at.x, p.y - f.at.y, p.z - f.at.z))); if (l > m.fire) { m.fire = l; src = f; } }
       m.fireOpen = src.open;

@@ -486,6 +486,11 @@ export function createRoseBush(ctx) {
   crate and rope on the jetty, the keeper's table inside, a weather vane; grass tufts, sea thrift and junipers on the
   plateau (instanced, drawn within 45 m). Lanterns by the door, on the jetty's post and along the stair glow at night
   (emissive with soft halos, no lights of their own; the whitewash inside takes a faint warm tint).
+- **Rough sea by the lighthouse** (`ROUGH`, `SWELL`, `roughAt`, `swellAt` in `world/layout.js`; the patch in
+  `assets/water/pond.js`): within ~16 m of the rock the sea runs high, fading back to calm by ~44 m: a fine patch of sea
+  (the open sea is cut away under it) carries a swell of three long waves from the east, choppier ripples, streaky
+  whitecaps on the crests and surf round the rock's foot. The boat rides the same swell (heave, pitch and roll from its
+  slope) and feels a stiffer wind there (faster, heels more); the wind sounds louder. Nothing stops the boat.
 - **Cloud shadows** (`core/shaderPatches.js` `addCloudShadow`, `CONFIG.clouds`): one tileable canvas texture of soft
   cloud footprints (`cloudField` in `core/noise.js`, roughly 20-60 m across) lies flat over the world and drifts with the
   wind. `finalizeScene` puts it on every lit material except the cabin interior. It dims only the sun's direct light

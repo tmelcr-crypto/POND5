@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { U } from '../../core/uniforms.js';
-import { WATER_Y, LAKE, H, lakeD, streamDist } from '../../world/layout.js';
+import { WATER_Y, LAKE, H, lakeD, streamDist, LIGHTHOUSE, ROUGH, SWELL } from '../../world/layout.js';
+
+const PATCH_R = 46;   // m round the lighthouse rock: the rough sea patch (the open sea is cut away inside it)
 
 /**
  * Pond surface: MeshStandardMaterial with procedural wave normals, depth tint, shoreline foam. In winter (U.uWinter) it
@@ -72,7 +74,8 @@ export function createOcean(ctx, ground, seaY) {
   const { scene } = ctx;
   const g = new THREE.PlaneGeometry(480, 480, 1, 1); g.rotateX(-Math.PI / 2);   // follows the camera; past the far plane (CONFIG.camera.far) everywhere
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.06, metalness: 0, envMapIntensity: 1.1 });
-  m.onBeforeCompile = s => {
+  /** The sea's shader (both the open sea and the rough patch round the lighthouse; patch: its swell and surf). */
+  const seaCompile = (s, patch) => {
     s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uWinter = U.uWinter; s.uniforms.uGround = { value: ground.tex };
     s.uniforms.uGroundST = { value: new THREE.Vector2(ground.scale, ground.offset) }; s.uniforms.uSea = U.uSea;
     s.vertexShader = 'varying vec3 vWP;\n' + s.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
@@ -97,7 +100,46 @@ export function createOcean(ctx, ground, seaY) {
       .replace('#include <normal_fragment_maps>', `
         vec2 wg = seaGrad(vWP.xz, uTime);
         normal = normalize((viewMatrix * vec4(normalize(vec3(-wg.x, 1.0, -wg.y)), 0.0)).xyz);`);
+  
+    s.uniforms.uLH = { value: new THREE.Vector2(LIGHTHOUSE.x, LIGHTHOUSE.z) };
+    s.fragmentShader = 'uniform vec2 uLH;\n' + s.fragmentShader;
+    if (!patch) { s.fragmentShader = s.fragmentShader.replace('#include <color_fragment>', 'if (length(vWP.xz - uLH) < ' + (PATCH_R - 0.15).toFixed(2) + ') discard;\n#include <color_fragment>'); return; }
+    // the rough patch: the swell moves the vertices (layout.js swellAt, the same sum), steeper ripples, whitecaps on the
+    // crests and surf breaking round the rock's foot
+    s.uniforms.uRough = { value: new THREE.Vector4(ROUGH.full, ROUGH.edge, ROUGH.amp, 0) };
+    s.uniforms.uSwell = { value: SWELL.map(([x, z, L, sh]) => new THREE.Vector4(x, z, Math.PI * 2 / L, sh)) };
+    s.vertexShader = 'uniform float uTime; uniform float uWind; uniform vec2 uLH; uniform vec4 uRough; uniform vec4 uSwell[3]; varying vec3 vSw; varying float vRough;\n' + s.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      vec3 wp0 = (modelMatrix * vec4(position, 1.0)).xyz;
+      vRough = 1.0 - smoothstep(uRough.x, uRough.y, length(wp0.xz - uLH));
+      float A = uRough.z * vRough * (0.7 + 0.3 * min(1.0, uWind)); vSw = vec3(0.0);
+      for (int i = 0; i < 3; i++) { vec4 w = uSwell[i]; float ph = w.z * dot(w.xy, wp0.xz) - sqrt(9.81 * w.z) * uTime;
+        vSw.x += A * w.w * sin(ph); vSw.y += A * w.w * w.z * w.x * cos(ph); vSw.z += A * w.w * w.z * w.y * cos(ph); }
+      transformed.y += vSw.x;`);
+    s.fragmentShader = `varying vec3 vSw; varying float vRough; uniform vec4 uRough;
+      float roughHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float roughNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(roughHash(i), roughHash(i + vec2(1.0, 0.0)), f.x), mix(roughHash(i + vec2(0.0, 1.0)), roughHash(i + vec2(1.0, 1.0)), f.x), f.y); }
+      ` + s.fragmentShader
+      .replace('vec2 wg = seaGrad(vWP.xz, uTime);', 'vec2 wg = seaGrad(vWP.xz, uTime) * (1.0 + 1.6 * vRough) + vSw.yz;')
+      .replace('/* shore-foam */', `
+        { vec2 fp = vWP.xz;
+          float n1 = roughNoise(fp * vec2(2.3, 0.9) + vec2(uTime * 0.35, -uTime * 0.2)) * 0.65 + roughNoise(fp * 5.1 - uTime * 0.5) * 0.35;   // streaky, drifting
+          float cap = smoothstep(0.62, 0.98, vSw.x / max(0.05, uRough.z * 0.8)) * vRough * smoothstep(0.45, 0.8, n1);     // whitecaps on the crests
+          float rr = length(fp - uLH), surf = (1.0 - smoothstep(11.8, 15.0, rr)) * smoothstep(9.0, 11.2, rr);            // round the rock's foot
+          float pulse = 0.5 + 0.5 * sin(uTime * 1.3 - rr * 1.7 + 3.0 * sin(atan(vWP.z - uLH.y, vWP.x - uLH.x) * 3.0));
+          float f = clamp(cap + surf * smoothstep(0.35, 0.75, n1 * (0.6 + 0.6 * pulse)), 0.0, 1.0);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.85, 0.9, 0.9), f * 0.8); }
+        /* shore-foam */`);
   };
+  m.onBeforeCompile = s => seaCompile(s, false);
   const sea = new THREE.Mesh(g, m); sea.position.y = seaY; sea.receiveShadow = true; sea.frustumCulled = false; scene.add(sea);
-  return { sea, update(cam) { sea.position.set(cam.x, U.uSea.value, cam.z); } };   // (the tide: world/tide.js)
+  // the rough patch round the lighthouse rock: a fine polar grid (finer near the rock) that the swell moves; the open
+  // sea is cut away under it
+  const pg = new THREE.BufferGeometry(), pp = [], idx = [], NR = 40, NA = 112;
+  for (let i = 0; i <= NR; i++) { const r = PATCH_R * Math.pow(i / NR, 1.35); for (let j = 0; j < NA; j++) { const a = j / NA * Math.PI * 2; pp.push(Math.cos(a) * r, 0, Math.sin(a) * r); } }
+  for (let i = 0; i < NR; i++) for (let j = 0; j < NA; j++) { const a = i * NA + j, b = i * NA + (j + 1) % NA, c = a + NA, d = b + NA; idx.push(a, b, c, b, d, c); }
+  pg.setAttribute('position', new THREE.Float32BufferAttribute(pp, 3)); pg.setAttribute('normal', new THREE.Float32BufferAttribute(pp.map((v, k) => (k % 3 === 1 ? 1 : 0)), 3)); pg.setIndex(idx);
+  const pm = m.clone(); pm.onBeforeCompile = s => seaCompile(s, true); pm.customProgramCacheKey = () => 'seaPatch';
+  const patch = new THREE.Mesh(pg, pm); patch.position.set(LIGHTHOUSE.x, seaY, LIGHTHOUSE.z); patch.receiveShadow = true; patch.frustumCulled = false; scene.add(patch);
+  return { sea, patch, update(cam) { sea.position.set(cam.x, U.uSea.value, cam.z); patch.position.y = U.uSea.value; } };   // (the tide: world/tide.js)
 }

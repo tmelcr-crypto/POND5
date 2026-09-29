@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { V, clamp } from '../core/math.js';
 import { CONFIG } from '../config.js';
 import { U } from '../core/uniforms.js';
-import { H, SEA_Y, seaY, JETTY, LIGHTHOUSE, coastDist, jettyDeckY, jettyDist } from '../world/layout.js';
+import { H, SEA_Y, seaY, JETTY, LIGHTHOUSE, coastDist, jettyDeckY, jettyDist, roughAt, swellAt, ROUGH } from '../world/layout.js';
 
 /**
  * Sailing the boat (assets/water/sailboat.js). One icon button (B on desktop) does what fits where you are:
@@ -48,7 +48,8 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
    * right (starboard). drive: how well the sails pull at that angle (weak head to wind, best on a beam reach).
    */
   function wind() {
-    const k = clamp(U.uWind.value / BC.windFull), wd = U.uWindDir.value, fx = -wd.x, fz = -wd.y, l = Math.hypot(fx, fz) || 1;
+    const k = clamp((U.uWind.value + ROUGH.wind * roughAt(b.x, b.z)) / BC.windFull), wd = U.uWindDir.value,   // a stiffer wind out by the lighthouse
+      fx = -wd.x, fz = -wd.y, l = Math.hypot(fx, fz) || 1;
     const c = Math.cos(b.h), s = Math.sin(b.h), off = Math.acos(clamp((fx * c + fz * s) / l, -1, 1)), side = -fx * s + fz * c >= 0 ? 1 : -1;
     const drive = off < Math.PI / 2 ? BC.polar[0] + (1 - BC.polar[0]) * Math.sin(off) : 1 - (1 - BC.polar[1]) * (off - Math.PI / 2) / (Math.PI / 2);
     return { k, off, side, drive };
@@ -65,7 +66,10 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
   function pose() {   // bob, roll and pitch on the swell (less while tied up or aground); heel away from the wind and out of a turn
     const w = wind(), sailing = mode === 'sailing' ? clamp(Math.abs(b.speed) / 1.5) : 0;
     const calm = b.docked || b.aground ? 0.35 : 1, heel = -wheelA * clamp(b.speed / BC.maxSpeed, -1, 1) * 0.1 - w.side * w.k * Math.sin(w.off) * 0.09 * sailing;
-    boat.setPose(b.x, b.z, b.h, (0.025 * Math.sin(T * 0.9) + 0.012 * Math.sin(T * 1.7)) * calm + heel, (0.014 * Math.sin(T * 1.1 + 1)) * calm, (0.03 * Math.sin(T * 1.3) + 0.012 * Math.sin(T * 2.3)) * calm);
+    // riding the swell by the lighthouse (layout.js swellAt, the sea patch's own waves): heave with it, pitch and roll with its slope
+    const sw = swellAt(b.x, b.z, U.uTime.value, U.uWind.value), c = Math.cos(b.h), s = Math.sin(b.h), ride = b.docked ? 0.5 : 1;
+    const along = sw.dx * c + sw.dz * s, across = -sw.dx * s + sw.dz * c;
+    boat.setPose(b.x, b.z, b.h, (0.025 * Math.sin(T * 0.9) + 0.012 * Math.sin(T * 1.7)) * calm + heel + Math.atan(across) * 0.8 * ride, (0.014 * Math.sin(T * 1.1 + 1)) * calm + Math.atan(along) * 0.8 * ride, (0.03 * Math.sin(T * 1.3) + 0.012 * Math.sin(T * 2.3)) * calm + sw.h * ride);
     boat.wheel.rotation.x = -wheelA * 2.2;
     boom().rotation.y = boomA;
   }
