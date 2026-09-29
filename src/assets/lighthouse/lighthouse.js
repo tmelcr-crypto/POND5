@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { lin, smooth } from '../../core/math.js';
 import { fbm2 } from '../../core/noise.js';
 import { LIGHTHOUSE, lighthouseH, SEA_Y } from '../../world/layout.js';
+import { obstacles } from '../../world/bounds.js';
+import { isTouch } from '../../core/env.js';
 
 /**
  * The lighthouse rock (#27; its ground, walls and stair: LIGHTHOUSE in world/layout.js): the rock with its grassy
@@ -65,7 +67,8 @@ function farFog(mat, k) {
   return mat;
 }
 
-export function createLighthouse({ scene, camera, skyUniforms }) {
+export function createLighthouse({ scene, camera, skyUniforms, tex }) {
+  const softDot = tex.softDot;
   const L = LIGHTHOUSE, T = L.tower, S = L.stair, G = L.gully, J = L.jetty, LK = LH_LOOK;
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const P = (r, a, y) => V(T.x + r * Math.cos(a), y, T.z + r * Math.sin(a));   // a point round the tower (world angle a)
@@ -136,9 +139,9 @@ export function createLighthouse({ scene, camera, skyUniforms }) {
     const plinth = new THREE.CylinderGeometry(T.rOut[0] + 0.25, T.rOut[0] + 0.4, T.floor - L.top + 0.9, 24); plinth.translate(T.x, (T.floor + L.top - 0.9) / 2, T.z);
     tower.add(plinth, (c, x, y, z) => c.copy(lin(LK.stone)).multiplyScalar(0.85 + 0.2 * hash(Math.floor(y * 3), Math.floor(Math.atan2(z - T.z, x - T.x) * 4))));
     // the shaft's rings: band edges and the door's lintel as ring heights
-    const ys = [y0, T.floor + 2.1]; for (let k = 1; k < LK.bands * 2; k++) ys.push(y0 + (yT - y0) * k / (LK.bands * 2)); ys.push(yT); ys.sort((a, b) => a - b);
+    const ys = [y0, T.floor, T.floor + 2.1]; for (let k = 1; k < LK.bands * 2; k++) ys.push(y0 + (yT - y0) * k / (LK.bands * 2)); ys.push(yT); ys.sort((a, b) => a - b);
     for (let k = 0; k < ys.length - 1; k++) for (let i = 0; i < NA; i++) {
-      const a0 = i * dA - Math.PI, a1 = a0 + dA, am = a0 + dA / 2, ya = ys[k], yb = ys[k + 1], low = yb <= T.floor + 2.1 + 1e-6 && ya >= T.floor - 0.01;
+      const a0 = i * dA - Math.PI, a1 = a0 + dA, am = a0 + dA / 2, ya = ys[k], yb = ys[k + 1], low = yb <= T.floor + 2.1 + 1e-6 && ya >= T.floor - 1e-6;
       if (low && doorAt(am, ya, true)) continue;
       const colour = lin(band((ya + yb) / 2));
       const n0 = V(Math.cos(a0), 0, Math.sin(a0)), n1 = V(Math.cos(a1), 0, Math.sin(a1));
@@ -148,11 +151,27 @@ export function createLighthouse({ scene, camera, skyUniforms }) {
     // the ground door's reveal (sides and lintel between the inner and outer skin) and its open leaf
     for (const sgn of [-1, 1]) { const a = T.door + sgn * T.doorHalf, q = [P(T.rIn, a, T.floor), P(rO(T.floor), a, T.floor), P(rO(T.floor + 2.1), a, T.floor + 2.1), P(T.rIn, a, T.floor + 2.1)]; if (sgn > 0) q.reverse(); tower.quad(...q, lin(LK.white).multiplyScalar(0.8)); }
     { const a0 = T.door - T.doorHalf, a1 = T.door + T.doorHalf, y = T.floor + 2.1; tower.quad(P(rO(y), a0, y), P(rO(y), a1, y), P(T.rIn, a1, y), P(T.rIn, a0, y), lin(LK.white).multiplyScalar(0.75)); }
-    { const hinge = P(T.rIn - 0.02, T.door + T.doorHalf, 0), leaf = new THREE.BoxGeometry(0.05, 2.05, 1.05); leaf.translate(0, T.floor + 1.03, -0.53); leaf.rotateY(-T.door + Math.PI / 2 - 1.2); leaf.translate(hinge.x, 0, hinge.z); inner.add(leaf, lin(LK.red).multiplyScalar(0.8)); }
+    { // the door, open inward against the wall: planks, two iron straps and a ring handle
+      const ha = T.door + T.doorHalf, hinge = P(T.rIn - 0.1, ha, 0), tx = -Math.sin(ha), tz = Math.cos(ha), rot = -Math.atan2(tz, tx);
+      const part = (w, h, d, x, y, z, c) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); g.rotateY(rot); g.translate(hinge.x, T.floor, hinge.z); inner.add(g, c); };
+      for (let i = 0; i < 5; i++) part(0.19, 2.02, 0.05, 0.1 + i * 0.2, 1.01, 0, lin(LK.red).multiplyScalar(0.72 + 0.12 * hash(i, 9)));
+      for (const y of [0.35, 1.7]) part(0.98, 0.07, 0.07, 0.5, y, 0.03, lin(LK.iron));
+      const ring = new THREE.TorusGeometry(0.05, 0.01, 6, 14); ring.translate(0.85, 1.0, 0.06); ring.rotateY(rot); ring.translate(hinge.x, T.floor, hinge.z); inner.add(ring, lin(0xb08a3a));
+    }
+    { // outside: a stone surround and a little slate canopy over the door, a brass plate beside it
+      const out = (g, a, r, y) => { g.rotateY(Math.PI / 2 - a); const p = P(r, a, y); g.translate(p.x, p.y, p.z); return g; };
+      const sr = lin(LK.stone).multiplyScalar(1.15);
+      for (const sgn of [-1, 1]) tower.add(out(new THREE.BoxGeometry(0.16, 2.2, 0.12), T.door + sgn * (T.doorHalf + 0.03), rO(T.floor + 1) + 0.03, T.floor + 1.1), sr);
+      tower.add(out(new THREE.BoxGeometry(1.55, 0.18, 0.14), T.door, rO(T.floor + 2.2) + 0.04, T.floor + 2.2), sr);
+      tower.add(out(new THREE.BoxGeometry(1.8, 0.08, 0.14), T.door, rO(T.floor) + 0.05, T.floor + 0.02), sr);   // the threshold
+      for (const sgn of [-1, 1]) { const g = new THREE.BoxGeometry(0.95, 0.05, 0.62); g.rotateZ(-sgn * 0.42); g.translate(sgn * 0.42, 0, 0.26); tower.add(out(g, T.door, rO(T.floor + 2.6) + 0.02, T.floor + 2.62), lin(0x3d4146)); }   // the canopy's two slopes
+      tower.add(out(new THREE.BoxGeometry(0.26, 0.18, 0.02), T.door + T.doorHalf + 0.16, rO(T.floor + 1.5) + 0.01, T.floor + 1.5), lin(0xb08a3a));
+    }
     // slit windows: dark outside, bright inside
     for (let k = 0; k < 4; k++) {
       const a = T.door + Math.PI * 0.6 + k * 1.9, y = T.floor + 2.6 + k * 2.6, w = 0.14, h = 0.55;
       tower.quad(P(rO(y) + 0.01, a + w / 2, y - h / 2), P(rO(y) + 0.01, a - w / 2, y - h / 2), P(rO(y) + 0.01, a - w / 2, y + h / 2), P(rO(y) + 0.01, a + w / 2, y + h / 2), lin(0x1e2328));
+      for (const [fw, fh, dy] of [[0.4, 0.06, h / 2 + 0.03], [0.4, 0.07, -h / 2 - 0.035]]) { const g = new THREE.BoxGeometry(fw, fh, 0.08); g.rotateY(Math.PI / 2 - a); const q = P(rO(y) + 0.02, a, y + dy); g.translate(q.x, q.y, q.z); tower.add(g, lin(LK.white)); }   // sill and head
     }
     // the gallery: a ring deck with its railing; the lantern room's parapet, its door, the iron frame and the roof
     for (let i = 0; i < NA; i++) {
@@ -211,12 +230,126 @@ export function createLighthouse({ scene, camera, skyUniforms }) {
   const lensGeo = (() => { const pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12, y = t * 1.1; pts.push(new THREE.Vector2(0.42 + 0.06 * Math.sin(t * Math.PI) + 0.025 * (i % 2), y)); } const g = new THREE.LatheGeometry(pts, 24); g.translate(T.x, T.topY + 0.85, T.z); return g; })();
   const lensMat = farFog(new THREE.MeshStandardMaterial({ color: 0xd8ecef, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.75, emissive: new THREE.Color(1, 0.85, 0.55), emissiveIntensity: 0 }), LK.fogK);
 
+  /* ---- near things (drawn within LK.near): the flagstone path, a bench facing home, a life ring and an anchor by the
+     door, barrels, a crate and a coil of rope on the jetty, a table with the keeper's log inside; the lamps ---- */
+  const deco = builder(), lamps = builder(), glowAt = [];
+  const block = (w, h, d, x, y, z, c, ry = 0) => { const g = new THREE.BoxGeometry(w, h, d); g.rotateY(ry); g.translate(x, y, z); deco.add(g, c); };
+  const cyl = (r0, r1, h, x, y, z, c, seg = 12) => { const g = new THREE.CylinderGeometry(r0, r1, h, seg); g.translate(x, y, z); deco.add(g, c); };
+  const solid = [];   // (x, z, r) you walk round (world/bounds.js obstacles)
+  {
+    // flagstones from the head of the steps to the door
+    const x0 = L.x - G.u0 + 0.2, x1 = T.x - T.rOut[0] - 0.45;
+    for (let x = x0, k = 0; x < x1; x += 0.62, k++) for (const dz of [-0.33, 0.33]) {
+      const sx = x + (k % 2) * 0.15 + (dz > 0 ? 0.08 : 0), sz = L.z + dz + 0.05 * Math.sin(k * 2.1), y = lighthouseH(sx, sz);
+      block(0.56, 0.06, 0.6, sx, y + 0.02, sz, lin(LK.stone).multiplyScalar(0.9 + 0.3 * hash(k, dz * 10)), 0.1 * (hash(k, 3) - 0.5));
+    }
+    // a bench west of the tower, facing home across the water
+    { const bx = L.x - 2.2, bz = L.z - 3.1, y = lighthouseH(bx, bz), wood = lin(LK.wood).multiplyScalar(1.1);
+      block(0.45, 0.05, 1.5, bx, y + 0.45, bz, wood); block(0.06, 0.45, 1.5, bx + 0.22, y + 0.72, bz, wood);
+      for (const dz of [-0.62, 0.62]) { block(0.4, 0.45, 0.06, bx, y + 0.22, bz + dz, wood.clone().multiplyScalar(0.7)); block(0.06, 0.95, 0.06, bx + 0.22, y + 0.48, bz + dz, wood.clone().multiplyScalar(0.7)); }
+      solid.push([bx, bz - 0.4, 0.4], [bx, bz + 0.4, 0.4]); }
+    // the life ring on the tower wall (red and white quarters) and an anchor leaning on the plinth
+    { const a = T.door - 0.75, y = T.floor + 1.45, g = new THREE.TorusGeometry(0.24, 0.06, 8, 24);
+      g.translate(0, 0, 0.06); g.rotateY(Math.PI / 2 - a); const q = P(rO(y) + 0.02, a, y); g.translate(q.x, q.y, q.z);
+      deco.add(g, (c, x, yy, z) => { const u = Math.atan2(yy - y, (x - q.x) * Math.sin(a) - (z - q.z) * Math.cos(a)); c.copy(lin(Math.floor((u + Math.PI) / (Math.PI / 2)) % 2 ? LK.red : LK.white)); }); }
+    { const a = T.door + 0.8, q = P(T.rOut[0] + 0.62, a, 0), y = lighthouseH(q.x, q.z), iron = lin(0x3a3634);
+      const sh = new THREE.CylinderGeometry(0.035, 0.035, 1.1, 8); sh.translate(0, 0.55, 0); sh.rotateZ(0.32); sh.rotateY(Math.PI / 2 - a); sh.translate(q.x, y, q.z); deco.add(sh, iron);
+      const arm = new THREE.TorusGeometry(0.32, 0.035, 6, 16, Math.PI); arm.rotateZ(Math.PI); arm.translate(0, 0.3, 0); arm.rotateZ(0.32); arm.rotateY(Math.PI / 2 - a); arm.translate(q.x, y, q.z); deco.add(arm, iron);
+      const stock = new THREE.CylinderGeometry(0.03, 0.03, 0.6, 6); stock.rotateX(Math.PI / 2); stock.translate(0, 1.0, 0); stock.rotateZ(0.32); stock.rotateY(Math.PI / 2 - a); stock.translate(q.x, y, q.z); deco.add(stock, lin(LK.wood));
+      solid.push([q.x, q.z, 0.35]); }
+    // on the jetty: two barrels and a crate at the head (north side, clear of the berth), a coil of rope by the bollards
+    { const y = J.deckY, zN = J.z + J.head.halfW - 0.4;
+      for (const [x, k] of [[J.x1 + 0.6, 0], [J.x1 + 1.25, 1]]) { cyl(0.26, 0.24, 0.72, x, y + 0.36, zN, lin(0x6a4a2e).multiplyScalar(0.9 + 0.2 * k), 14); for (const dy of [0.12, 0.6]) cyl(0.265, 0.265, 0.04, x, y + dy, zN, lin(LK.iron)); solid.push([x, zN, 0.3]); }
+      block(0.55, 0.45, 0.55, J.x1 + 1.95, y + 0.225, zN + 0.05, lin(0x8a6a44), 0.3); solid.push([J.x1 + 1.95, zN + 0.05, 0.35]);
+      for (let i = 0; i < 4; i++) { const g = new THREE.TorusGeometry(0.2 - i * 0.015, 0.025, 6, 20); g.rotateX(Math.PI / 2); g.translate(J.bollards[0][0] + 0.6, y + 0.03 + i * 0.045, J.bollards[0][1] + 0.35); deco.add(g, lin(0xc9b98f)); } }
+    // inside, by the wall opposite the door: a small table with the keeper's log and an oil can, a stool
+    { const a = T.door + Math.PI, q = P(0.55, a + 0.2, 0), y = T.floor, wood = lin(LK.wood);
+      block(0.7, 0.04, 0.5, q.x, y + 0.74, q.z, wood, Math.PI / 2 - a); for (const [dx, dz] of [[-0.3, -0.2], [0.3, -0.2], [-0.3, 0.2], [0.3, 0.2]]) { const g = new THREE.BoxGeometry(0.04, 0.72, 0.04); g.translate(dx, 0.36, dz); g.rotateY(Math.PI / 2 - a); g.translate(q.x, y, q.z); deco.add(g, wood.clone().multiplyScalar(0.8)); }
+      const book = new THREE.BoxGeometry(0.26, 0.04, 0.34); book.rotateY(0.3); book.translate(q.x, y + 0.78, q.z); deco.add(book, lin(0x3a2a4a));
+      cyl(0.05, 0.07, 0.16, q.x + 0.2, y + 0.84, q.z - 0.12, lin(0x8a8a82));
+      cyl(0.16, 0.16, 0.04, q.x + 0.35 * Math.cos(a + 1.2), y + 0.45, q.z + 0.35 * Math.sin(a + 1.2), wood); cyl(0.03, 0.03, 0.45, q.x + 0.35 * Math.cos(a + 1.2), y + 0.22, q.z + 0.35 * Math.sin(a + 1.2), wood.clone().multiplyScalar(0.7), 6); }
+    // the weather vane on the roof (always drawn, with the tower)
+    { const y = yT + 4.2; const arrow = new THREE.BoxGeometry(0.9, 0.03, 0.04); arrow.translate(T.x, y + 0.25, T.z); tower.add(arrow, lin(LK.iron));
+      const tail = new THREE.BoxGeometry(0.02, 0.22, 0.18); tail.translate(T.x - 0.42, y + 0.3, T.z); tower.add(tail, lin(LK.iron));
+      for (const r of [0, Math.PI / 2]) { const c = new THREE.BoxGeometry(0.6, 0.02, 0.02); c.rotateY(r); c.translate(T.x, y, T.z); tower.add(c, lin(LK.iron)); } }
+  }
+  // the lamps: small lanterns (unlit glass by day, glowing at night): over the door, on the jetty's post, along the stair
+  const lantern = (x, y, z, hang) => {
+    const f = lin(LK.iron), g1 = new THREE.BoxGeometry(0.16, 0.02, 0.16); g1.translate(x, y + 0.13, z); deco.add(g1, f);
+    const cap = new THREE.ConeGeometry(0.13, 0.1, 4); cap.rotateY(Math.PI / 4); cap.translate(x, y + 0.19, z); deco.add(cap, f);
+    const base = new THREE.BoxGeometry(0.14, 0.02, 0.14); base.translate(x, y - 0.13, z); deco.add(base, f);
+    const pane = new THREE.BoxGeometry(0.12, 0.24, 0.12); pane.translate(x, y, z); lamps.add(pane, lin(0xffd08a));
+    if (hang) { const h = new THREE.CylinderGeometry(0.01, 0.01, hang, 4); h.translate(x, y + 0.2 + hang / 2, z); deco.add(h, f); }
+    glowAt.push(x, y, z);
+  };
+  { const q = P(rO(T.floor + 2.35) + 0.25, T.door + T.doorHalf + 0.22, T.floor + 2.3); lantern(q.x, q.y, q.z); const arm = new THREE.BoxGeometry(0.3, 0.03, 0.03); arm.rotateY(Math.PI / 2 - (T.door + T.doorHalf + 0.22)); arm.translate((q.x + P(rO(q.y), T.door + T.doorHalf + 0.22, 0).x) / 2, q.y + 0.2, (q.z + P(rO(q.y), T.door + T.doorHalf + 0.22, 0).z) / 2); deco.add(arm, lin(LK.iron)); }
+  { const px = J.x1 + 0.2, pz = J.z - J.head.halfW + 0.15; cyl(0.05, 0.06, 2.3, px, J.deckY + 1.15, pz, lin(LK.iron), 8); const arm = new THREE.BoxGeometry(0.03, 0.03, 0.35); arm.translate(px, J.deckY + 2.28, pz + 0.17); deco.add(arm, lin(LK.iron)); lantern(px, J.deckY + 2.0, pz + 0.33, 0.1); }
+  for (let k = 0; k < S.turns - 1; k++) {   // one a turn, on the wall 2.1 m over the tread below it
+    const a = S.a0 + 1.1 + k * 2.4, s = (((a - S.a0) / (Math.PI * 2)) % 1 + 1) % 1, q = P(T.rIn - 0.14, a, T.floor + S.rise * (k + s) + 2.1); lantern(q.x, q.y, q.z);
+  }
+  { const q = P(T.rIn - 0.14, T.door + Math.PI * 0.5, T.floor + 2.2); lantern(q.x, q.y, q.z); }
+  /* ---- foliage on the plateau and the ledges: grass tufts, sea thrift in flower, a few low junipers (near only) ---- */
+  const spots = [];
+  {
+    const clear = (x, z) => {
+      if (Math.hypot(x - T.x, z - T.z) < T.rOut[0] + 0.8) return false;                                       // the tower and plinth
+      const u = L.x - x, v = Math.abs(z - L.z); if (u > G.u0 - 1.5 && v < G.half + 0.5) return false;           // the cleft
+      if (x > L.x - G.u0 && x < T.x && v < 0.75) return false;                                                 // the flagstones
+      return !solid.some(([sx, sz, r]) => Math.hypot(x - sx, z - sz) < r + 0.15);
+    };
+    for (let i = 0; i < 3200; i++) {
+      const a = hash(i, 1) * Math.PI * 2, r = Math.sqrt(hash(i, 2)) * 12.5, x = L.x + Math.cos(a) * r, z = L.z + Math.sin(a) * r, h = lighthouseH(x, z);
+      const sl = Math.hypot(lighthouseH(x + 0.3, z) - lighthouseH(x - 0.3, z), lighthouseH(x, z + 0.3) - lighthouseH(x, z - 0.3)) / 0.6;
+      if (h < SEA_Y + 1.2 || sl > (h > L.top - 0.5 ? 0.6 : 0.35) || !clear(x, z)) continue;   // the plateau, and flat ledges on the cliffs
+      spots.push([x, h, z, hash(i, 3), hash(i, 4)]);
+    }
+  }
+  const tuft = (() => {   // 9 thin blades, leaning out, dark at the foot
+    const pos = [], col = [], base = lin(0x3d4a22), tip = lin(0x8f9a52);
+    for (let b = 0; b < 9; b++) {
+      const a = b / 9 * Math.PI * 2 + hash(b, 5), h = 0.2 + 0.16 * hash(b, 6), lean = 0.06 + 0.05 * hash(b, 7), w = 0.018;
+      const cx = Math.cos(a) * 0.03, cz = Math.sin(a) * 0.03, px = -Math.sin(a) * w, pz = Math.cos(a) * w;
+      pos.push(cx - px, 0, cz - pz, cx + px, 0, cz + pz, cx + Math.cos(a) * lean, h, cz + Math.sin(a) * lean);
+      col.push(base.r, base.g, base.b, base.r, base.g, base.b, tip.r, tip.g, tip.b);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+    const n = g.attributes.normal; for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 1, 0);   // lit like the ground under it
+    return g;
+  })();
+  const thrift = (() => { const b = builder(); const cushion = new THREE.SphereGeometry(0.1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2); cushion.scale(1, 0.6, 1); b.add(cushion, lin(0x3f5028));
+    for (let k = 0; k < 6; k++) { const a = k * 1.1, rr = 0.03 + 0.05 * hash(k, 8), x = Math.cos(a) * rr, z = Math.sin(a) * rr, h = 0.12 + 0.06 * hash(k, 9);
+      const st = new THREE.CylinderGeometry(0.004, 0.004, h, 3); st.translate(x, h / 2, z); b.add(st, lin(0x55623a));
+      const fl = new THREE.SphereGeometry(0.022, 6, 4); fl.translate(x, h, z); b.add(fl, lin(k % 2 ? 0xe07fa8 : 0xd46a98)); }
+    return b.geometry(); })();
+  const juniper = (() => { const b = builder(); for (let k = 0; k < 6; k++) { const g = new THREE.IcosahedronGeometry(0.28 + 0.1 * hash(k, 10), 1); g.scale(1.2, 0.55, 1); g.translate(Math.cos(k * 1.3) * 0.3, 0.12 + 0.04 * (k % 3), Math.sin(k * 1.3) * 0.25); b.add(g, (c, x, y, z) => c.copy(lin(0x2f4424)).lerp(lin(0x4e6634), 0.5 + 0.5 * Math.sin(x * 23 + y * 31 + z * 17))); } return b.geometry(); })();
+  const scatterIM = (geo, list, mat, sMin, sMax) => {
+    const im = new THREE.InstancedMesh(geo, mat, list.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    list.forEach(([x, h, z, a, b], i) => { const sc = sMin + (sMax - sMin) * b; e.set(0, a * 6.28, 0); q.setFromEuler(e); m4.compose(V(x, h - 0.02, z), q, V(sc, sc * (0.8 + 0.4 * a), sc)); im.setMatrixAt(i, m4); });
+    im.instanceMatrix.needsUpdate = true; im.castShadow = false; im.receiveShadow = true; scene.add(im); return im;
+  };
+  const tuftSpots = spots.filter((p, i) => i % 5 !== 0 || p[1] < L.top - 0.5), thriftSpots = spots.filter((p, i) => i % 5 === 0 && p[1] > L.top - 0.5 && p[3] < 0.45);
+  const junSpots = spots.filter((p, i) => i % 5 === 0 && p[3] > 0.93).slice(0, 9);
+  const foliageMat = std({ roughness: 0.9, side: THREE.DoubleSide });
+  const tufts = scatterIM(tuft, tuftSpots.slice(0, isTouch ? 450 : 800), foliageMat, 0.8, 1.4);
+  const thrifts = scatterIM(thrift, thriftSpots.slice(0, 70), std({ roughness: 0.8 }), 0.8, 1.3);
+  const junipers = scatterIM(juniper, junSpots, std({ roughness: 0.95 }), 0.7, 1.2); junipers.castShadow = true;
+  junSpots.forEach(([x, , z]) => solid.push([x, z, 0.4]));
+  for (const [x, z, r] of solid) obstacles.add(x, z, r, L.top + 3);
+
   const rockMat = std({ roughness: 0.92 }), towerMat = std({ roughness: 0.7 }), innerMat = std({ roughness: 0.8, side: THREE.DoubleSide });
   const glassMat = farFog(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }), LK.fogK);
   const add = (geo, mat, shadow = true) => { const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = shadow; scene.add(m); return m; };
   const rockMesh = add(mergeTwo(rock.rockGeo, steps.geometry()), rockMat);
   const towerMesh = add(tower.geometry(), towerMat), glassMesh = add(glass.geometry(), glassMat, false), lens = add(lensGeo, lensMat, false);
   const inside = add(inner.geometry(), innerMat); glassMesh.renderOrder = 2; lens.renderOrder = 2;
+  const decoMesh = add(deco.geometry(), std({ roughness: 0.8 }));
+  const lampMat = farFog(new THREE.MeshBasicMaterial({ vertexColors: true }), LK.fogK), lampMesh = add(lamps.geometry(), lampMat, false);
+  // their glow at night: soft additive sprites, one draw
+  const glowGeo = new THREE.BufferGeometry(); glowGeo.setAttribute('position', new THREE.Float32BufferAttribute(glowAt, 3));
+  const glowMat = new THREE.PointsMaterial({ map: softDot, color: 0xffc070, size: 1.1, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
+  const glow = new THREE.Points(glowGeo, glowMat); glow.frustumCulled = false; scene.add(glow);
+  innerMat.emissive = new THREE.Color(1, 0.72, 0.42);   // the lamps' warm light on the whitewash at night (no light of their own)
+  const near = [inside, decoMesh, lampMesh, glow, tufts, thrifts, junipers];
 
   /* ---- the beams: two soft additive cones back to back, turning about the lamp ---- */
   const B = LK.beam, beamU = { uBeamA: { value: 0 } };
@@ -234,8 +367,9 @@ export function createLighthouse({ scene, camera, skyUniforms }) {
   return {
     meshes: { rock: rockMesh, tower: towerMesh, glass: glassMesh, lens, inside }, beam,
     update(dt) {
-      inside.visible = camera.position.distanceTo(at) < LK.near;
+      const isNear = camera.position.distanceTo(at) < LK.near; near.forEach(o => { o.visible = isNear; });
       const lit = smooth(B.night[0], B.night[1], skyUniforms.uNight.value);
+      lampMat.color.setScalar(0.45 + 1.1 * lit); glowMat.opacity = 0.75 * lit; glow.visible = isNear && lit > 0.02; innerMat.emissiveIntensity = 0.05 * lit;
       lensMat.emissiveIntensity = 0.1 + 2.2 * lit;
       beam.visible = lit > 0.01; beamU.uBeamA.value = B.opacity * lit; beam.rotation.y += dt * Math.PI * 2 / B.period;
     },
