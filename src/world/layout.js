@@ -645,30 +645,102 @@ export function treehouseRails(p, prev, radius, feet) {
 }
 
 /**
- * The cave (#63; assets/rocks/cave.js): a rocky knoll on the meadow slope south of the plot with a cave inside, its
- * mouth (local +z) facing the pond. The knoll's footprint is an ellipse a x c (half-axes, m) turned by rot, b m high;
- * the cave inside is the same shape `wall` m smaller. mouth: the entrance's half-angle at the ground (rad).
- * caveWalls keeps you out of the rock (in by the mouth only) and, inside, within the walls at head height.
+ * The caverns (#63; meshes: assets/rocks/caverns.js): limestone caves under the south slope, after Luray Caverns. Two
+ * entrances cut into the meadow, flush with the ground (the terrain mesh is opened over them), lead down stone steps
+ * (ramps) into two halls: the great hall under the south hill, with a still pool that mirrors its stalactites, and the
+ * crystal chamber under the west wood; a winding tunnel lit by glowing crystals joins them. Floors are ~4 m below the sea.
+ *  - halls: an ellipse (rx, rz) at (x, z), a floor, a domed roof h m over it (lower towards the walls)
+ *  - tubes: a path of points [x, z, floor] with half-width w and height h; stairs: the floor goes in steps of `rise`
+ * caveSDF is the air (< 0) for the mesh; caveFloor where you walk; caveWalls keeps you inside and lets you in and out at
+ * the ramps' top ends only; underground() says you are below the ground (the sea, rain and the sky's sounds are away).
  */
-export const CAVE = (() => {
-  const x = -4.5, z = 17.5, a = 3.7, c = 3.4, b = 3.4, wall = 0.65, face = [0.25, -0.97], rot = Math.atan2(face[0], face[1]), mouth = 0.4;
-  const s = Math.sin(rot), co = Math.cos(rot);
-  const toWorld = (lx, lz) => [x + lx * co + lz * s, z - lx * s + lz * co], toLocal = (wx, wz) => { const dx = wx - x, dz = wz - z; return [dx * co - dz * s, dx * s + dz * co]; };
-  return { x, z, a, c, b, wall, rot, mouth, toWorld, toLocal, y: H(x, z) };
+export const CAVERNS = (() => {
+  const fA = -4.0, fB = -3.6, topA = [-4.5, 14.0], topB = [-11.2, 9.6];
+  const halls = [
+    { name: 'hall', x: -10.2, z: 22.6, rx: 7.4, rz: 4.5, floor: fA, h: 5.2, pool: { x: -13.4, z: 23.4, rx: 2.6, rz: 1.7, y: fA + 0.08 } },
+    { name: 'crystal', x: -22.4, z: 13.2, rx: 4.4, rz: 4.0, floor: fB, h: 4.4 },
+  ];
+  const tubes = [
+    { name: 'tunnel', w: 1.25, h: 2.8, pts: [[-16.6, 22.2, fA], [-19.6, 21.3, -3.9], [-22.0, 19.2, -3.8], [-22.8, 16.6, fB]] },
+    { name: 'rampA', w: 1.05, h: 2.9, stairs: 0.2, pts: [[topA[0], topA[1], H(...topA) - 0.02], [-4.2, 18.4, null], [-5.6, 21.6, fA]] },
+    { name: 'rampB', w: 1.05, h: 2.9, stairs: 0.2, pts: [[-18.6, 13.3, fB], [-14.6, 12.4, null], [topB[0], topB[1], H(...topB) - 0.02]] },
+  ];
+  for (const t of tubes) {   // arc lengths; unset floors by length between the set ones
+    let a = 0; t.pts.forEach((p, i) => { if (i) a += Math.hypot(p[0] - t.pts[i - 1][0], p[1] - t.pts[i - 1][1]); p[3] = a; }); t.len = a;
+    t.pts.forEach((p, i) => { if (p[2] !== null) return; let j = i - 1, k = i + 1; while (t.pts[k][2] === null) k++; const u = (p[3] - t.pts[j][3]) / (t.pts[k][3] - t.pts[j][3]); p[2] = t.pts[j][2] + (t.pts[k][2] - t.pts[j][2]) * u; });
+  }
+  return { halls, tubes, mouths: [{ tube: 'rampA', x: topA[0], z: topA[1] }, { tube: 'rampB', x: topB[0], z: topB[1] }], box: { x0: -28, x1: 0.5, z0: 7.5, z1: 28.5, y0: fA - 0.8 } };
 })();
-/** Distance (roughly, m) to the knoll's footprint: < 0 under the rock or in the cave. */
-export function caveDist(x, z) { const C = CAVE, [lx, lz] = C.toLocal(x, z); return (Math.hypot(lx / C.a, lz / C.c) - 1) * Math.min(C.a, C.c); }
-export function caveWalls(p, prev, radius) {
-  const C = CAVE; let [lx, lz] = C.toLocal(p.x, p.z); const rho = Math.hypot(lx / C.a, lz / C.c); if (rho > 1.25) return;
-  const [px, pz] = C.toLocal(prev.x, prev.z), prho = Math.hypot(px / C.a, pz / C.c), ang = Math.atan2(lx, lz);
-  const inner = 0.74 - radius / Math.min(C.a, C.c), outer = 1.02 + radius / Math.min(C.a, C.c);
-  let k = 1;
-  if (Math.abs(ang) < C.mouth && rho < outer + 0.05 && rho > inner - 0.05) {   // in the mouth: between its sides
-    const lim = C.mouth - 0.1 - radius / (rho * Math.min(C.a, C.c) + 0.01);
-    if (Math.abs(ang) > lim) { const r = Math.hypot(lx, lz), q = Math.sign(ang) * lim; lx = Math.sin(q) * r; lz = Math.cos(q) * r; }
-  } else if (prho < (inner + outer) / 2) { if (rho > inner) k = inner / rho; }   // inside: the walls
-  else if (rho < outer) k = outer / rho;                                          // outside: the rock
-  const [wx, wz] = C.toWorld(lx * k, lz * k); p.x = wx; p.z = wz;
+/** The old name for the story's cave (its mouth: app/treasure.js draws it on the map, the star is over it). */
+export const CAVE = { x: CAVERNS.mouths[0].x, z: CAVERNS.mouths[0].z };
+/** A tube's nearest point to (x, z): { d lateral distance, s arc length, floor there (stepped for stairs) }. */
+function tubeAt(t, x, z) {
+  let best = { d: Infinity, s: 0, floor: 0 };
+  for (let i = 1; i < t.pts.length; i++) {
+    const a = t.pts[i - 1], b = t.pts[i], dx = b[0] - a[0], dz = b[1] - a[1], L2 = dx * dx + dz * dz, u = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / L2, 0, 1);
+    const d = Math.hypot(x - a[0] - dx * u, z - a[1] - dz * u);
+    if (d < best.d) best = { d, s: a[3] + (b[3] - a[3]) * u, floor: a[2] + (b[2] - a[2]) * u, end: (i === 1 && u === 0) || (i === t.pts.length - 1 && u === 1) };
+  }
+  if (t.stairs) { const hi = Math.max(t.pts[0][2], t.pts[t.pts.length - 1][2]); best.floor = hi - Math.ceil((hi - best.floor) / t.stairs - 1e-6) * t.stairs; best.smooth = best.floor; }
+  return best;
+}
+const inBox = (x, z) => { const B = CAVERNS.box; return x > B.x0 && x < B.x1 && z > B.z0 && z < B.z1; };
+/** Signed distance (roughly, m) to the caves' air at (x, y, z): < 0 inside. Without the rock's noise (the mesh adds it). */
+export function caveSDF(x, y, z) {
+  if (!inBox(x, z)) return 5;
+  let d = 20;
+  for (const c of CAVERNS.halls) {
+    const q = Math.hypot((x - c.x) / c.rx, (z - c.z) / c.rz), lat = (q - 1) * Math.min(c.rx, c.rz);
+    const pq = c.pool ? Math.hypot((x - c.pool.x) / c.pool.rx, (z - c.pool.z) / c.pool.rz) : 9;   // the pool's basin, deep enough to hold its mirror image
+    const fy = c.floor + 0.12 * Math.sin(x * 1.3) * Math.sin(z * 1.1) - 2.0 * (1 - smooth(0.7, 1.15, pq)), ceil = c.floor + c.h * Math.pow(Math.max(0, 1 - q * q), 0.45);
+    d = smin(d, Math.max(lat, fy - y, y - ceil), 0.9);
+  }
+  for (const t of CAVERNS.tubes) {
+    const a = tubeAt(t, x, z), ceil = a.floor + t.h * Math.sqrt(Math.max(0, 1 - (a.d / t.w) ** 2));
+    d = smin(d, Math.max(a.d - t.w, a.floor - y, y - ceil), 0.6);
+  }
+  return d;
+}
+function smin(a, b, k) { const h = clamp(0.5 + 0.5 * (b - a) / k, 0, 1); return b + (a - b) * h - k * h * (1 - h); }
+/** Where you walk in the caves at (x, z), or null outside them (the walkable part: clear of the walls and the pool). */
+export function caveFloor(x, z) {
+  if (!inBox(x, z)) return null;
+  let f = null;
+  for (const c of CAVERNS.halls) {
+    if (Math.hypot((x - c.x) / c.rx, (z - c.z) / c.rz) > 0.84) continue;
+    if (c.pool && Math.hypot((x - c.pool.x) / c.pool.rx, (z - c.pool.z) / c.pool.rz) < 1.08) return null;
+    const fy = c.floor + 0.12 * Math.sin(x * 1.3) * Math.sin(z * 1.1); f = f === null ? fy : Math.max(f, fy);
+  }
+  for (const t of CAVERNS.tubes) { const a = tubeAt(t, x, z); if (a.d < t.w - 0.4) f = f === null ? a.floor : Math.max(f, a.floor); }
+  return f;
+}
+/** Distance to where the caves open to the sky (the ramps' trenches; < 0 inside): no grass, rocks or sticks there. */
+export function caveDist(x, z) {
+  if (!inBox(x, z)) return 9;
+  let d = Infinity;
+  for (const t of CAVERNS.tubes) if (t.stairs) { const a = tubeAt(t, x, z); if (a.floor + t.h > H(x, z) - 0.35) d = Math.min(d, a.d - t.w - 0.2); }   // (where the trench is open)
+  return d;
+}
+/** Whether a trench is open to the sky over (x, z) (the terrain mesh leaves those cells out). */
+export function caveOpen(x, z) {
+  if (!inBox(x, z)) return false;
+  for (const t of CAVERNS.tubes) if (t.stairs) { const a = tubeAt(t, x, z); if (a.d < t.w + 0.15 && a.floor + t.h * Math.sqrt(Math.max(0, 1 - Math.min(1, a.d / t.w) ** 2)) > H(x, z) - 0.35) return true; }
+  return false;
+}
+/** Below the ground in the caves (feet at `feet`). */
+export function underground(x, z, feet) { const f = caveFloor(x, z); return f !== null && feet < H(x, z) - 1.2 && Math.abs(feet - f) < 1.2; }
+/** Where you stand in the caves, or null when not in them (on the surface, even over them). */
+export function caveGround(x, z, feet) { const f = caveFloor(x, z); if (f === null) return null; return feet < H(x, z) - 0.25 || caveOpen(x, z) ? f : null; }
+/**
+ * Keep a walker (feet at `feet`, from prev to p) in the caves: inside the walkable floor while in them, out and in at the
+ * ramps' top ends only (where the steps meet the ground), and off the open trenches' edges from outside.
+ */
+export function caveWalls(p, prev, feet) {
+  if (!inBox(p.x, p.z) && !inBox(prev.x, prev.z)) return;
+  const was = caveGround(prev.x, prev.z, feet) !== null && Math.abs(caveFloor(prev.x, prev.z) - feet) < 0.6;
+  const f = caveFloor(p.x, p.z), inNow = f !== null && (feet < H(p.x, p.z) - 0.25 || caveOpen(p.x, p.z));
+  if (was) { if (f === null ? H(p.x, p.z) - feet > 0.35 || feet - H(p.x, p.z) > 0.6 : Math.abs(f - feet) > 0.5) { p.x = prev.x; p.z = prev.z; } return; }
+  if ((inNow || caveOpen(p.x, p.z)) && !(f !== null && Math.abs(f - feet) < 0.4)) { p.x = prev.x; p.z = prev.z; }
 }
 
 /** Distance to the nearest lie-down place's middle. */
@@ -724,12 +796,12 @@ export function excluded(x, z, margin = 0) { for (const f of EXCLUSIONS) if (f(x
  * each (world/grass.js), so it can be seen from a few steps.
  */
 export const KEEPSAKES = (() => {
-  const T = TREEHOUSE, [tx, tz] = T.toWorld(0.35, -1.18), fs = STONES.stones.find(s => s.fallen), [cx, cz] = CAVE.toWorld(1.0, -1.6);
+  const T = TREEHOUSE, [tx, tz] = T.toWorld(0.35, -1.18), fs = STONES.stones.find(s => s.fallen), cx = CAVERNS.halls[1].x - 2.9, cz = CAVERNS.halls[1].z + 0.4;   // the geode: by the paintings in the crystal chamber
   const SUNSET = BENCHES[1], [bx, bz] = benchPoint(SUNSET, 0.35, 0.05), wa = 2.4, wm = WELL.r - 0.07;
   return [
     { kind: 'compass', x: tx, z: tz, y: T.deck + 0.918, ry: 0.6, hint: 'Where someone once kept watch, high in the trees, on the shelf.' },
     { kind: 'spyglass', x: STONES.x + Math.cos(fs.a) * (STONES.r - 0.75), z: STONES.z + Math.sin(fs.a) * (STONES.r - 0.75), ry: 1.9, hint: 'In the stone ring, by the stone that fell.' },
-    { kind: 'geode', x: cx, z: cz, y: H(cx, cz) + 0.04, ry: 0.4, hint: 'Deep in the dark, where the walls are painted. Bring a light.' },
+    { kind: 'geode', x: cx, z: cz, y: (caveFloor(cx, cz) ?? CAVERNS.halls[1].floor) + 0.04, ry: 0.4, hint: 'Deep in the dark, where the walls are painted. Bring a light.' },
     { kind: 'shipBottle', x: 40.9, z: -35.3, ry: 2.3, hint: 'Beside an old boat that will never sail again.' },
     { kind: 'ammonite', x: -16.8, z: -31.1, ry: 0.8, hint: 'On the north beach, below the hill where you lie and watch the sky.' },
     { kind: 'glassFloat', x: 8.7, z: 27.5, ry: 0, hint: 'Washed up on the south beach, below the hill that looks out to sea.' },

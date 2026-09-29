@@ -5,7 +5,7 @@ import { fbm2, hash2 } from '../core/noise.js';
 import { U } from '../core/uniforms.js';
 import { canvasTex } from '../core/canvasTexture.js';
 import { CONFIG } from '../config.js';
-import { WATER_Y, HALF, houseRectDist, ROCK, ROSE, CON, H, coreDist, forest, coastDist, SEA_Y, streamDist } from './layout.js';
+import { WATER_Y, HALF, houseRectDist, ROCK, ROSE, CON, H, coreDist, forest, coastDist, SEA_Y, streamDist, caveOpen } from './layout.js';
 
 const gA = lin(0x33501b), gB = lin(0x4f6d27), needles = lin(0x4d3c28), shore = lin(0x6b5d43), mud = lin(0x57492f), deep = lin(0x2a2a1c), dry = lin(0x6d7a34);
 const cabinDirt = lin(0x4a3d2a), rockMoss = lin(0x3a4a20), rockSoil = lin(0x51483a), roseSoil = lin(0x3b2a1c);
@@ -113,7 +113,7 @@ export function createWorldTerrain(ctx) {
   }
   const ins = (x, z, m) => Math.abs(x) < m && Math.abs(z) < m;
   // main mesh: cells completely under the diorama ground are dropped, the ring next to its edge is tucked below it
-  grid(WC.size, TC.segments, (x, z, st) => !(ins(x, z, HALF - 0.5) && ins(x + st, z + st, HALF - 0.5)), (x, z) => (ins(x, z, HALF - 1e-6) ? 0.12 : 0));
+  grid(WC.size, TC.segments, (x, z, st) => !(ins(x, z, HALF - 0.5) && ins(x + st, z + st, HALF - 0.5)) && !caveOpen(x + st / 2, z + st / 2), (x, z) => (ins(x, z, HALF - 1e-6) ? 0.12 : 0));   // (open over the caverns' ramps)
 
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));

@@ -2,7 +2,7 @@ import { isTouch } from '../core/env.js';
 import { V, UPV, clamp } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, bridgeRails, jettyDeckY, SEATS, LIE_SPOTS, lakeD, treehouseDeckY, treehouseRails, caveWalls, towerY, lighthouseWalls } from '../world/layout.js';
+import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, bridgeRails, jettyDeckY, SEATS, LIE_SPOTS, lakeD, treehouseDeckY, treehouseRails, caveWalls, caveGround, towerY, lighthouseWalls } from '../world/layout.js';
 import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
 
 /** Icons of the sit and stand buttons (also used by the bed, app/sleeping.js). */
@@ -181,6 +181,7 @@ export function createControls(app) {
    *  low rock (outcrop or island boulder). Also pushes out of rocks too tall to step onto, judged by the feet, not the eye. */
   function groundAt(p, feet) {
     let g = H(p.x, p.z);
+    const cg = caveGround(p.x, p.z, feet); if (cg !== null) return cg;   // down in the caverns (world/layout.js CAVERNS)
     const ix = p.x - HOUSE.x, iz = p.z - HOUSE.z;
     if (Math.abs(ix) < 1.58 && Math.abs(iz) < 1.23) g = Math.max(g, PAD_H + CB.FL);
     const deck = Math.max(bridgeDeckY(p.x, p.z), jettyDeckY(p.x, p.z), treehouseDeckY(p.x, p.z), towerY(p.x, p.z, feet)); if (deck - feet <= PC.stepHeight) g = Math.max(g, deck);   // the footbridge, the jetty and the treehouse (not from under them)
@@ -234,7 +235,7 @@ export function createControls(app) {
     obstacles.resolve(np, 0.15);
     bridgeRails(np, st.pos, 0.15, np.y - (st.walk ? PC.eyeHeight : 0.3), np.y + 0.1);   // the footbridge's railings
     if (st.walk) treehouseRails(np, st.pos, 0.2, st.pos.y - PC.eyeHeight);   // on the treehouse deck: its railings and the hut's walls
-    caveWalls(np, st.pos, 0.2);   // the cave's knoll: in by its mouth only
+    if (st.walk) caveWalls(np, st.pos, st.pos.y - PC.eyeHeight);   // the caverns: in and out by the ramps' tops only
     if (st.walk) lighthouseWalls(np, st.pos, st.pos.y - PC.eyeHeight);   // the lighthouse rock's cliffs, the tower's walls and stair
     applyBounds(np, st.vel, dt, st.walk && jettyDeckY(np.x, np.z) === -Infinity);   // on the jetty, deep water below is fine
     if (st.walk) {

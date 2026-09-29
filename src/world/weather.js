@@ -46,7 +46,9 @@ export function createWeather(ctx, { apples = [] } = {}) {
   const cam = new THREE.Vector3();
   return {
     /** How hard it rains, 0..1 (world/skyWeather.js); in winter the snow thickens instead. */
-    setRain(k) { wet = k; rain.visible = k > 0.01 && season !== 'winter'; rGeo.setDrawRange(0, Math.floor(RN.count * k) * 2); sGeo.setDrawRange(0, season === 'winter' ? Math.floor(S.count * (0.45 + 0.55 * k)) : S.count); },
+    /** Below ground (the caverns): no rain, snow or leaves while there. */
+    under(u) { if (u === this._u) return; this._u = u; if (u) { rain.visible = snow.visible = leaves.visible = false; } else this.setSeason(season); },
+    setRain(k) { wet = k; rain.visible = k > 0.01 && season !== 'winter' && !this._u; rGeo.setDrawRange(0, Math.floor(RN.count * k) * 2); sGeo.setDrawRange(0, season === 'winter' ? Math.floor(S.count * (0.45 + 0.55 * k)) : S.count); },
     setSeason(s) { season = s; snow.visible = s === 'winter'; leaves.visible = s === 'autumn' || s === 'spring'; lv.forEach(p => { p.on = false; }); lPos.fill(-50); lGeo.attributes.position.needsUpdate = true; this.setRain(wet); },
     update(dt, t) {
       cam.copy(camera.position); const wd = U.uWindDir.value, ws = U.uWind.value;
