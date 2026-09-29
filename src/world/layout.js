@@ -158,7 +158,7 @@ export function lighthouseH(x, z) {
   const G = L.gully, u = -dx, v = Math.abs(dz);
   if (u > G.u0 && u < G.u1 + 0.4 && v < G.half + 0.5) {
     const n = Math.ceil((L.top - L.jetty.deckY) / G.rise), k = Math.min(n, Math.max(0, Math.ceil((u - G.top) / (G.bottom - G.top) * n)));
-    const step = u >= G.bottom ? L.jetty.deckY : L.top - k * (L.top - L.jetty.deckY) / n, w = smooth(G.half, G.half + 0.35, v);
+    const step = u >= G.bottom ? L.jetty.deckY : k === 0 ? h : L.top - k * (L.top - L.jetty.deckY) / n, w = smooth(G.half, G.half + 0.35, v);   // (the top step: the plateau itself)
     h = step + (Math.max(h, step) - step) * w;
   }
   return h;
@@ -222,7 +222,7 @@ export function lighthouseWalls(p, prev, feet) {
   // the rock: no climbing its cliffs or dropping off them
   const d = Math.hypot(p.x - prev.x, p.z - prev.z); if (d < 1e-5) return;
   const g0 = Math.max(lighthouseH(prev.x, prev.z), lhJettyY(prev.x, prev.z)), g1 = Math.max(lighthouseH(p.x, p.z), lhJettyY(p.x, p.z));
-  const G = L.gully, inCleft = q => { const u = L.x - q.x, v = Math.abs(q.z - L.z); return u > G.u0 && u < G.u1 + 0.4 && v < G.half - 0.1; };
+  const G = L.gully, inCleft = q => { const u = L.x - q.x, v = Math.abs(q.z - L.z); return u > G.u0 - 1 && u < G.u1 + 0.4 && v < G.half - 0.1; };
   if (inCleft(p) && inCleft(prev)) return;                                                                   // its steps
   if (g0 > SEA_Y && Math.abs(g1 - g0) / d > 1.4 && g1 > SEA_Y - 0.3) back();
   else if (g0 > SEA_Y + 0.5 && g1 < SEA_Y + 0.2) back();                                                   // off the edge into the sea
