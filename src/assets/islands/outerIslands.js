@@ -108,7 +108,7 @@ export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
       const sails = builder(); { const hub = new THREE.CylinderGeometry(0.22, 0.22, 0.5, 10); hub.rotateX(Math.PI / 2); sails.add(hub, C(0x3a2a1c));
         for (let k = 0; k < 4; k++) { const arm = new THREE.BoxGeometry(0.14, 5.6, 0.1); arm.translate(0, 2.9, 0); arm.rotateZ(k * Math.PI / 2); sails.add(arm, C(0x5a4028));
           const cloth = new THREE.BoxGeometry(1.0, 4.4, 0.03); cloth.translate(0.62, 3.2, -0.05); cloth.rotateZ(k * Math.PI / 2); sails.add(cloth, (c, px, py) => c.copy(C(0xefe6d2)).multiplyScalar(0.85 + 0.15 * Math.sin((px + py) * 12))); } }
-      const sm = new THREE.Mesh(sails.geometry(), partMat), pivot = new THREE.Group(), [px, py, pz] = f(2.15, 7.2, 0); pivot.position.set(px, py, pz); pivot.rotation.y = ry + Math.PI / 2; pivot.add(sm); scene.add(pivot); sm.castShadow = true;
+      const sm = new THREE.Mesh(sails.geometry(), partMat), pivot = new THREE.Group(), [px, py, pz] = f(2.15, 7.2, 0); pivot.position.set(px, py, pz); pivot.rotation.y = Math.PI / 2 - faceA; pivot.add(sm);   // (the sails face out, over the jetty and home) scene.add(pivot); sm.castShadow = true;
       moving.push({ spin: sm, axis: 'z', speed: 0.9 }); solid(x, z, 2.5);
       // birches round the hill, dry-stone walls
       for (let k = 0; k < 11; k++) { const s = spot(k, 0.2, 0.75, (px2, pz2) => clearOf(px2, pz2, 2.5)); if (!s) continue; birch(far, s[0], s[2], s[1], k); solid(s[0], s[1], 0.25); }
@@ -218,7 +218,7 @@ export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
         for (const mv of o.moving) mv.spin.rotation[mv.axis] += dt * mv.speed * (mv.axis === 'z' ? 0.4 + 0.9 * Math.min(1.4, U.uWind.value) : 1);
       }
       winMat.color.setScalar(0.35 + 1.2 * lit); glowMat.opacity = 0.8 * lit; glow.visible = lit > 0.02;
-      lavaMat.color.setRGB(0.35 + 1.4 * lit, 0.3 + 0.9 * lit, 0.25 + 0.5 * lit);
+      lavaMat.color.setRGB(0.12 + 1.6 * lit, 0.06 + 1.0 * lit, 0.05 + 0.5 * lit);   // dull by day, glowing at night
       if (steam.visible) for (let i = 0; i < NS; i++) { const v = vents[Math.floor(i / 10)], k = ((t * 0.25 + hash(i, 1)) % 1); stP[i * 3] = v[0] + Math.sin(t * 0.7 + i) * 0.3 * k; stP[i * 3 + 1] = v[2] + 0.2 + k * 3.2; stP[i * 3 + 2] = v[1] + Math.cos(t * 0.6 + i) * 0.3 * k; }
       stGeo.attributes.position.needsUpdate = true;
     },
@@ -244,9 +244,9 @@ function palm(b, x, h, z, k) {
 }
 function willow(b, x, h, z, k) {
   const tall = 3.2 + 1.2 * hash(k, 1), trunk = new THREE.CylinderGeometry(0.22, 0.4, tall, 9, 3); trunk.translate(x, h + tall / 2 - 0.1, z); b.add(trunk, lin(0x5a4a38));
-  for (let q = 0; q < 26; q++) { const a = q / 26 * 6.28 + hash(k, q), r0 = 0.6 + 1.6 * hash(q, k), len = 1.6 + 1.4 * hash(q + 1, k), px = x + Math.cos(a) * r0, pz = z + Math.sin(a) * r0, py = h + tall + 0.6 - r0 * 0.25;
-    const g = new THREE.PlaneGeometry(0.5, len, 1, 3); g.translate(0, -len / 2, 0); g.rotateY(-a + Math.PI / 2); g.translate(px, py, pz); b.add(g, (c, qx, qy) => c.copy(lin(0x6f9440)).lerp(lin(0xa9bf5e), clamp((py - qy) / len))); }
-  const crown = new THREE.IcosahedronGeometry(1.8, 1); crown.scale(1.2, 0.6, 1.2); crown.translate(x, h + tall + 0.6, z); b.add(crown, lin(0x6d8f3e));
+  for (let q = 0; q < 40; q++) { const a = q / 40 * 6.28 + hash(k, q), r0 = 0.9 + 1.2 * hash(q, k), len = 1.8 + 1.6 * hash(q + 1, k), px = x + Math.cos(a) * r0, pz = z + Math.sin(a) * r0, py = h + tall + 0.6 - r0 * 0.25;
+    const g = new THREE.PlaneGeometry(0.35, len, 1, 3); g.translate(0, -len / 2, 0); g.rotateY(-a + Math.PI / 2); g.translate(px, py, pz); b.add(g, (c, qx, qy) => c.copy(lin(0x6f9440)).lerp(lin(0xa9bf5e), clamp((py - qy) / len))); }
+  for (let q = 0; q < 5; q++) { const c2 = new THREE.IcosahedronGeometry(0.8 + 0.3 * hash(k, q + 20), 1); c2.scale(1.1, 0.8, 1.1); c2.translate(x + Math.cos(q * 1.26) * 0.9, h + tall + 0.5 + 0.25 * (q % 2), z + Math.sin(q * 1.26) * 0.9); b.add(c2, (c, px, py, pz) => c.copy(lin(0x6d8f3e)).lerp(lin(0x9ab556), 0.5 + 0.5 * Math.sin(px * 4 + pz * 5))); }
 }
 function snag(b, x, h, z, k) {
   const tall = 1.6 + 1.5 * hash(k, 1), g = new THREE.CylinderGeometry(0.03, 0.12, tall, 6); g.translate(0, tall / 2, 0); g.rotateZ((hash(k, 2) - 0.5) * 0.4); g.translate(x, h - 0.1, z); b.add(g, lin(0x3a3230));
@@ -282,7 +282,7 @@ function reedGeo() {   // tall reeds and a cattail
   const pos = [], col = [], base = lin(0x4a5a2a), tip = lin(0xa8b060);
   for (let b = 0; b < 7; b++) { const a = b / 7 * 6.28 + hash(b, 8), h = 0.9 + 0.7 * hash(b, 9), lean = 0.12 * hash(b, 10), w = 0.02, cx = Math.cos(a) * 0.05, cz = Math.sin(a) * 0.05, px = -Math.sin(a) * w, pz = Math.cos(a) * w;
     pos.push(cx - px, 0, cz - pz, cx + px, 0, cz + pz, cx + Math.cos(a) * lean, h, cz + Math.sin(a) * lean); col.push(base.r, base.g, base.b, base.r, base.g, base.b, tip.r, tip.g, tip.b); }
-  const cat = new THREE.CylinderGeometry(0.03, 0.03, 0.2, 6).toNonIndexed(); cat.translate(0.02, 1.35, 0); const cp = cat.attributes.position; const brown = lin(0x5a3a22);
+  const cat = new THREE.CylinderGeometry(0.018, 0.018, 0.13, 6).toNonIndexed(); cat.translate(0.02, 1.3, 0); const cp = cat.attributes.position; const brown = lin(0x5a3a22);
   for (let i = 0; i < cp.count; i++) { pos.push(cp.getX(i), cp.getY(i), cp.getZ(i)); col.push(brown.r, brown.g, brown.b); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(pos.map((v, i) => (i % 3 === 1 ? 1 : 0)), 3)); return g;
 }
