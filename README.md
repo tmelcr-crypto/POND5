@@ -489,6 +489,16 @@ export function createRoseBush(ctx) {
   crate and rope on the jetty, the keeper's table inside, a weather vane; grass tufts, sea thrift and junipers on the
   plateau (instanced, drawn within 45 m). Lanterns by the door, on the jetty's post and along the stair glow at night
   (emissive with soft halos, no lights of their own; the whitewash inside takes a faint warm tint).
+- **Four more islands** (`ISLANDS`, `islandH`, the jetties in `world/layout.js`; `assets/islands/outerIslands.js`): round
+  the home island, each its own place with its own jetties (the dock button works at any; the boat's range is 110 m out):
+  **Millholm** (north): a meadow hill, a whitewashed stone windmill whose sails turn with the wind, birches, dry-stone
+  walls, sheep, wildflowers. **Palm Cay** (west, small): white sand in turquoise shallows, palms, a thatched hut on stilts
+  with tiki torches, a hammock, shells and starfish; two jetties. **Ember Rock** (south): a black volcanic cone, glowing
+  cracks at night, steam vents, a hot spring, dead snags; an observatory on the top whose dome turns slowly.
+  **Heron Marsh** (north-west, the largest): low wetland with still pools, reeds and cattails, willows, herons; a
+  fisherman's lodge on stilts with a boardwalk and net racks; two jetties. Each island's ground, trees, jetties and
+  building are one mesh (the sails and the dome apart); windows, shallows and still water are shared meshes; the small
+  life shows within 55 m. From home they cost ~6 draw calls on touch at the start view.
 - **Rough sea by the lighthouse** (`ROUGH`, `SWELL`, `roughAt`, `swellAt` in `world/layout.js`; the patch in
   `assets/water/pond.js`): within ~16 m of the rock the sea runs high, fading back to calm by ~44 m: a fine patch of sea
   (the open sea is cut away under it) carries a swell of three long waves from the east, choppier ripples, streaky

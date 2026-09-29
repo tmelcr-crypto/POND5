@@ -129,7 +129,7 @@ export const CONFIG = {
   // is now a real place (LIGHTHOUSE in world/layout.js, assets/lighthouse/lighthouse.js).
   horizon: {
     lighthouse: { x: 110, z: 18, rock: 14 },   // m; rock: its radius
-    islands: [{ x: 0, z: 0, r: 45 }],           // islands the sailboats keep clear of (the home island's coast is ~37-49 m out)
+    islands: [{ x: 0, z: 0, r: 45 }, { x: -8, z: -106, r: 20 }, { x: -108, z: 22, r: 14 }, { x: 20, z: 108, r: 18 }, { x: -86, z: -78, r: 30 }],   // (the home island, then layout.js ISLANDS)           // islands the sailboats keep clear of (the home island's coast is ~37-49 m out)
   },
   time: {
     dayMinutes: 18,         // real minutes for one 24 h day
@@ -310,7 +310,7 @@ export const CONFIG = {
     accel: 0.5, decel: 1.3,        // m/s^2 (0 to minSpeed in 4 s)
     turnRate: 0.7,                 // rad/s with the wheel hard over at full speed (less when slower, none when still)
     draft: 0.62,                   // m of water the keel needs
-    maxOffshore: 100,              // m from the shore; beyond it the boat turns itself back towards the island (the lighthouse rock is ~65 m out)
+    maxOffshore: 110,              // m from the shore; beyond it the boat turns itself back towards the island (the far side of Heron Marsh is ~100 m out)
     reach: 2.8,                    // m from the hull within which you can board
     dockReach: 6, dockSpeed: 2.2,  // the dock button shows within this of the berth, slower than this
   },

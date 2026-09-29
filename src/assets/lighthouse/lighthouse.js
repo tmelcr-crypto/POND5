@@ -24,7 +24,7 @@ export const LH_LOOK = {
 const hash = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
 
 /** Collects triangles with normals and colours; geometry() makes one non-indexed BufferGeometry. */
-function builder() {
+export function builder() {
   const pos = [], nor = [], col = [], c = new THREE.Color();
   const B = {
     add(g, colour) {   // a three.js geometry, coloured by `colour` (hex, Color, or fn(color, x, y, z))
@@ -52,7 +52,7 @@ function builder() {
   return B;
 }
 /** The scene's fog at a fraction of its density, so the rock reads from the home island (FogExp2 only). */
-function farFog(mat, k) {
+export function farFog(mat, k) {
   mat.onBeforeCompile = s => {
     s.uniforms.uFogK = { value: k };
     s.fragmentShader = 'uniform float uFogK;\n' + s.fragmentShader.replace('#include <fog_fragment>', `

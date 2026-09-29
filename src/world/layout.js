@@ -109,6 +109,7 @@ export function hillsH(x, z) {
   const shore = c > 0 ? SEA_Y + 0.12 * c : Math.max(SEA_Y - IC.seaDepth, SEA_Y + 0.25 * c);
   const h = land + (shore - land) * (1 - smooth(IC.beachWidth * 0.4, IC.beachWidth * 1.6, c));
   if (Math.abs(x - LIGHTHOUSE.x) < LIGHTHOUSE.reach && Math.abs(z - LIGHTHOUSE.z) < LIGHTHOUSE.reach) return Math.max(h, lighthouseH(x, z));
+  if (Math.abs(x) > 55 || Math.abs(z) > 55) { const I = islandAt(x, z); if (I) return Math.max(h, islandH(I, x, z)); }
   return Math.abs(x - ISLET.x) < ISLET.reach && Math.abs(z - ISLET.z) < ISLET.reach ? Math.max(h, isletH(x, z)) : h;
 }
 /**
@@ -146,6 +147,62 @@ export const LIGHTHOUSE = (() => {
   const tower = { x: x + 2.2, z: z + 0.4, rIn: 1.85, rOut: [2.35, 2.0], floor, topY: floor + stair.rise * stair.turns, door: Math.PI, topDoor, doorHalf: 0.3, gallery: 3.0 };
   return { x, z, top, reach: 30, plateau: 8.6, gully, jetty, tower, stair };
 })();
+/**
+ * Four more islands round the home island, each with its own ground, life and building (assets/islands/outerIslands.js):
+ *  - Millholm (north): rolling meadow, wildflowers, birches, dry-stone walls, sheep; a stone windmill.
+ *  - Palm Cay (west): white sand, turquoise shallows, palms; a thatched beach hut on stilts. Two jetties.
+ *  - Ember Rock (south): a black volcanic cone, glowing cracks, steam vents, a hot spring; the observatory on the top.
+ *  - Heron Marsh (north-west, the largest): low wetland, pools, reeds, willows, herons; a fisherman's stilt lodge. Two jetties.
+ * Each is part of H (islandH), so the boat grounds on it and you walk on it. docks: the directions its jetties run out to
+ * sea (rad; the first faces home); each jetty is placed where the beach meets the deck's height and runs out to water
+ * deep enough for the boat, with the home jetty's shape (a head, a berth on its right, bollards; app/boating.js docks at any).
+ */
+export const ISLANDS = [
+  { name: 'Millholm', kind: 'meadow', x: -8, z: -106, r: 15, top: 3.4, s: 0.7, docks: [null] },
+  { name: 'Palm Cay', kind: 'palm', x: -108, z: 22, r: 9, top: 0.8, s: 2.1, docks: [null, 2.2] },
+  { name: 'Ember Rock', kind: 'volcano', x: 20, z: 108, r: 13, top: 8.5, s: 4.3, docks: [null] },
+  { name: 'Heron Marsh', kind: 'marsh', x: -86, z: -78, r: 22, top: 0.5, s: 5.9, docks: [null, -0.3] },
+].map(I => ({ ...I, reach: I.r * 1.6 + 12 }));
+{ const V = ISLANDS[2], a = 2.6, x = V.x + Math.cos(a) * V.r * 0.4, z = V.z + Math.sin(a) * V.r * 0.4; V.spring = { x, z, r: 1.8, y: 0 }; V.spring.y = islandH({ ...V, spring: { x: 1e9, z: 1e9, r: 0 } }, x, z) - 0.25; }   // (the hot spring's water level)
+function islandR(I, a) { return I.r * (1 + 0.12 * Math.sin(a * 3 + I.s) + 0.07 * Math.sin(a * 5 + I.s * 2) + (I.kind === 'marsh' ? 0.16 * Math.sin(a * 2 + 1) : 0)); }
+/** An island's height at (x, z): its beach and inland by its kind; the sea floor round it. */
+export function islandH(I, x, z) {
+  const dx = x - I.x, dz = z - I.z, a = Math.atan2(dz, dx), R = islandR(I, a), s = Math.hypot(dx, dz) / R;
+  if (s > 1) return SEA_Y - Math.min(6, (s - 1) * R * 0.35);
+  const n = fbm2(x * 0.11 + I.s, z * 0.11 - I.s, 3), rise = I.kind === 'marsh' ? 0.95 : 1.25, beach = SEA_Y + rise * smooth(1.0, 0.72, s), inl = smooth(0.8, 0.15, s);
+  if (I.kind === 'meadow') return beach + inl * (I.top * (0.65 + 0.35 * n) * Math.pow(inl, 0.6) + 0.3 * fbm2(x * 0.3, z * 0.3, 2));
+  if (I.kind === 'palm') return beach + inl * (I.top * (0.7 + 0.3 * n)) + 0.04 * fbm2(x, z, 2);
+  if (I.kind === 'volcano') {   // a cone with a flat top for the observatory, and the hot spring's basin on its flank
+    const c = Math.min(I.top * Math.pow(Math.max(0, 1 - s / 0.82), 1.05), I.top * 0.9), h = beach + c + 0.3 * inl * (fbm2(x * 0.5, z * 0.5, 2) - 0.2);
+    const sp = I.spring, d = Math.hypot(x - sp.x, z - sp.z); return d < sp.r + 1.2 ? Math.min(h, sp.y + 0.35 + 0.9 * smooth(sp.r * 0.3, sp.r + 1.2, d) - 0.6 * (1 - smooth(0, sp.r, d))) : h;
+  }
+  // the marsh: low and flat, with hollows that hold its pools
+  const hol = smooth(0.35, 0.65, fbm2(x * 0.09 - 3, z * 0.09 + 5, 3));
+  return beach + inl * (I.top + 0.25 * n - 0.75 * hol);
+}
+/** The marsh's pools stand at this level (in the hollows lower than it). */
+export const MARSH_POOL = SEA_Y + 1.05;
+function makeDock(I, ang) {
+  const c = Math.cos(ang), s = Math.sin(ang), deckY = SEA_Y + 1.15;
+  let r0 = 0; for (let r = I.r * 1.4; r > 0; r -= 0.1) if (islandH(I, I.x + c * r, I.z + s * r) >= deckY - 0.3) { r0 = r; break; }
+  let deep = r0; while (deep < r0 + 40 && islandH(I, I.x + c * deep, I.z + s * deep) > SEA_Y - 1.6) deep += 0.2;
+  const len = Math.max(8, deep - r0 + 2.5), rx = I.x + c * r0, rz = I.z + s * r0, head = { len: 3, halfW: 1.4 }, hw = 0.8;
+  const W = (u, v) => [rx + c * u - s * v, rz + s * u + c * v], L = (x, z) => { const dx = x - rx, dz = z - rz; return [dx * c + dz * s, -dx * s + dz * c]; };
+  const [bx, bz] = W(len - 1.4, -(head.halfW + 1.15)), a1 = W(len - 2.5, -(head.halfW - 0.13)), a2 = W(len - 0.3, -(head.halfW - 0.13));
+  return {
+    island: I.name, rx, rz, ang, len, hw, head, deckY, W, L,
+    berth: { x: bx, z: bz, heading: ang }, bollards: [a1, a2],
+    deckAt(x, z) { const [u, v] = L(x, z); return u >= -0.05 && u <= len && Math.abs(v) <= (u >= len - head.len ? head.halfW : hw) ? deckY : -Infinity; },
+    dist(x, z) { const [u, v] = L(x, z), w = u >= len - head.len ? head.halfW : hw, du = Math.max(-u, u - len, 0), dv = Math.abs(v) - w; return du > 0 || dv > 0 ? Math.hypot(du, Math.max(dv, 0)) : Math.max(du, dv); },
+    side(b) { return L(b.x, b.z)[1] < -(head.halfW + 0.3); },   // the boat on the berth's side
+    landAt(b) { const [u] = L(b.x, b.z); return W(Math.min(len - 0.4, Math.max(len - head.len + 0.3, u)), -(head.halfW - 0.45)); },
+  };
+}
+ISLANDS.forEach(I => { I.docks = I.docks.map((a, k) => makeDock(I, a === null ? Math.atan2(-I.z, -I.x) : Math.atan2(-I.z, -I.x) + a)); I.docks.forEach((d, k) => { d.index = k; }); });
+/** The island (of the four) whose reach holds (x, z), or null. */
+export function islandAt(x, z) { for (const I of ISLANDS) if (Math.abs(x - I.x) < I.reach && Math.abs(z - I.z) < I.reach) return I; return null; }
+export const ISLAND_DOCKS = ISLANDS.flatMap(I => I.docks);
+
 /** The rock's height (its plateau, cliffs and cleft) at (x, z); the sea floor well away from it. */
 export function lighthouseH(x, z) {
   const L = LIGHTHOUSE, dx = x - L.x, dz = z - L.z, r = Math.hypot(dx, dz), a = Math.atan2(dz, dx);
@@ -390,6 +447,7 @@ const jettyHalfW = x => x < JETTY.x0 - 0.05 || x > JETTY.x1 ? 0 : x >= JETTY.hea
 /** The walkable top of the jetty (deck and side stairs) at (x, z), or -Infinity off it. */
 export function jettyDeckY(x, z) {
   if (x > LIGHTHOUSE.x - 30) return lhJettyY(x, z);   // the lighthouse's jetty (app/boating.js docks at either)
+  if (Math.abs(x) > 55 || Math.abs(z) > 55) { const I = islandAt(x, z); if (!I) return -Infinity; let y = -Infinity; for (const d of I.docks) y = Math.max(y, d.deckAt(x, z)); return y; }   // the four islands' jetties
   const J = JETTY, dz = z - J.z, hw = jettyHalfW(x);
   if (hw && Math.abs(dz) <= hw) return J.deckY;
   const S = J.stair, out = -dz * -S.side - J.halfW;   // metres out from the deck edge on the stair's side
@@ -399,6 +457,7 @@ export function jettyDeckY(x, z) {
 /** Distance to the jetty's footprint, stairs included (< 0 on it). */
 export function jettyDist(x, z) {
   if (x > LIGHTHOUSE.x - 30) return lhJettyDist(x, z);
+  if (Math.abs(x) > 55 || Math.abs(z) > 55) { const I = islandAt(x, z); if (!I) return 99; return Math.min(...I.docks.map(d => d.dist(x, z))); }
   const J = JETTY, hw = Math.max(jettyHalfW(Math.min(Math.max(x, J.x0), J.x1)), 0.01), dx = Math.max(J.x0 - x, x - J.x1, 0), dz = Math.abs(z - J.z) - hw;
   let d = dx > 0 || dz > 0 ? Math.hypot(dx, Math.max(dz, 0)) : Math.max(-dz, 0) * -1;
   const S = J.stair, sz = J.z + S.side * (J.halfW + S.steps * S.run / 2), sx = Math.max(S.x0 - x, x - S.x1, 0), szd = Math.max(Math.abs(z - sz) - S.steps * S.run / 2, 0);
