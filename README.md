@@ -361,14 +361,17 @@ export function createRoseBush(ctx) {
   down. The deck is walkable (`treehouseDeckY`) and its railings and the hut's walls keep you on it
   (`treehouseRails`); through the gap you can step off and drop to the ground. Three merged meshes; snow on the roof
   and deck in winter.
-- **Cave** (`CAVE` in `world/layout.js`, `assets/rocks/cave.js`): a rocky knoll on the meadow slope south of the plot,
-  painted like the island's boulders, with an arched mouth facing the pond. Inside is a dome-shaped cave, one wall's
-  thickness smaller, with a floor of packed earth. Every surface carries a baked occlusion (a vertex attribute that
-  scales the sky and bounce light), so the daylight fades from the mouth to near darkness at the back; carry the hand
-  lantern in and it lights the walls (inside the cave it shines by day too). On the back wall, ochre paintings of
-  deer, hands, a sun and people with bows; in a niche, pale crystals that glimmer. Water drips now and then while you
-  are inside. `caveWalls` keeps you out of the rock (in by the mouth only) and inside the walls; the grass, flowers,
-  pebbles and one boulder are kept out of it.
+- **Caverns** (`CAVERNS`, `caveSDF`, `caveFloor`, `caveWalls`, `underground` in `world/layout.js`;
+  `assets/rocks/caverns.js`): limestone caves under the south slope, after Luray Caverns. Two entrances are cut into the
+  meadow flush with the ground (the terrain mesh is opened over them): stone steps lead ~5 m down into the great hall
+  (domed, cream walls with rusty flowstone streaks, stalactites and soda straws, stalagmites, columns, banded
+  draperies, flowstone, and a still pool that mirrors the stalactites over it, like Dream Lake), a winding tunnel lit by
+  glowing crystals, and the crystal chamber (a great cluster, the old ochre paintings, the geode keepsake); bats circle
+  the halls and flit through the tunnel, water drips. The rock is one mesh built at load (the caves' air as a distance
+  field, roughened by noise, polygonised on a 0.3 m grid, ~94k triangles, ~2.7 s in a headless browser); there is no
+  light of its own: each vertex carries baked glow from the show lamps and the crystals and its openness to the sky.
+  Below ground the sea, rain and the outdoor sounds are away and the lantern counts as needed. The story's star is
+  carved over the first ramp's arch.
 - **Islet** (`ISLET` / `isletH` in `world/layout.js`, `assets/water/islet.js`): a low sandy islet some 20 m off the
   north-east shore, a short sail north of the jetty. It is part of the terrain height (the boat runs aground on its sand,
   you step off and walk round it, the water is shallow round it) but not of `coastDist`, so the island's scatter never

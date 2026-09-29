@@ -38,7 +38,7 @@ const V = (x, y, z) => new THREE.Vector3(x, y, z);
 /** The rock's field: the caves' air (< 0) with noise on the walls and roof (not on the walkable floors). */
 function field(x, y, z, h = H(x, z)) {
   const d = caveSDF(x, y, z); if (d > 1.4) return d;
-  const f = caveFloor(x, z), w = f === null ? 1 : smooth(0.15, 1.0, y - f);
+  const f = caveFloor(x, z), w = (f === null ? 1 : smooth(0.15, 1.0, y - f)) * (1 - smooth(h - 1.4, h - 0.5, y));   // smooth, sheer walls where they meet the ground
   const [a, b] = CAVE_LOOK.noise;
   let n = a * (fbm3(x * 0.42, y * 0.7, z * 0.42) - 0.5) * 2 + b * (vnoise3(x * 2.1, y * 2.6, z * 2.1) - 0.5) * 2 + 0.08 * Math.sin(x * 3.1 + Math.sin(z * 2.3) * 2);
   if (n < 0) n *= clamp((h - y - 0.25) / 1.2);   // never hollowing the roof out through the ground
@@ -86,7 +86,7 @@ export function createCaverns(ctx, { ambience } = {}) {
   const edge = (a, b) => { const t = cv[a] / (cv[a] - cv[b]), pa = cp[a], pb = cp[b], ga = cg[a], gb = cg[b];
     return [pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t, pa[2] + (pb[2] - pa[2]) * t, ga[0] + (gb[0] - ga[0]) * t, ga[1] + (gb[1] - ga[1]) * t, ga[2] + (gb[2] - ga[2]) * t]; };
   const tri = (a, b, c) => {
-    if (a[1] > Hat(a[0], a[2]) + 0.3 && b[1] > Hat(b[0], b[2]) + 0.3 && c[1] > Hat(c[0], c[2]) + 0.3) return;   // above the ground: the terrain is there
+    if (a[1] > Hat(a[0], a[2]) + 0.04 && b[1] > Hat(b[0], b[2]) + 0.04 && c[1] > Hat(c[0], c[2]) + 0.04) return;   // above the ground: the terrain is there
     const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
     const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, gx = a[3] + b[3] + c[3], gy = a[4] + b[4] + c[4], gz = a[5] + b[5] + c[5];
     const list = nx * gx + ny * gy + nz * gz > 0 ? [a, c, b] : [a, b, c];   // facing the air (against the field's rise)

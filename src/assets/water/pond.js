@@ -93,6 +93,7 @@ export function createOcean(ctx, ground, seaY) {
       ` + s.fragmentShader
       .replace('#include <color_fragment>', `#include <color_fragment>
         float depth = uSea - texture2D(uGround, (vWP.xz + uGroundST.y) * uGroundST.x).r;
+        if (depth < -0.5) discard;   // under the land (never seen from above; the caverns' ramps go below the sea)
         vec3 shallow = vec3(0.16, 0.34, 0.30), deep = vec3(0.012, 0.055, 0.07);
         diffuseColor.rgb = mix(shallow, deep, smoothstep(0.0, 2.8, depth));
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))) * vec3(0.8, 0.95, 1.1), 0.55 * uWinter);   // a colder, greyer sea in winter

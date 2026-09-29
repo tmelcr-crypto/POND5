@@ -655,7 +655,7 @@ export function treehouseRails(p, prev, radius, feet) {
  * the ramps' top ends only; underground() says you are below the ground (the sea, rain and the sky's sounds are away).
  */
 export const CAVERNS = (() => {
-  const fA = -4.0, fB = -3.6, topA = [-4.5, 14.0], topB = [-11.2, 9.6];
+  const fA = -4.0, fB = -3.6, topA = [-4.5, 14.0], topB = [-16.8, 4.4];
   const halls = [
     { name: 'hall', x: -10.2, z: 22.6, rx: 7.4, rz: 4.5, floor: fA, h: 5.2, pool: { x: -13.4, z: 23.4, rx: 2.6, rz: 1.7, y: fA + 0.08 } },
     { name: 'crystal', x: -22.4, z: 13.2, rx: 4.4, rz: 4.0, floor: fB, h: 4.4 },
@@ -663,13 +663,13 @@ export const CAVERNS = (() => {
   const tubes = [
     { name: 'tunnel', w: 1.25, h: 2.8, pts: [[-16.6, 22.2, fA], [-19.6, 21.3, -3.9], [-22.0, 19.2, -3.8], [-22.8, 16.6, fB]] },
     { name: 'rampA', w: 1.05, h: 2.9, stairs: 0.2, pts: [[topA[0], topA[1], H(...topA) - 0.02], [-4.2, 18.4, null], [-5.6, 21.6, fA]] },
-    { name: 'rampB', w: 1.05, h: 2.9, stairs: 0.2, pts: [[-18.6, 13.3, fB], [-14.6, 12.4, null], [topB[0], topB[1], H(...topB) - 0.02]] },
+    { name: 'rampB', w: 1.05, h: 2.9, stairs: 0.2, pts: [[-20.8, 11.2, fB], [-18.7, 8.2, null], [topB[0], topB[1], H(...topB) - 0.02]] },
   ];
   for (const t of tubes) {   // arc lengths; unset floors by length between the set ones
     let a = 0; t.pts.forEach((p, i) => { if (i) a += Math.hypot(p[0] - t.pts[i - 1][0], p[1] - t.pts[i - 1][1]); p[3] = a; }); t.len = a;
     t.pts.forEach((p, i) => { if (p[2] !== null) return; let j = i - 1, k = i + 1; while (t.pts[k][2] === null) k++; const u = (p[3] - t.pts[j][3]) / (t.pts[k][3] - t.pts[j][3]); p[2] = t.pts[j][2] + (t.pts[k][2] - t.pts[j][2]) * u; });
   }
-  return { halls, tubes, mouths: [{ tube: 'rampA', x: topA[0], z: topA[1] }, { tube: 'rampB', x: topB[0], z: topB[1] }], box: { x0: -28, x1: 0.5, z0: 7.5, z1: 28.5, y0: fA - 0.8 } };
+  return { halls, tubes, mouths: [{ tube: 'rampA', x: topA[0], z: topA[1] }, { tube: 'rampB', x: topB[0], z: topB[1] }], box: { x0: -28, x1: 0.5, z0: 2.5, z1: 28.5, y0: fA - 0.8 } };
 })();
 /** The old name for the story's cave (its mouth: app/treasure.js draws it on the map, the star is over it). */
 export const CAVE = { x: CAVERNS.mouths[0].x, z: CAVERNS.mouths[0].z };
@@ -696,7 +696,8 @@ export function caveSDF(x, y, z) {
     d = smin(d, Math.max(lat, fy - y, y - ceil), 0.9);
   }
   for (const t of CAVERNS.tubes) {
-    const a = tubeAt(t, x, z), ceil = a.floor + t.h * Math.sqrt(Math.max(0, 1 - (a.d / t.w) ** 2));
+    const a = tubeAt(t, x, z); if (a.d > t.w + 1.5) continue;
+    const open = t.stairs && a.floor + t.h > H(x, z) - 0.3, ceil = open ? 50 : a.floor + t.h * Math.sqrt(Math.max(0, 1 - (a.d / t.w) ** 2));   // (open to the sky: walls only)
     d = smin(d, Math.max(a.d - t.w, a.floor - y, y - ceil), 0.6);
   }
   return d;
@@ -711,7 +712,7 @@ export function caveFloor(x, z) {
     if (c.pool && Math.hypot((x - c.pool.x) / c.pool.rx, (z - c.pool.z) / c.pool.rz) < 1.08) return null;
     const fy = c.floor + 0.12 * Math.sin(x * 1.3) * Math.sin(z * 1.1); f = f === null ? fy : Math.max(f, fy);
   }
-  for (const t of CAVERNS.tubes) { const a = tubeAt(t, x, z); if (a.d < t.w - 0.4) f = f === null ? a.floor : Math.max(f, a.floor); }
+  for (const t of CAVERNS.tubes) { const a = tubeAt(t, x, z); if (a.d < t.w - 0.4 && !(t.stairs && a.end && a.floor > H(x, z) - 0.6)) f = f === null ? a.floor : Math.max(f, a.floor); }   // (not past a ramp's top step: that is the meadow)
   return f;
 }
 /** Distance to where the caves open to the sky (the ramps' trenches; < 0 inside): no grass, rocks or sticks there. */
@@ -721,10 +722,20 @@ export function caveDist(x, z) {
   for (const t of CAVERNS.tubes) if (t.stairs) { const a = tubeAt(t, x, z); if (a.floor + t.h > H(x, z) - 0.35) d = Math.min(d, a.d - t.w - 0.2); }   // (where the trench is open)
   return d;
 }
-/** Whether a trench is open to the sky over (x, z) (the terrain mesh leaves those cells out). */
+/** Whether the terrain cell (x0, z0) .. (x0 + st, z0 + st) lies wholly over an open trench (the terrain mesh leaves it out;
+ *  cells at the edge stay, a lip of turf over the trench's wall). */
+export function caveOpenCell(x0, z0, st) {
+  if (!inBox(x0, z0)) return false;
+  for (const t of CAVERNS.tubes) if (t.stairs) {
+    let all = true; for (const [x, z] of [[x0, z0], [x0 + st, z0], [x0, z0 + st], [x0 + st, z0 + st]]) { const a = tubeAt(t, x, z); if (!(a.d < t.w - 0.03 && !a.end && a.floor + t.h > H(x, z) - 0.3)) { all = false; break; } }
+    if (all) return true;
+  }
+  return false;
+}
+/** Whether a trench is open to the sky over (x, z). */
 export function caveOpen(x, z) {
   if (!inBox(x, z)) return false;
-  for (const t of CAVERNS.tubes) if (t.stairs) { const a = tubeAt(t, x, z); if (a.d < t.w + 0.15 && a.floor + t.h * Math.sqrt(Math.max(0, 1 - Math.min(1, a.d / t.w) ** 2)) > H(x, z) - 0.35) return true; }
+  for (const t of CAVERNS.tubes) if (t.stairs) { const a = tubeAt(t, x, z); if (a.d < t.w + 0.2 && !a.end && a.floor + t.h > H(x, z) - 0.3) return true; }
   return false;
 }
 /** Below the ground in the caves (feet at `feet`). */
