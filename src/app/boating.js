@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { V, clamp } from '../core/math.js';
 import { CONFIG } from '../config.js';
 import { U } from '../core/uniforms.js';
-import { H, SEA_Y, seaY, JETTY, coastDist, jettyDeckY, jettyDist } from '../world/layout.js';
+import { H, SEA_Y, seaY, JETTY, LIGHTHOUSE, coastDist, jettyDeckY, jettyDist } from '../world/layout.js';
 
 /**
  * Sailing the boat (assets/water/sailboat.js). One icon button (B on desktop) does what fits where you are:
@@ -22,7 +22,9 @@ import { H, SEA_Y, seaY, JETTY, coastDist, jettyDeckY, jettyDist } from '../worl
  * While an animation plays nothing else moves you. update(dt) returns true while the boat has the camera.
  */
 export function createBoating({ camera, st, boat, resetInput = () => {} }) {
-  const BC = CONFIG.boat, PC = CONFIG.player, J = JETTY;
+  const BC = CONFIG.boat, PC = CONFIG.player, DOCKS = [JETTY, LIGHTHOUSE.jetty];   // the home jetty and the lighthouse's
+  let J = JETTY;   // the jetty the boat is at or nearest to (docking, mooring lines, stepping ashore)
+  const nearestDock = () => DOCKS.reduce((a, d) => Math.hypot(b.x - d.berth.x, b.z - d.berth.z) < Math.hypot(b.x - a.berth.x, b.z - a.berth.z) ? d : a);
   const btn = document.getElementById('btnBoat');
   const svg = p => `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
   const ICONS = {
@@ -87,7 +89,7 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     }
     return best;
   }
-  const nearBerth = () => Math.hypot(b.x - J.berth.x, b.z - J.berth.z) < BC.dockReach && b.z < J.z - J.head.halfW - 0.3 && Math.abs(b.speed) < BC.dockSpeed;
+  const nearBerth = () => (J = mode === 'docking' || b.docked ? J : nearestDock(), true) && Math.hypot(b.x - J.berth.x, b.z - J.berth.z) < BC.dockReach && b.z < J.z - J.head.halfW - 0.3 && Math.abs(b.speed) < BC.dockSpeed;
   /** Distance from the player to the hull's outline (in the boat's frame, an ellipse-ish box). */
   function hullDist(px, pz) { const c = Math.cos(b.h), s = Math.sin(b.h), dx = px - b.x, dz = pz - b.z, lx = c * dx + s * dz, lz = -s * dx + c * dz; return Math.hypot(Math.max(Math.abs(lx) - 2.2, 0), Math.max(Math.abs(lz) - boat.halfBeam(clamp(lx, -2.2, 2.2)), 0)); }
 
@@ -131,13 +133,13 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     const x0 = b.x, z0 = b.z, h0 = b.h, dh = wrapA(J.berth.heading - h0), dur = clamp(Math.hypot(J.berth.x - x0, J.berth.z - z0) / 1.2, 2.5, 7);
     mode = 'docking'; auto = true;
     play([step(dur, k => { const prev = b.h; b.x = x0 + (J.berth.x - x0) * k; b.z = z0 + (J.berth.z - z0) * k; b.h = h0 + dh * k; b.speed = 0; st.yaw -= b.h - prev; wheelA += (-Math.sign(dh) * 0.6 * Math.sin(k * Math.PI) - wheelA) * 0.1; })],
-      () => { b.docked = true; b.aground = false; auto = false; boat.mooringLines(true); mode = 'moored'; });
+      () => { b.docked = true; b.aground = false; auto = false; boat.mooringLines(true, J); mode = 'moored'; });
   }
   /* ---- exit ---- */
   function exit() {
     const p0 = st.pos.clone(), y0 = st.yaw, pi0 = st.pitch;
     let land, arc;
-    if (b.docked) { land = new V(b.x - 0.3, 0, J.z - J.head.halfW + 0.45); arc = 0.35; }   // up onto the jetty head
+    if (b.docked) { land = new V(b.x - 0.3 * Math.cos(J.berth.heading), 0, J.z - J.head.halfW + 0.45); arc = 0.35; }   // up onto the jetty head (towards the shore)
     else { const L = landing(); if (!L) return; land = new V(L.x, 0, L.z); arc = 0.55; }
     land.y = eyeAt(land.x, land.z);
     const yawL = yawTo(land.x - p0.x, land.z - p0.z), d1 = wrapA(yawL - y0);

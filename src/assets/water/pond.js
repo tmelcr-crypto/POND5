@@ -70,7 +70,7 @@ export function createPond(ctx) {
  */
 export function createOcean(ctx, ground, seaY) {
   const { scene } = ctx;
-  const g = new THREE.PlaneGeometry(320, 320, 1, 1); g.rotateX(-Math.PI / 2);
+  const g = new THREE.PlaneGeometry(480, 480, 1, 1); g.rotateX(-Math.PI / 2);   // follows the camera; past the far plane (CONFIG.camera.far) everywhere
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.06, metalness: 0, envMapIntensity: 1.1 });
   m.onBeforeCompile = s => {
     s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uWinter = U.uWinter; s.uniforms.uGround = { value: ground.tex };

@@ -4,14 +4,14 @@ import { smooth } from '../core/math.js';
 import { SEA_Y } from './layout.js';
 
 /**
- * Signs of a wider world on the horizon: a sailboat that now and then crosses far out at sea, and a lighthouse
- * (white and red by day; a lit lamp room and a slowly turning beam at night).
+ * Signs of a wider world on the horizon: a sailboat that now and then crosses far out at sea, keeping clear of the
+ * islands and the lighthouse rock (the lighthouse itself: assets/lighthouse/lighthouse.js).
  *
  * They are far beyond the camera's far plane (150 m) and the scene fog (93 % at 150 m), so each is kept at its true
  * world position but drawn as a scaled-down proxy at HORIZON.drawDist along the same line of sight (same angular size
  * and direction), with the fog computed from its true distance at HORIZON.fogK of the scene's strength, like the
  * birds: they sink into the haze at 400-700 m instead of vanishing. Unlit silhouettes; the day brightness comes from
- * the sky's night value. Every number is in HORIZON; the lighthouse's position is CONFIG.horizon.lighthouse.
+ * the sky's night value. Every number is in HORIZON.
  */
 export const HORIZON = {
   drawDist: 100,               // m: where the proxies are drawn
@@ -25,10 +25,7 @@ export const HORIZON = {
     color: 0x2a2f37, sail: 0x454b54,
     night: [0.3, 0.6],         // fades out as the sky's night value goes from [0] to [1]
   },
-  lighthouse: {
-    height: 17, radius: [1.7, 1.15], bands: 4,    // m; red and white bands
-    beam: { length: 140, spread: 0.09, period: 12, opacity: 0.22, night: [0.35, 0.6] },
-  },
+
 };
 const rr = (a, b) => a + (b - a) * Math.random();
 const V3 = THREE.Vector3;
@@ -49,77 +46,8 @@ function farMaterial(params, dist) {
   return m;
 }
 
-/**
- * A cliff-sided rock of radius R and height Hh: stacked rings of faceted wall with ledges, a jagged broken skyline
- * around a flat top (for the tower), and small sea stacks beside it. Flat faces with light and shade baked into the
- * vertex colours (it is drawn unlit): sunlit and shaded walls, pale ledges, a dark wet foot. Deterministic.
- */
-function cliffGeometry(R, Hh) {
-  const hash = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
-  const pos = [], tri = (a, b, c) => pos.push(...a, ...b, ...c);
-  function column(cx, cz, r, h, seed, flatTop) {
-    const N = 18, rings = [[-1.5, 1.08], [0.35, 1.0], [0.55, 0.9], [0.78, 0.83], [1.0, 0.7]];   // [height fraction, radius fraction]
-    const P = rings.map(([hf, rf], k) => Array.from({ length: N }, (_, i) => {
-      const a = i / N * Math.PI * 2, j = hash(i + seed, k), spike = i % 3 === 0 ? 0.16 : 0;
-      const rad = r * rf * (0.82 + 0.3 * hash(i + seed * 3, 7) + (k === 4 ? spike : 0) - (k === 2 ? 0.06 * j : 0));
-      const y = hf < 0 ? hf : h * hf * (k === 4 ? 0.88 + 0.28 * hash(i + seed, 9) : 0.96 + 0.08 * j);   // a broken skyline on top
-      return [cx + Math.cos(a) * rad, y, cz + Math.sin(a) * rad];
-    }));
-    for (let k = 0; k < rings.length - 1; k++) for (let i = 0; i < N; i++) {
-      const a = P[k][i], b = P[k][(i + 1) % N], c = P[k + 1][(i + 1) % N], d = P[k + 1][i];
-      tri(a, c, b); tri(a, d, c);
-    }
-    const top = P[rings.length - 1], cy = flatTop ? h : h * 1.02, C = [cx, cy, cz];
-    if (flatTop) {   // a flat plateau for the tower, inside the jagged rim
-      const inner = top.map(([x, , z]) => [cx + (x - cx) * 0.45, cy, cz + (z - cz) * 0.45]);
-      for (let i = 0; i < N; i++) { const i2 = (i + 1) % N; tri(top[i], top[i2], inner[i2]); tri(top[i], inner[i2], inner[i]); tri(inner[i], inner[i2], C); }
-    } else for (let i = 0; i < N; i++) tri(top[i], C, top[(i + 1) % N]);
-  }
-  column(0, 0, R, Hh, 1, true);
-  column(R * 0.95, R * 0.55, R * 0.32, Hh * 0.55, 5, false);     // sea stacks
-  column(-R * 0.75, R * 0.9, R * 0.2, Hh * 0.38, 9, false);
-  column(-R * 0.3, -R * 1.02, R * 0.26, Hh * 0.3, 13, false);
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
-  const n = g.attributes.normal, p = g.attributes.position, col = new Float32Array(p.count * 3), sun = new V3(0.55, 0.45, 0.7).normalize();
-  for (let f = 0; f < p.count; f += 3) {
-    const ny = n.getY(f), lit = Math.max(0, n.getX(f) * sun.x + n.getY(f) * sun.y + n.getZ(f) * sun.z), y = (p.getY(f) + p.getY(f + 1) + p.getY(f + 2)) / 3;
-    let c = ny > 0.6 ? [0.62, 0.64, 0.56] : [0.2 + 0.55 * lit, 0.2 + 0.53 * lit, 0.21 + 0.5 * lit];   // pale ledges / lit or shaded walls
-    if (y < 0.9) c = c.map(v => v * 0.45);                                                            // the wet foot
-    for (let v = 0; v < 3; v++) col.set(c, (f + v) * 3);
-  }
-  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  return g;
-}
-
-/** createHorizon(ctx): ctx needs scene, camera and skyUniforms. Returns update(dt), stats and the parts. */
 export function createHorizon(ctx) {
-  const { scene, camera, skyUniforms } = ctx, HZ = HORIZON, CH = CONFIG.horizon, stats = { boat: false, beam: 0, boatDist: 0 };
-
-  /* ---- lighthouse on its rock ---- */
-  const L = HZ.lighthouse, LP = new V3(CH.lighthouse.x, SEA_Y, CH.lighthouse.z), lhDist = { value: 0 };
-  const light = new THREE.Group();
-  const tower = new THREE.CylinderGeometry(L.radius[1], L.radius[0], L.height, 12, L.bands * 2, true); tower.translate(0, L.height / 2 + 2, 0);
-  { const p = tower.attributes.position, c = new Float32Array(p.count * 3); for (let i = 0; i < p.count; i++) { const k = Math.floor((p.getY(i) - 2) / L.height * L.bands * 2 - 1e-3); const red = k % 2 === 1; c.set(red ? [0.62, 0.1, 0.08] : [0.92, 0.92, 0.88], i * 3); } tower.setAttribute('color', new THREE.BufferAttribute(c, 3)); }
-  const lhMat = farMaterial({ vertexColors: true }, lhDist), dark = farMaterial({ color: 0x3a3a3c }, lhDist);
-  const cliffH = CH.lighthouse.cliff, rockMat = farMaterial({ vertexColors: true }, lhDist);
-  light.add(new THREE.Mesh(cliffGeometry(CH.lighthouse.rock, cliffH), rockMat));
-  const onTop = new THREE.Group(); onTop.position.y = cliffH - 2; light.add(onTop);   // the tower stands on the cliff's plateau
-  onTop.add(new THREE.Mesh(tower, lhMat));
-  const gallery = new THREE.CylinderGeometry(L.radius[1] + 0.5, L.radius[1] + 0.5, 0.35, 12); gallery.translate(0, L.height + 2.2, 0); onTop.add(new THREE.Mesh(gallery, dark));
-  const lampMat = farMaterial({ color: 0x55585c }, lhDist), lamp = new THREE.CylinderGeometry(L.radius[1] * 0.8, L.radius[1] * 0.8, 1.8, 12); lamp.translate(0, L.height + 3.3, 0); onTop.add(new THREE.Mesh(lamp, lampMat));
-  const roof = new THREE.ConeGeometry(L.radius[1] + 0.2, 1.6, 12); roof.translate(0, L.height + 5, 0); onTop.add(new THREE.Mesh(roof, farMaterial({ color: 0x8a1a12 }, lhDist)));
-  // the beam: two soft additive cones back to back, turning about the tower
-  const B = L.beam, beamU = { uBeamA: { value: 0 } };
-  const beamGeo = new THREE.ConeGeometry(B.length * Math.tan(B.spread), B.length, 16, 1, true); beamGeo.translate(0, -B.length / 2, 0); beamGeo.rotateZ(Math.PI / 2);   // apex at the lamp, opening along +x
-  const beamMat = new THREE.ShaderMaterial({
-    uniforms: beamU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-    vertexShader: 'varying float vAlong; void main() { vAlong = clamp(position.x / ' + B.length.toFixed(1) + ', 0.0, 1.0); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform float uBeamA; varying float vAlong; void main() { gl_FragColor = vec4(vec3(1.0, 0.93, 0.75) * uBeamA * (1.0 - vAlong) * (1.0 - vAlong) * smoothstep(0.0, 0.04, vAlong), 1.0); }',
-  });
-  const beam = new THREE.Group(); beam.position.y = L.height + 3.3;
-  const b1 = new THREE.Mesh(beamGeo, beamMat), b2 = new THREE.Mesh(beamGeo, beamMat); b2.rotation.y = Math.PI; beam.add(b1, b2); beam.visible = false; onTop.add(beam);
-  light.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.renderOrder = 1; } });
-  scene.add(light);
+  const { scene, camera, skyUniforms } = ctx, HZ = HORIZON, CH = CONFIG.horizon, stats = { boat: false, boatDist: 0 };
 
   /* ---- sailboat: low-poly hull, mast and one sail ---- */
   const boatDist = { value: 0 }, boat = new THREE.Group();
@@ -161,15 +89,9 @@ export function createHorizon(ctx) {
   }
   const truePos = new V3();
   return {
-    stats, light, beam, boat, trip, startTrip,
+    stats, boat, trip, startTrip,
     update(dt) {
-      const night = skyUniforms.uNight.value, day = 1 - night * 0.85;
-      // lighthouse
-      place(light, LP, lhDist);
-      lhMat.color.setScalar(day); rockMat.color.setScalar(day); dark.color.setRGB(0.15 * day, 0.15 * day, 0.16 * day);
-      const lit = smooth(B.night[0], B.night[1], night);
-      lampMat.color.setRGB(0.33 * day + 1.6 * lit, 0.34 * day + 1.3 * lit, 0.36 * day + 0.6 * lit);
-      beam.visible = lit > 0.01; beamU.uBeamA.value = B.opacity * lit; beam.rotation.y += dt * 6.2832 / B.period; stats.beam = lit;
+      const night = skyUniforms.uNight.value;
       // sailboat
       if (!trip.on) { nextTrip -= dt; if (nextTrip <= 0) { startTrip(); nextTrip = rr(...BT.every); } }
       const vis = 1 - smooth(BT.night[0], BT.night[1], night);

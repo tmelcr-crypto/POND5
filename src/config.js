@@ -125,10 +125,10 @@ export const CONFIG = {
     speed: [1.5, 5],        // drift, m/s: speed[0] + speed[1] * the wind setting, along the wind direction
   },
   fog: { density: 0.011 },  // FogExp2 density at midday, the day's minimum (world/atmosphere.js thickens it at dawn / dusk); colour follows the sky horizon
-  // The wider world on the horizon (world/horizon.js). No other island exists yet, so the lighthouse stands on a small
-  // rock at sea; move `lighthouse` to the next island's position when there is one.
+  // The wider world on the horizon (world/horizon.js): the passing sailboat keeps clear of these. The lighthouse itself
+  // is now a real place (LIGHTHOUSE in world/layout.js, assets/lighthouse/lighthouse.js).
   horizon: {
-    lighthouse: { x: 330, z: -300, rock: 16, cliff: 11 },   // m; rock: its radius, cliff: its height
+    lighthouse: { x: 110, z: 18, rock: 14 },   // m; rock: its radius
     islands: [{ x: 0, z: 0, r: 45 }],           // islands the sailboats keep clear of (the home island's coast is ~37-49 m out)
   },
   time: {
@@ -138,7 +138,7 @@ export const CONFIG = {
     sunEvery: 0.2,          // s between sun / sky updates
     envEvery: [4, 15],      // s between rebuilds of the sky's environment map: around dawn and dusk, otherwise
   },
-  camera: { far: 150, fov: 72 },
+  camera: { far: 240, fov: 72 },   // far: the lighthouse rock (~110 m east) stays in view from the whole island
 
   // Rendering
   render: { maxPixelRatio: 1.25, dynamic: { enabled: true, low: 50, high: 58, min: 0.65, step: 0.05, hold: 2, wait: 3 } },   // dynamic: engine/dynamicRes.js
@@ -310,7 +310,7 @@ export const CONFIG = {
     accel: 0.5, decel: 1.3,        // m/s^2 (0 to minSpeed in 4 s)
     turnRate: 0.7,                 // rad/s with the wheel hard over at full speed (less when slower, none when still)
     draft: 0.62,                   // m of water the keel needs
-    maxOffshore: 90,               // m from the shore; beyond it the boat turns itself back towards the island (the fog hides the island much further out)
+    maxOffshore: 100,              // m from the shore; beyond it the boat turns itself back towards the island (the lighthouse rock is ~65 m out)
     reach: 2.8,                    // m from the hull within which you can board
     dockReach: 6, dockSpeed: 2.2,  // the dock button shows within this of the berth, slower than this
   },
