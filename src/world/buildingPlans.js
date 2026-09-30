@@ -131,7 +131,7 @@ export function buildingFloorY(x, z, feet) {
     if (Math.abs(x - P.x) > P.reach + 8 || Math.abs(z - P.z) > P.reach + 8) continue;
     const [u, v] = P.L(x, z), ok = y => { if (y <= feet + STEP && y > best) best = y; };
     for (const f of P.floors) if ((f.rect ? inRect(u, v, f.rect) : u * u + v * v <= f.r * f.r) && !(f.holes || []).some(hh => inRect(u, v, hh))) ok(f.y);
-    for (const s of P.stairs) if (inRect(u, v, s.rect)) { const t = (u - s.rect[0]) / (s.rect[1] - s.rect[0]), k = s.down ? Math.floor(t * s.n) + 1 : Math.ceil(t * s.n); ok(s.y0 + (s.y1 - s.y0) * Math.min(1, k / s.n)); }
+    for (const s of P.stairs) if (inRect(u, v, s.rect)) { const t = (u - s.rect[0]) / (s.rect[1] - s.rect[0]), k = s.down ? Math.floor(t * s.n) + 1 : Math.ceil(t * s.n), y = s.y0 + (s.y1 - s.y0) * Math.min(1, k / s.n); if (y <= feet + 0.95 && y > best) best = y; }   // (a stair: the climb's easing lags a tread or two)
     if (P.boardwalk) for (let k = 1; k < P.boardwalk.length; k++) { const [ax, ay, az] = P.boardwalk[k - 1], [bx, , bz] = P.boardwalk[k], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz, t = ((x - ax) * dx + (z - az) * dz) / l2;
       if (t >= 0 && t <= 1 && Math.abs((x - ax) * dz - (z - az) * dx) / Math.sqrt(l2) < 0.62) ok(ay); }
   }
