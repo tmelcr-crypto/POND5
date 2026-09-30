@@ -342,7 +342,7 @@ function dressMouths(ctx, C, basalt) {
     g.scale(sz * (1.05 + 0.4 * hash(k, sd + 1)), sz * (0.62 + 0.25 * hash(k, sd + 2)), sz); g.rotateY(hash(k, sd + 3) * 6.28); let gy = H(x, z); if (sink) for (let q = 0; q < 8; q++) gy = Math.min(gy, H(x + Math.cos(q * 0.785) * sz, z + Math.sin(q * 0.785) * sz)); g.translate(x, gy - sz * 0.22 + lift, z); g.computeVertexNormals();   // (sunk to the lowest ground under it: none hangs over a slope)
     const n = g.attributes.normal, q = g.attributes.position, col = new Float32Array(p.count * 3), cc = new THREE.Color();
     for (let i = 0; i < p.count; i++) { const px = q.getX(i), py = q.getY(i), pz = q.getZ(i), up = n.getY(i);
-      if (basalt) cc.copy(lin(0x2c2927)).lerp(lin(0x4a3a32), smooth(0.4, 0.8, fbm3(px * 1.4, py * 1.4, pz * 1.4)) * 0.6);
+      if (basalt) cc.copy(lin(0x1c1a19)).lerp(lin(0x3a2c26), smooth(0.4, 0.8, fbm3(px * 1.4, py * 1.4, pz * 1.4)) * 0.6);
       else { cc.copy(lin(0x6e685c)).lerp(lin(0x4f4b44), smooth(0.35, 0.75, fbm3(px * 1.2, py * 1.2, pz * 1.2))).lerp(lin(0x7a6a52), 0.3 * smooth(0.5, 0.8, fbm3(px * 3, py * 3, pz * 3))); cc.lerp(lin(0x3f5724), smooth(0.2, 0.7, up) * smooth(0.25, 0.6, fbm3(px * 2.1, py * 2.1, pz * 2.1)) * 0.95); cc.multiplyScalar(0.8 + 0.2 * smooth(-0.6, 0.6, up)); }
       cc.multiplyScalar(0.85 + 0.25 * vnoise3(px * 6, py * 6, pz * 6)).toArray(col, i * 3); }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3)); rocks.push(g.index ? g.toNonIndexed() : g);
@@ -369,7 +369,7 @@ function dressMouths(ctx, C, basalt) {
       const P = portal;
       const big = basalt ? 1.35 : 1;   // (on a steep slope the cut is bigger: bigger stones)
       for (const side of [-1, 1]) { k++; addRock(P.x + P.nx * side * (t.w + 0.55) - P.dx * 0.3, P.z + P.nz * side * (t.w + 0.55) - P.dz * 0.3, (0.9 + 0.3 * hash(k, sd + 11)) * big, k); if (!basalt) addFern(P.x + P.nx * side * (t.w + 1.5), P.z + P.nz * side * (t.w + 1.5), 0.8, k + 50, 0); }
-      k++; addRock(P.x + P.dx * (basalt ? 0.2 : 0.6), P.z + P.dz * (basalt ? 0.2 : 0.6), 1.25 * big, k, basalt ? 0.35 : 0.15, false);   // (the lintel: on the ground at its middle, over the opening)
+      k++; addRock(P.x + P.dx * (basalt ? -0.15 : 0.6), P.z + P.dz * (basalt ? -0.15 : 0.6), 1.25 * big, k, basalt ? -0.55 : 0.15, false);   // (the lintel: on the ground at its middle, over the opening)
       if (!basalt) for (let i = 0; i < 3; i++) addFern(P.x + P.dx * (1.4 + 0.3 * i) + P.nx * (i - 1) * 0.9, P.z + P.dz * (1.4 + 0.3 * i) + P.nz * (i - 1) * 0.9, 0.7, k + 60 + i, Math.atan2(-P.dz, -P.dx));
     }
   }
