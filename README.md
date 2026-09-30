@@ -500,6 +500,22 @@ export function createRoseBush(ctx) {
   fisherman's lodge on stilts with a boardwalk and net racks; two jetties. Each island's jetties and building are one
   mesh (the sails and the dome apart), its ground another; windows, shallows and still water are shared meshes; the
   sheep, herons and reeds show within 55 m.
+- **Ember Rock in detail** (`EMBER`, `emberH`, `emberWalls` in `world/layout.js`): a black cone with a flat summit for the
+  observatory, ringed by basalt cliffs you cannot climb or drop down (no step steeper than 1.4), low only at the jetty's
+  landing. From the landing a path zigzags up the cone in five legs at a 25% grade to the observatory's door (the slopes
+  between the legs are too steep to cut across). A lava creek runs from a vent below the summit down a channel between
+  low levees and falls over the cliff into the sea (a flowing shader: molten orange under a drifting crust, brighter at
+  night; steam at the vent and where it meets the sea); you cannot walk into it. The hot spring sits in its own basin on
+  a terrace. On the far side, walled in by cliffs, a black-sand cove with a washed-up log and obsidian pebbles, reached
+  only by boat (sail in and step ashore). Basalt boulders line the cliff tops and sea stacks stand off them.
+- **The telescope** (`app/telescope.js`, the sky in `app/starCatalog.js`): in the observatory, by the wall, stands a brass
+  panel with two dials numbered 0 to 9 (its icon, or P, opens it). Confirm a setting and the dome rumbles round and the
+  tube swings to that part of the sky; then at the eyepiece (its icon, or P) you look through. Each of the 100 settings
+  shows one of the 88 constellations, drawn and named as on a star chart, or one of eleven other sights (the Moon, Saturn,
+  Jupiter, the Andromeda Galaxy, the Pleiades, the Orion and Ring and Crab nebulae, a comet, Omega Centauri, Albireo),
+  and 9-2 shows a flying saucer, modelled in full (riveted hull, a chasing ring of lights, a glass canopy with its pilot,
+  a beam). Only at night, at most two sights a night (a night runs noon to noon). The journal's Stars page keeps what
+  you have found, each with its setting and a sketch of the constellation.
 - **Buildings you walk into** (`world/buildingPlans.js`: each building's frame, floors, stairs, walls, rails and
   furniture colliders; `assets/islands/islandBuildings.js`: the meshes). The windmill, the beach hut, the observatory and
   the lodge are built to the cabin's detail with their own canvas textures (whitewashed stone, ashlar, planks,
