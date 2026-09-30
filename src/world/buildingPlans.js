@@ -50,7 +50,7 @@ function windmill(S) {
   P.floors.push({ r: P.Ri(P.f0), y: P.f0 }, { rect: [P.Ri(P.f0) - 0.2, P.Ro(P.f0), -0.55, 0.55], y: P.f0 }, { r: P.Ri(P.f1), y: P.f1, holes: [P.hole] });
   P.stairs.push(P.stair);
   P.walls.push([-0.3, 0.42, 1.0, 0.42, P.f0 - 0.3, P.f0 + 1.0, 0.03]);                                        // under the stair
-  P.walls.push([-0.45, 0.4, 1.0, 0.4, P.f1 - 0.2, P.f1 + 1.0, 0.03], [-0.45, 0.4, -0.45, 1.2, P.f1 - 0.2, P.f1 + 1.0, 0.03]);   // the loft's rail round the stairwell
+  P.walls.push([-0.45, 0.4, 1.0, 0.4, P.f1 + 0.6, P.f1 + 1.0, 0.03], [-0.45, 0.4, -0.45, 1.2, P.f1 + 0.6, P.f1 + 1.0, 0.03]);   // the loft's rail round the stairwell (its top: whoever is on the stair passes under it)
   P.posts = [[0, 0, 0.18, P.f0 - 0.5, P.base + P.height + 1]];                                              // the main shaft
   doorSteps(P, S, P.Ro(P.f0), P.f0);
   return P;
