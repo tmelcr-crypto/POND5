@@ -13,7 +13,7 @@ import { createSharedTextures } from './world/sharedTextures.js';
 import { createSky } from './world/sky.js';
 import { createLights } from './world/lights.js';
 import { createTerrain, createWorldTerrain } from './world/terrain.js';
-import { createGroundTexture, createWorldGrass } from './world/grass.js';
+import { createGroundTexture, createIslandGrounds, createWorldGrass } from './world/grass.js';
 import { createScatter } from './world/scatter.js';
 import { createUndergrowth } from './world/undergrowth.js';
 import { createTimeOfDay } from './world/timeOfDay.js';
@@ -142,7 +142,7 @@ await step(40);
 const ground = createGroundTexture();
 await step(55);
 const ocean = createOcean(ctx, ground, SEA_Y);
-const worldGrass = createWorldGrass(ctx, ground);
+const worldGrass = createWorldGrass(ctx, ground, createIslandGrounds());   // (and on the outer islands and the lighthouse rock)
 const scatter = createScatter(ctx);
 await step(75);
 const undergrowth = createUndergrowth(ctx, { scatter, pollen });
@@ -272,7 +272,7 @@ const outerIslands = createOuterIslands({ ...ctx, skyUniforms });   // four more
 const lighthouse = createLighthouse({ ...ctx, skyUniforms });   // the lighthouse rock ~110 m east: its jetty, the tower you can climb (no random numbers)
 finalizeScene(scene, cabin.group, cabin.interior.materials);
 const debug = createDebugOverlay(renderer, { scatter, worldGrass, undergrowth });
-window.__meadow = { outerIslands, lighthouse, dailyTasks, keepsakes, bottles, storyThings, ocean, tide, godRays, stones, treehouse, climbing, cave, islet, treasure, renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, lantern, hours, well, garden, drawWater, gardening, planting, saplings, rabbits, squirrels, frogs, gulls, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
+window.__meadow = { worldGrass, outerIslands, lighthouse, dailyTasks, keepsakes, bottles, storyThings, ocean, tide, godRays, stones, treehouse, climbing, cave, islet, treasure, renderer, scene, camera, st, move, cabinGroup: cabin.group, scatter, undergrowth, detail, birds, ambience, waterLife, atmosphere, tod, moments, horizon, stream, footbridge, benches, jetty, boat, boating, sleeping, wind, forage, inventory, items, chests, chestUI, fires, firepits, cooking, fishing, shelf, curtains, body, footsteps, music, saves, timelapse, dynRes, lantern, hours, well, garden, drawWater, gardening, planting, saplings, rabbits, squirrels, frogs, gulls, skyWeather, seasons, seasonLooks, weather, cabinMerge, worldObjects: scene.children.slice(plotObjects) };
 setLights(true);
 timeIn.value = CONFIG.time.start; setHours(CONFIG.time.start); timeV.textContent = fmtTime(CONFIG.time.start); scheduleEnv(true); setSpeed(2.2);
 move(0);

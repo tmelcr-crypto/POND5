@@ -3,7 +3,8 @@ import { lin, smooth } from '../../core/math.js';
 import { fbm2 } from '../../core/noise.js';
 import { LIGHTHOUSE, lighthouseH, SEA_Y } from '../../world/layout.js';
 import { obstacles } from '../../world/bounds.js';
-import { isTouch } from '../../core/env.js';
+import { islandLife, soilAt } from '../../world/islandLife.js';
+import { terrainMaterial } from '../../world/terrain.js';
 
 /**
  * The lighthouse rock (#27; its ground, walls and stair: LIGHTHOUSE in world/layout.js): the rock with its grassy
@@ -53,7 +54,9 @@ export function builder() {
 }
 /** The scene's fog at a fraction of its density, so the rock reads from the home island (FogExp2 only). */
 export function farFog(mat, k) {
-  mat.onBeforeCompile = s => {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (s, r) => {
+    prev.call(mat, s, r);
     s.uniforms.uFogK = { value: k };
     s.fragmentShader = 'uniform float uFogK;\n' + s.fragmentShader.replace('#include <fog_fragment>', `
       #ifdef USE_FOG
@@ -67,7 +70,8 @@ export function farFog(mat, k) {
   return mat;
 }
 
-export function createLighthouse({ scene, camera, skyUniforms, tex }) {
+export function createLighthouse(ctx) {
+  const { scene, camera, skyUniforms, tex } = ctx;
   const softDot = tex.softDot;
   const L = LIGHTHOUSE, T = L.tower, S = L.stair, G = L.gully, J = L.jetty, LK = LH_LOOK;
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -91,17 +95,18 @@ export function createLighthouse({ scene, camera, skyUniforms, tex }) {
       if (h > L.top - 0.4) col.lerp(grass.clone().lerp(grass2, smooth(-0.3, 0.4, nz)), flat * smooth(-0.35, 0.05, fbm2(x * 0.35 + 7, z * 0.35, 2) + 0.25));
       return col;
     };
-    const verts = [], nrm = [], cols = [];
+    const verts = [], nrm = [], cols = [], uvs = [], soil = [], site = islandLife().lighthouse;
     const vtx = (i, j) => {
       const x = L.x - R + i * st, z = L.z - R + j * st, h = hAt(i, j);
       const dx = hAt(Math.min(n, i + 1), j) - hAt(Math.max(0, i - 1), j), dz = hAt(i, Math.min(n, j + 1)) - hAt(i, Math.max(0, j - 1)), nn = V(-dx, 2 * st, -dz).normalize();
-      const c = colour(x, z, h, Math.hypot(dx, dz) / (2 * st)); verts.push(x, h, z); nrm.push(nn.x, nn.y, nn.z); cols.push(c.r, c.g, c.b);
+      const c = colour(x, z, h, Math.hypot(dx, dz) / (2 * st)); verts.push(x, h, z); nrm.push(nn.x, nn.y, nn.z); cols.push(c.r, c.g, c.b); uvs.push(x / 10, -z / 10); soil.push(soilAt(site, x, z) * 0.6);
     };
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
       if (Math.max(hAt(i, j), hAt(i + 1, j), hAt(i, j + 1), hAt(i + 1, j + 1)) < SEA_Y - 3.2) continue;   // deep under the opaque sea
       for (const [a, b] of [[0, 0], [0, 1], [1, 1], [0, 0], [1, 1], [1, 0]]) vtx(i + a, j + b);
     }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); g.setAttribute('aSoil', new THREE.Float32BufferAttribute(soil, 1)); g.setAttribute('aStream', new THREE.Float32BufferAttribute(new Float32Array(soil.length), 1));
     rock.rockGeo = g;
   }
   // the cleft's steps: a slab each, crisp edges over the height grid's staircase
@@ -288,7 +293,8 @@ export function createLighthouse({ scene, camera, skyUniforms, tex }) {
     const a = S.a0 + 1.1 + k * 2.4, s = (((a - S.a0) / (Math.PI * 2)) % 1 + 1) % 1, q = P(T.rIn - 0.14, a, T.floor + S.rise * (k + s) + 2.1); lantern(q.x, q.y, q.z);
   }
   { const q = P(T.rIn - 0.14, T.door + Math.PI * 0.5, T.floor + 2.2); lantern(q.x, q.y, q.z); }
-  /* ---- foliage on the plateau and the ledges: grass tufts, sea thrift in flower, a few low junipers (near only) ---- */
+  /* ---- foliage on the plateau and the ledges: sea thrift in flower, a few low junipers (near only; the grass, the
+     wind-bent spruces, the boulders and ferns: world/islandLife.js) ---- */
   const spots = [];
   {
     const clear = (x, z) => {
@@ -304,18 +310,6 @@ export function createLighthouse({ scene, camera, skyUniforms, tex }) {
       spots.push([x, h, z, hash(i, 3), hash(i, 4)]);
     }
   }
-  const tuft = (() => {   // 9 thin blades, leaning out, dark at the foot
-    const pos = [], col = [], base = lin(0x3d4a22), tip = lin(0x8f9a52);
-    for (let b = 0; b < 9; b++) {
-      const a = b / 9 * Math.PI * 2 + hash(b, 5), h = 0.2 + 0.16 * hash(b, 6), lean = 0.06 + 0.05 * hash(b, 7), w = 0.018;
-      const cx = Math.cos(a) * 0.03, cz = Math.sin(a) * 0.03, px = -Math.sin(a) * w, pz = Math.cos(a) * w;
-      pos.push(cx - px, 0, cz - pz, cx + px, 0, cz + pz, cx + Math.cos(a) * lean, h, cz + Math.sin(a) * lean);
-      col.push(base.r, base.g, base.b, base.r, base.g, base.b, tip.r, tip.g, tip.b);
-    }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
-    const n = g.attributes.normal; for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 1, 0);   // lit like the ground under it
-    return g;
-  })();
   const thrift = (() => { const b = builder(); const cushion = new THREE.SphereGeometry(0.1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2); cushion.scale(1, 0.6, 1); b.add(cushion, lin(0x3f5028));
     for (let k = 0; k < 6; k++) { const a = k * 1.1, rr = 0.03 + 0.05 * hash(k, 8), x = Math.cos(a) * rr, z = Math.sin(a) * rr, h = 0.12 + 0.06 * hash(k, 9);
       const st = new THREE.CylinderGeometry(0.004, 0.004, h, 3); st.translate(x, h / 2, z); b.add(st, lin(0x55623a));
@@ -327,10 +321,8 @@ export function createLighthouse({ scene, camera, skyUniforms, tex }) {
     list.forEach(([x, h, z, a, b], i) => { const sc = sMin + (sMax - sMin) * b; e.set(0, a * 6.28, 0); q.setFromEuler(e); m4.compose(V(x, h - 0.02, z), q, V(sc, sc * (0.8 + 0.4 * a), sc)); im.setMatrixAt(i, m4); });
     im.instanceMatrix.needsUpdate = true; im.castShadow = false; im.receiveShadow = true; scene.add(im); return im;
   };
-  const tuftSpots = spots.filter((p, i) => i % 5 !== 0 || p[1] < L.top - 0.5), thriftSpots = spots.filter((p, i) => i % 5 === 0 && p[1] > L.top - 0.5 && p[3] < 0.45);
+  const thriftSpots = spots.filter((p, i) => i % 5 === 0 && p[1] > L.top - 0.5 && p[3] < 0.45);
   const junSpots = spots.filter((p, i) => i % 5 === 0 && p[3] > 0.93).slice(0, 9);
-  const foliageMat = std({ roughness: 0.9, side: THREE.DoubleSide });
-  const tufts = scatterIM(tuft, tuftSpots.slice(0, isTouch ? 450 : 800), foliageMat, 0.8, 1.4);
   const thrifts = scatterIM(thrift, thriftSpots.slice(0, 70), std({ roughness: 0.8 }), 0.8, 1.3);
   const junipers = scatterIM(juniper, junSpots, std({ roughness: 0.95 }), 0.7, 1.2); junipers.castShadow = true;
   junSpots.forEach(([x, , z]) => solid.push([x, z, 0.4]));
@@ -339,7 +331,7 @@ export function createLighthouse({ scene, camera, skyUniforms, tex }) {
   const rockMat = std({ roughness: 0.92 }), towerMat = std({ roughness: 0.7 }), innerMat = std({ roughness: 0.8, side: THREE.DoubleSide });
   const glassMat = farFog(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }), LK.fogK);
   const add = (geo, mat, shadow = true) => { const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = shadow; scene.add(m); return m; };
-  const rockMesh = add(mergeTwo(rock.rockGeo, steps.geometry()), rockMat);
+  const rockMesh = add(rock.rockGeo, farFog(terrainMaterial(ctx, { rock: 0x5a564e, dirt: 0x3d3528, sand: 0x6e6350, wetSand: 0x2a2826, rockSlope: 0.72 }), LK.fogK)), stepMesh = add(steps.geometry(), rockMat);
   const towerMesh = add(tower.geometry(), towerMat), glassMesh = add(glass.geometry(), glassMat, false), lens = add(lensGeo, lensMat, false);
   const inside = add(inner.geometry(), innerMat); glassMesh.renderOrder = 2; lens.renderOrder = 2;
   const decoMesh = add(deco.geometry(), std({ roughness: 0.8 }));
@@ -349,7 +341,7 @@ export function createLighthouse({ scene, camera, skyUniforms, tex }) {
   const glowMat = new THREE.PointsMaterial({ map: softDot, color: 0xffc070, size: 1.1, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
   const glow = new THREE.Points(glowGeo, glowMat); glow.frustumCulled = false; scene.add(glow);
   innerMat.emissive = new THREE.Color(1, 0.72, 0.42);   // the lamps' warm light on the whitewash at night (no light of their own)
-  const near = [inside, decoMesh, lampMesh, glow, tufts, thrifts, junipers];
+  const near = [inside, decoMesh, lampMesh, glow, thrifts, junipers];
 
   /* ---- the beams: two soft additive cones back to back, turning about the lamp ---- */
   const B = LK.beam, beamU = { uBeamA: { value: 0 } };
@@ -365,7 +357,7 @@ export function createLighthouse({ scene, camera, skyUniforms, tex }) {
 
   const at = new THREE.Vector3(T.x, T.floor, T.z);
   return {
-    meshes: { rock: rockMesh, tower: towerMesh, glass: glassMesh, lens, inside }, beam,
+    meshes: { rock: rockMesh, steps: stepMesh, tower: towerMesh, glass: glassMesh, lens, inside }, beam,
     update(dt) {
       const isNear = camera.position.distanceTo(at) < LK.near; near.forEach(o => { o.visible = isNear; });
       const lit = smooth(B.night[0], B.night[1], skyUniforms.uNight.value);
@@ -374,10 +366,4 @@ export function createLighthouse({ scene, camera, skyUniforms, tex }) {
       beam.visible = lit > 0.01; beamU.uBeamA.value = B.opacity * lit; beam.rotation.y += dt * Math.PI * 2 / B.period;
     },
   };
-}
-/** Two vertex-coloured geometries as one. */
-function mergeTwo(a, b) {
-  const g = new THREE.BufferGeometry();
-  for (const k of ['position', 'normal', 'color']) { const x = a.attributes[k].array, y = b.attributes[k].array, o = new Float32Array(x.length + y.length); o.set(x); o.set(y, x.length); g.setAttribute(k, new THREE.BufferAttribute(o, 3)); }
-  g.computeBoundingSphere(); return g;
 }

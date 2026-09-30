@@ -486,8 +486,9 @@ export function createRoseBush(ctx) {
   at half the scene's density so it reads from home; the camera's far plane is 240 m so it is in view from anywhere;
   the interior is drawn only within 45 m. A daily task sends you up it. Round it: a flagstone path to the door (a stone
   surround, a slate canopy, a planked door open inward), a bench facing home, a life ring and an old anchor, barrels, a
-  crate and rope on the jetty, the keeper's table inside, a weather vane; grass tufts, sea thrift and junipers on the
-  plateau (instanced, drawn within 45 m). Lanterns by the door, on the jetty's post and along the stair glow at night
+  crate and rope on the jetty, the keeper's table inside, a weather vane; sea thrift and junipers on the plateau
+  (instanced, drawn within 45 m), and the home island's detail (see below): its ground in the terrain shader, GPU grass
+  on the plateau, wind-bent little spruces round its rim, boulders on the ledges and at the cliffs' foot, ferns. Lanterns by the door, on the jetty's post and along the stair glow at night
   (emissive with soft halos, no lights of their own; the whitewash inside takes a faint warm tint).
 - **Four more islands** (`ISLANDS`, `islandH`, the jetties in `world/layout.js`; `assets/islands/outerIslands.js`): round
   the home island, each its own place with its own jetties (the dock button works at any; the boat's range is 110 m out):
@@ -496,9 +497,24 @@ export function createRoseBush(ctx) {
   with tiki torches, a hammock, shells and starfish; two jetties. **Ember Rock** (south): a black volcanic cone, glowing
   cracks at night, steam vents, a hot spring, dead snags; an observatory on the top whose dome turns slowly.
   **Heron Marsh** (north-west, the largest): low wetland with still pools, reeds and cattails, willows, herons; a
-  fisherman's lodge on stilts with a boardwalk and net racks; two jetties. Each island's ground, trees, jetties and
-  building are one mesh (the sails and the dome apart); windows, shallows and still water are shared meshes; the small
-  life shows within 55 m. From home they cost ~6 draw calls on touch at the start view.
+  fisherman's lodge on stilts with a boardwalk and net racks; two jetties. Each island's jetties and building are one
+  mesh (the sails and the dome apart), its ground another; windows, shallows and still water are shared meshes; the
+  sheep, herons and reeds show within 55 m.
+- **The islands at the home island's detail** (`world/islandLife.js` places it all from its own random streams, so
+  nothing on the home island moves): the outer islands and the lighthouse rock grow with the home island's own systems.
+  Their ground is the terrain shader (`terrainMaterial` in `world/terrain.js`: the detail texture, dirt and rock layers by
+  slope, sand; each island its own colours: black ash and basalt on Ember Rock, white sand on Palm Cay, mud round the
+  marsh's pools) with paths worn from the jetties to the buildings. The GPU grass grows on them too (`createIslandGrounds`
+  in `world/grass.js`: a density / height texture per island, swapped in when you are there; lush and tall on the marsh,
+  sparse on the sand, dry tufts on the volcano). Trees are full-detail and thin into billboards like the home island's
+  (`world/scatter.js`): an apple orchard (its apples can be picked) and birches on Millholm, palms leaning out to sea on
+  Palm Cay, dead charred trees on Ember Rock, weeping willows and a few spruces on Heron Marsh, wind-bent spruces on the
+  lighthouse rock; the island species are generated in `assets/trees/islandTrees.js` (a silver birch with white,
+  lenticelled bark and hanging twigs of small leaves; a weeping willow with curtains of long whips; a coconut palm with a
+  ringed trunk, fronds of leaflet cards and coconuts; the apple generator's branching, leafless and charred). Boulders
+  (the scatter's, basalt-dark on Ember Rock), bushes as hedgerows along Millholm's walls, wild roses with butterflies,
+  ferns, meadow flowers, sticks and boletes (both can be picked up) come from `world/undergrowth.js`'s lists and draw
+  calls.
 - **Rough sea by the lighthouse** (`ROUGH`, `SWELL`, `roughAt`, `swellAt` in `world/layout.js`; the patch in
   `assets/water/pond.js`): within ~16 m of the rock the sea runs high, fading back to calm by ~44 m: a fine patch of sea
   (the open sea is cut away under it) carries a swell of three long waves from the east, choppier ripples, streaky

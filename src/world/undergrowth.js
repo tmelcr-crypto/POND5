@@ -16,6 +16,7 @@ import { createLogVariants } from '../assets/trees/fallenLog.js';
 import { pineconeGeo } from '../assets/trees/spruce.js';
 import { boleteGeo, agaricGeo, stickGeo, groundCone } from '../assets/vegetation/forestFloor.js';
 import { createButterflySwarm } from '../assets/fauna/butterflies.js';
+import { islandLife } from './islandLife.js';
 
 /**
  * Forest undergrowth and meadow life on the island, with the same draw logic as the trees and rocks:
@@ -156,6 +157,19 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
     keep(cones, it => gone.every(t => Math.hypot(it[0].elements[12] - t.x, it[0].elements[14] - t.z) > 3 * t.s + 0.3)); }
   keep(ferns, off(0.45)); mush.forEach(l => keep(l, off(0.1))); keep(sticks, off(0.5)); keep(cones, off(0.05));
   { const k = flowers.map((f, i) => [f, flowerCols[i]]).filter(([f]) => off(0.08)(f)); flowers.length = flowerCols.length = 0; k.forEach(([f, c]) => { flowers.push(f); flowerCols.push(c); }); }
+  /* ---- the outer islands and the lighthouse rock (world/islandLife.js, own random numbers): after everything above, so
+     nothing on the island moves; their bushes and roses are planted but not listed (bushes / roses stay the island's) ---- */
+  const life = islandLife(), islBushes = life.bushes.map(b => ({ x: b.x, y: b.y, z: b.z, s: b.s, rot: b.rot, variant: Math.floor(b.v * bushV.length) }));
+  const islRoses = life.roses.map(b => ({ x: b.x, y: b.y, z: b.z, s: b.s, rot: b.rot, variant: Math.floor(b.v * roseV.length) }));
+  life.ferns.forEach(c => { const R = c.r, r2 = (a, b) => a + (b - a) * R(), k = 7 + Math.floor(R() * 6);
+    for (let i = 0; i < k; i++) {
+      const a = i / k * 6.28 + r2(-0.25, 0.25), tilt = r2(0.45, 1.05), len = r2(0.32, 0.5) * c.sc, d = new V(Math.cos(a) * Math.sin(tilt), Math.cos(tilt), Math.sin(a) * Math.sin(tilt));
+      const q = new THREE.Quaternion().setFromUnitVectors(UPV, d); q.multiply(new THREE.Quaternion().setFromAxisAngle(UPV, r2(-0.3, 0.3) + Math.PI / 2));
+      ferns.push([M().compose(new V(c.x, c.y, c.z), q, new V(len * 0.42, len, len)), new THREE.Color(r2(0.8, 1.05), r2(0.9, 1.1), r2(0.75, 0.95))]);
+    } });
+  life.mush.forEach(m => { const R = m.r; mush[m.agaric ? 1 : 0].push([M().compose(new V(m.x, m.y, m.z), Q.setFromEuler(E.set((R() - 0.5) * 0.3, R() * 6.28, (R() - 0.5) * 0.3)), new V(1, 1, 1).multiplyScalar(0.6 + 0.75 * R()))]); });
+  life.sticks.forEach(t => { const R = t.r; sticks.push([M().compose(new V(t.x, t.y, t.z), Q.setFromEuler(E.set((R() - 0.5) * 0.16, t.a, (R() - 0.5) * 0.12)), new V(t.s, 0.8 + 0.5 * R(), 0.8 + 0.5 * R()))]); });
+  life.flowers.forEach(f => { const R = f.r; flowers.push([M().compose(new V(f.x, f.y, f.z), new THREE.Quaternion().setFromEuler(new THREE.Euler((R() - 0.5) * 0.3, R() * 6.28, (R() - 0.5) * 0.3)), new V(1, 0.75 + 0.5 * R(), 1).multiplyScalar(0.85 + 0.3 * R()))]); flowerCols.push(flowerTint(f.t)); });
   // colliders: the stump like a tree trunk, the trunk as a chain of ellipsoids (the boulders' format) in the log's frame
   logs.forEach(t => {
     const v = logSet.variants[t.variant], cr = Math.cos(t.rot), sr = Math.sin(t.rot), sp = Math.sin(t.pitch), cp = Math.cos(t.pitch);
@@ -165,9 +179,9 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
   });
 
   /* ---- meshes ---- */
-  const groups = plantGroups(scene, bushes, bushV, 'bush').concat(plantGroups(scene, roses, roseV, 'rose'));
-  if (bushes.length) scene.add(seasonalBillboards(renderer, bushV, 160, bushes, THIN_SMALL));   // bare in winter too
-  if (roses.length) scene.add(seasonalBillboards(renderer, roseV, 160, roses, THIN_SMALL));
+  const groups = plantGroups(scene, bushes, bushV, 'bush').concat(plantGroups(scene, roses, roseV, 'rose'), plantGroups(scene, islBushes, bushV, 'bush'), plantGroups(scene, islRoses, roseV, 'rose'));
+  if (bushes.length) scene.add(seasonalBillboards(renderer, bushV, 160, bushes.concat(islBushes), THIN_SMALL));   // bare in winter too
+  if (roses.length) scene.add(seasonalBillboards(renderer, roseV, 160, roses.concat(islRoses), THIN_SMALL));
   const logParts = logSet.variants.map(v => ({ bounds: v.bounds, parts: [
     { geometry: v.near[0], material: logSet.barkMat, depth: logSet.nearDepth }, { geometry: v.near[1], material: logSet.woodMat, depth: logSet.nearDepth, castShadow: false }] }));
   const logGroups = plantGroups(scene, logs, logParts, 'log');
@@ -239,6 +253,7 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
   const GN = Math.ceil(WORLD_HALF * 2) + 1, hm = new Float32Array(GN * GN);
   for (let j = 0; j < GN; j++) for (let i = 0; i < GN; i++) hm[j * GN + i] = Math.max(H(i - WORLD_HALF, j - WORLD_HALF), SEA_Y);
   const hAt = (x, z) => {
+    if (Math.abs(x) > WORLD_HALF || Math.abs(z) > WORLD_HALF) return Math.max(H(x, z), SEA_Y);   // (out on the other islands)
     const fx = Math.min(Math.max(x + WORLD_HALF, 0), GN - 1.001), fz = Math.min(Math.max(z + WORLD_HALF, 0), GN - 1.001), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, w = fz - j;
     return (hm[j * GN + i] * (1 - u) + hm[j * GN + i + 1] * u) * (1 - w) + (hm[(j + 1) * GN + i] * (1 - u) + hm[(j + 1) * GN + i + 1] * u) * w;
   };
@@ -264,6 +279,7 @@ export function createUndergrowth(ctx, { scatter, pollen }) {
     if (forest(x, z) > 0.12 || !onLand(x, z, CONFIG.island.beachWidth + 1) || excluded(x, z, 0)) continue;
     homes.push({ x, y: H(x, z), z, r: rr(0.9, 1.4), h: rr(0.35, 0.6) }); n++;
   }
+  homes.push(...life.butterflies);   // (and over the outer islands' fields)
   const butterflies = createButterflySwarm(ctx, homes, UC.butterflyRange);
 
   const all = groups.concat(logGroups);   // for the stats

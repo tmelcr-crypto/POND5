@@ -59,6 +59,7 @@ export const CONFIG = {
   // Island trees: the reference generators at full detail, thinned continuously with distance on the GPU
   trees: {
     variants: 4,            // differently seeded full-detail variants per species (build time grows with this)
+    islandVariants: 3,      // variants of the outer islands' own species (birch, willow, palm, dead tree: assets/trees/islandTrees.js)
     spruceScale: [1.1, 1.7],// the reference spruce is 5.8 m tall
     appleScale: [0.85, 1.2],
     keep: [15, 19, 0.5],    // all detail up to keep[0] m, then ease out to the fraction keep[2] at keep[1] m

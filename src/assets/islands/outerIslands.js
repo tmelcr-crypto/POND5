@@ -6,6 +6,8 @@ import { obstacles } from '../../world/bounds.js';
 import { isTouch } from '../../core/env.js';
 import { U } from '../../core/uniforms.js';
 import { builder, farFog } from '../lighthouse/lighthouse.js';
+import { islandLife, soilAt, ihash as hash } from '../../world/islandLife.js';
+import { terrainMaterial } from '../../world/terrain.js';
 
 /**
  * The four islands round the home island (their ground, jetties and docking: ISLANDS in world/layout.js), each its own
@@ -19,18 +21,20 @@ import { builder, farFog } from '../lighthouse/lighthouse.js';
  * islands read across the sea. No random numbers (hashes only).
  */
 export const IL_LOOK = { fogK: 0.5, near: 55, step: 0.5 };
-const hash = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
 const C = hex => lin(hex);
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
-export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
+export function createOuterIslands(ctx) {
+  const { scene, camera, skyUniforms, tex } = ctx, life = islandLife();
   const std = (o = {}) => farFog(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, ...o }), IL_LOOK.fogK);
-  const groundMat = std({ roughness: 0.92 }), partMat = std({ roughness: 0.75, side: THREE.DoubleSide }), nearMat = std({ roughness: 0.9, side: THREE.DoubleSide });
+  const partMat = std({ roughness: 0.75, side: THREE.DoubleSide }), nearMat = std({ roughness: 0.9, side: THREE.DoubleSide });
   const shallows = { p: [], c: [], a: [] }, water = builder(), windows = builder(), lava = builder(), glowAt = [], glowCol = [];
   const islands = [];
 
+  // the ground's layers in the home island's terrain shader, by kind: dirt (paths, mud, ash), rock on the slopes, sand
+  const GROUND = { meadow: {}, palm: { sand: 0xe6dcbf, wetSand: 0xa89a78 }, volcano: { dirt: 0x33302d, rock: 0x3b3633, sand: 0x2e2b29, wetSand: 0x1e1c1b, rockSlope: 0.86 }, marsh: { dirt: 0x3b3222, sand: 0x8d7d5c, wetSand: 0x5a4e38 } };
   for (const I of ISLANDS) {
-    const far = builder(), near = builder(), moving = [], hAt = (x, z) => islandH(I, x, z);
+    const far = builder(), near = builder(), moving = [], hAt = (x, z) => islandH(I, x, z), site = life.sites[ISLANDS.indexOf(I)];
     const place = (g, x, z, y = hAt(x, z), ry = 0) => { g.rotateY(ry); g.translate(x, y, z); return g; };
     const box = (b, w, h, d, x, y, z, c, ry = 0) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, h / 2, 0); b.add(place(g, x, z, y, ry), c); };
     const cyl = (b, r0, r1, h, x, y, z, c, seg = 10) => { const g = new THREE.CylinderGeometry(r1, r0, h, seg); g.translate(0, h / 2, 0); b.add(place(g, x, z, y), c); };
@@ -40,7 +44,7 @@ export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
     {
       const E = I.r * 1.45, st = IL_LOOK.step, n = Math.round(2 * E / st), hs = [];
       for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) hs.push(hAt(I.x - E + i * st, I.z - E + j * st));
-      const at = (i, j) => hs[j * (n + 1) + i], col = new THREE.Color(), pos = [], nor = [], cols = [];
+      const at = (i, j) => hs[j * (n + 1) + i], col = new THREE.Color(), pos = [], nor = [], cols = [], uvs = [], soil = [];
       const K = {
         meadow: { a: C(0x5d7a32), b: C(0x86993f), sand: C(0xcdbb8e), rock: C(0x857d70) },
         palm: { a: C(0x9aa24c), b: C(0x6f8a3a), sand: C(0xeee3c8), rock: C(0xb9a98a) },
@@ -60,6 +64,7 @@ export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
       const vtx = (i, j) => {
         const x = I.x - E + i * st, z = I.z - E + j * st, h = at(i, j), dx = at(Math.min(n, i + 1), j) - at(Math.max(0, i - 1), j), dz = at(i, Math.min(n, j + 1)) - at(i, Math.max(0, j - 1));
         const nn = V3(-dx, 2 * st, -dz).normalize(), c = colour(x, z, h, Math.hypot(dx, dz) / (2 * st)); pos.push(x, h, z); nor.push(nn.x, nn.y, nn.z); cols.push(c.r, c.g, c.b);
+        uvs.push(x / 10, -z / 10); soil.push(soilAt(site, x, z));
       };
       for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
         if (Math.max(at(i, j), at(i + 1, j), at(i, j + 1), at(i + 1, j + 1)) < SEA_Y - 3.2) continue;
@@ -72,6 +77,7 @@ export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
         }
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); g.setAttribute('aSoil', new THREE.Float32BufferAttribute(soil, 1)); g.setAttribute('aStream', new THREE.Float32BufferAttribute(new Float32Array(soil.length), 1));
       far.groundGeo = g;
     }
 
@@ -86,18 +92,11 @@ export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
     }
 
     /* ---- the island's own life and building ---- */
-    const spot = (k, rMin, rMax, ok = () => true) => {   // a dry place on the island by a hash, or null
-      for (let t = 0; t < 40; t++) { const a = hash(k, t + I.s) * Math.PI * 2, rr = I.r * (rMin + (rMax - rMin) * Math.sqrt(hash(t, k + I.s * 3))), x = I.x + Math.cos(a) * rr, z = I.z + Math.sin(a) * rr, h = hAt(x, z);
-        if (h > SEA_Y + 1.0 && ok(x, z, h) && !I.docks.some(d => d.dist(x, z) < 1.5)) return [x, z, h]; }
-      return null;
-    };
-    const top = (() => { let b = [I.x, I.z, hAt(I.x, I.z)]; for (let k = 0; k < 200; k++) { const a = hash(k, 91) * 6.28, rr = I.r * 0.35 * Math.sqrt(hash(k, 92)), x = I.x + Math.cos(a) * rr, z = I.z + Math.sin(a) * rr, h = hAt(x, z); if (h > b[2]) b = [x, z, h]; } return b; })();
-    let build = null;   // the building's footprint (x, z, r): life keeps clear of it
-    const clearOf = (x, z, m = 0) => !build || Math.hypot(x - build[0], z - build[1]) > build[2] + m;
+    const { spot, top, clearOf } = site;   // the building's site and a place finder (world/islandLife.js)
 
     if (I.kind === 'meadow') {
       // the windmill on the hill: a whitewashed stone tower, a thatched cap, four sails that turn with the wind
-      const [x, z, h] = top, faceA = Math.atan2(-z, -x), ry = -faceA + Math.PI / 2; build = [x, z, 3.2];
+      const [x, z, h] = top, faceA = Math.atan2(-z, -x), ry = -faceA + Math.PI / 2;
       const tower = new THREE.CylinderGeometry(1.55, 2.2, 7, 8, 4); tower.translate(0, 3.5, 0); far.add(place(tower, x, z, h - 0.3), (c, px, py) => c.copy(C(0xe4ddcf)).multiplyScalar(0.9 + 0.08 * Math.sin(py * 7)));
       const base = new THREE.CylinderGeometry(2.35, 2.45, 0.6, 8); base.translate(0, 0.3, 0); far.add(place(base, x, z, h - 0.3), C(0x8a8174));
       const cap = new THREE.ConeGeometry(1.95, 2.2, 8); cap.translate(0, 7.8, 0); far.add(place(cap, x, z, h - 0.3), C(0x6e5a3a));
@@ -110,15 +109,14 @@ export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
           const cloth = new THREE.BoxGeometry(1.0, 4.4, 0.03); cloth.translate(0.62, 3.2, -0.05); cloth.rotateZ(k * Math.PI / 2); sails.add(cloth, (c, px, py) => c.copy(C(0xefe6d2)).multiplyScalar(0.85 + 0.15 * Math.sin((px + py) * 12))); } }
       const sm = new THREE.Mesh(sails.geometry(), partMat), pivot = new THREE.Group(), [px, py, pz] = f(2.15, 7.2, 0); pivot.position.set(px, py, pz); pivot.rotation.y = Math.PI / 2 - faceA; pivot.add(sm); scene.add(pivot); sm.castShadow = true;   // (the sails face out, over the jetty and home)
       moving.push({ spin: sm, axis: 'z', speed: 0.9 }); solid(x, z, 2.5);
-      // birches round the hill, dry-stone walls
-      for (let k = 0; k < 11; k++) { const s = spot(k, 0.2, 0.75, (px2, pz2) => clearOf(px2, pz2, 2.5)); if (!s) continue; birch(far, s[0], s[2], s[1], k); solid(s[0], s[1], 0.25); }
-      for (let w = 0; w < 3; w++) { const a0 = hash(w, 7) * 6.28; for (let t = 0; t < 22; t++) { const a = a0 + t * 0.06, rr = I.r * (0.45 + 0.05 * w), sx = I.x + Math.cos(a) * rr, sz = I.z + Math.sin(a) * rr; if (!clearOf(sx, sz, 1) || I.docks.some(d => d.dist(sx, sz) < 2)) continue; for (let q = 0; q < 2; q++) { const g = new THREE.DodecahedronGeometry(0.28 + 0.1 * hash(t, q + w), 0); g.scale(1.3, 0.7, 1); g.rotateY(hash(t, w + 5) * 3); g.translate(0, 0.18 + q * 0.33, 0); far.add(place(g, sx, sz), C(0x8d8578).multiplyScalar(0.8 + 0.4 * hash(t, q * 3 + w))); } } }
+      // the dry-stone walls (the trees, orchard and hedgerows: world/islandLife.js, planted by world/scatter.js and undergrowth.js)
+      for (const [sx, sz, w, t] of site.walls) { for (let q = 0; q < 2; q++) { const g = new THREE.DodecahedronGeometry(0.28 + 0.1 * hash(t, q + w), 1); g.scale(1.3, 0.7, 1); g.rotateY(hash(t, w + 5) * 3); g.translate(0, 0.18 + q * 0.33, 0); far.add(place(g, sx, sz), (c, px, py, pz) => c.copy(C(0x8d8578)).multiplyScalar(0.8 + 0.4 * hash(t, q * 3 + w)).lerp(C(0x56662e), 0.55 * smooth(0.3, 0.8, fbm2(px * 4, pz * 4, 2) + (py - hAt(sx, sz) - 0.4)))); } solid(sx, sz, 0.35); }
       // sheep and wildflowers (near only)
       for (let k = 0; k < 5; k++) { const s = spot(k + 40, 0.2, 0.7, (px2, pz2) => clearOf(px2, pz2, 2)); if (s) sheep(near, s[0], s[2], s[1], hash(k, 4) * 6.28); }
     }
     if (I.kind === 'palm') {
       // the beach hut on stilts, facing the sea to the west, a hammock, palms all round
-      const s0 = spot(3, 0.1, 0.35) || top, [x, z] = s0, h = hAt(x, z), faceA = Math.atan2(I.z - z - 30, I.x - x - 60), ry = -faceA; build = [x, z, 2.8];
+      const [x, z] = site.build, h = hAt(x, z), faceA = Math.atan2(I.z - z - 30, I.x - x - 60), ry = -faceA;
       const deck = h + 1.1, wood = C(0x8a6a44), bamboo = C(0xb8a060), thatch = C(0xc9a85e);
       for (const [u, v] of [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]]) { const px = x + Math.cos(faceA) * u - Math.sin(faceA) * v, pz = z + Math.sin(faceA) * u + Math.cos(faceA) * v; cyl(far, 0.1, 0.09, deck - hAt(px, pz) + 2.3, px, hAt(px, pz) - 0.1, pz, bamboo, 6); }
       box(far, 3.4, 0.12, 3.4, x, deck - 0.12, z, wood, ry);
@@ -128,13 +126,15 @@ export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
       { const [wx, wy, wz] = [x - Math.cos(faceA) * 1.55, deck + 1.1, z - Math.sin(faceA) * 1.55]; windows.add(new THREE.BoxGeometry(0.7, 0.5, 0.7).translate(wx, wy, wz), C(0xffc98a)); glowAt.push(x, deck + 1.9, z); glowCol.push(1, 0.72, 0.4); }
       for (let k = 0; k < 2; k++) { const tx = x + Math.cos(faceA) * 2.6 + (k ? 1.5 : -1.5) * -Math.sin(faceA), tz = z + Math.sin(faceA) * 2.6 + (k ? 1.5 : -1.5) * Math.cos(faceA); cyl(far, 0.04, 0.05, 1.5, tx, hAt(tx, tz), tz, C(0x4a3424), 6); glowAt.push(tx, hAt(tx, tz) + 1.6, tz); glowCol.push(1, 0.6, 0.25); windows.add(new THREE.ConeGeometry(0.07, 0.2, 6).translate(tx, hAt(tx, tz) + 1.6, tz), C(0xffa050)); }   // tiki torches
       solid(x, z, 2.2);
-      const palms = []; for (let k = 0; k < 9; k++) { const s = spot(k + 10, 0.15, 0.85, (px2, pz2) => clearOf(px2, pz2, 2.8)); if (!s) continue; palm(far, s[0], s[2], s[1], k); palms.push(s); solid(s[0], s[1], 0.2); }
-      if (palms.length > 1) hammock(far, palms[0], palms[1]);
+      // a hammock between the two palms nearest each other
+      { const P = life.trees.palm.filter(t => Math.hypot(t.x - I.x, t.z - I.z) < I.r * 1.2); let best = null;
+        for (let a = 0; a < P.length; a++) for (let b = a + 1; b < P.length; b++) { const d = Math.hypot(P[a].x - P[b].x, P[a].z - P[b].z); if (d > 3 && d < 5.5 && (!best || d < best[2])) best = [P[a], P[b], d]; }
+        if (best) hammock(far, [best[0].x, best[0].z, hAt(best[0].x, best[0].z)], [best[1].x, best[1].z, hAt(best[1].x, best[1].z)]); }
       for (let k = 0; k < 30; k++) { const a = hash(k, 5) * 6.28, rr = I.r * (0.8 + 0.12 * hash(k, 6)), sx = I.x + Math.cos(a) * rr, sz = I.z + Math.sin(a) * rr, h2 = hAt(sx, sz); if (h2 < SEA_Y + 0.05) continue; const g = k % 4 === 0 ? starfish() : new THREE.SphereGeometry(0.035, 6, 4).scale(1, 0.5, 1.3); g.rotateY(hash(k, 7) * 6); g.translate(sx, h2 + 0.02, sz); near.add(g, k % 4 === 0 ? C(0xd8703a) : C(0xf2e6d2).multiplyScalar(0.8 + 0.3 * hash(k, 8))); }
     }
     if (I.kind === 'volcano') {
       // the observatory on the flat top: a stone drum, a copper dome that turns slowly, the telescope in its slit
-      const [x, z, h] = top; build = [x, z, 3.4];
+      const [x, z, h] = top;
       cyl(far, 2.6, 2.4, 3.0, x, h - 0.2, z, (c, px, py, pz) => c.copy(C(0x8f877c)).multiplyScalar(0.85 + 0.15 * hash(Math.floor(py * 3), Math.floor(Math.atan2(pz - z, px - x) * 4))), 20);
       const ring = new THREE.TorusGeometry(2.45, 0.08, 6, 32); ring.rotateX(Math.PI / 2); ring.translate(x, h + 2.85, z); far.add(ring, C(0x3a3230));
       { const fa = Math.atan2(-z, -x), dx = x + Math.cos(fa) * 2.5, dz = z + Math.sin(fa) * 2.5; const door = new THREE.BoxGeometry(0.12, 1.9, 0.9); door.translate(0, 0.95, 0); door.rotateY(-fa); door.translate(dx, h - 0.2, dz); far.add(door, C(0x4a3024)); windows.add(new THREE.BoxGeometry(0.1, 0.4, 0.4).rotateY(-fa).translate(x + Math.cos(fa + 0.6) * 2.48, h + 1.8, z + Math.sin(fa + 0.6) * 2.48), C(0xffd08a)); glowAt.push(dx, h + 2.2, dz); glowCol.push(1, 0.78, 0.5); }
@@ -143,8 +143,7 @@ export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
       const dm = new THREE.Mesh(dome.geometry(), partMat); dm.position.set(x, h + 2.8, z); dm.castShadow = true; scene.add(dm); moving.push({ spin: dm, axis: 'y', speed: 0.05 }); solid(x, z, 2.9);
       // the hot spring: steaming turquoise water in its basin
       const sp = I.spring; { const g = new THREE.CircleGeometry(sp.r + 0.3, 24); g.rotateX(-Math.PI / 2); g.translate(sp.x, sp.y, sp.z); water.add(g, C(0x3fb6b0)); }
-      // dead snags and dry tufts; glowing cracks down the cone; steam vents (near)
-      for (let k = 0; k < 6; k++) { const s = spot(k + 20, 0.3, 0.8, (px2, pz2) => clearOf(px2, pz2, 2) && Math.hypot(px2 - sp.x, pz2 - sp.z) > sp.r + 1); if (!s) continue; snag(far, s[0], s[2], s[1], k); solid(s[0], s[1], 0.2); }
+      // glowing cracks down the cone; steam vents (near). (Its dead trees and boulders: world/islandLife.js)
       for (let c = 0; c < 7; c++) { let a = c / 7 * 6.28 + 0.4, rr = 2.8; const pts = []; while (rr < I.r * 0.82) { const px2 = x + Math.cos(a) * rr, pz2 = z + Math.sin(a) * rr; pts.push([px2, hAt(px2, pz2) + 0.03, pz2]); rr += 0.5; a += (hash(c, rr) - 0.5) * 0.25; }
         for (let i = 1; i < pts.length; i++) { const [ax, ay, az] = pts[i - 1], [bx, by, bz] = pts[i], w = 0.07 * (1 - i / pts.length) + 0.02, nx = -(bz - az), nz = bx - ax, l = Math.hypot(nx, nz) || 1;
           const q = new THREE.BufferGeometry(); q.setAttribute('position', new THREE.Float32BufferAttribute([ax + nx / l * w, ay, az + nz / l * w, bx + nx / l * w, by, bz + nz / l * w, bx - nx / l * w, by, bz - nz / l * w, ax + nx / l * w, ay, az + nz / l * w, bx - nx / l * w, by, bz - nz / l * w, ax - nx / l * w, ay, az - nz / l * w], 3)); q.computeVertexNormals(); lava.add(q, C(0xff6a1e)); } }
@@ -153,7 +152,7 @@ export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
     }
     if (I.kind === 'marsh') {
       // the fisherman's lodge on stilts by the first jetty, a boardwalk to it, drying racks for nets
-      const d = I.docks[0], [lx0, lz0] = d.W(-4.5, 5.5), h = Math.max(hAt(lx0, lz0), MARSH_POOL), faceA = d.ang, ry = -faceA; build = [lx0, lz0, 3.6];
+      const d = I.docks[0], [lx0, lz0] = site.build, h = Math.max(hAt(lx0, lz0), MARSH_POOL), faceA = d.ang, ry = -faceA;
       const floor = h + 1.2, plank = C(0x6e5638), wall = C(0x7c6446);
       for (const [u, v] of [[-2.4, -1.9], [2.4, -1.9], [-2.4, 1.9], [2.4, 1.9], [0, -1.9], [0, 1.9]]) { const px = lx0 + Math.cos(faceA) * u - Math.sin(faceA) * v, pz = lz0 + Math.sin(faceA) * u + Math.cos(faceA) * v; cyl(far, 0.12, 0.11, floor - hAt(px, pz) + 0.2, px, hAt(px, pz) - 0.2, pz, plank.clone().multiplyScalar(0.7), 6); }
       box(far, 5.4, 0.15, 4.4, lx0, floor - 0.15, lz0, plank, ry);
@@ -163,30 +162,27 @@ export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
       { const [a0x, a0z] = d.W(0, 0), steps = 16; for (let k = 0; k <= steps; k++) { const t = k / steps, bx = a0x + (lx0 - a0x) * t * 0.82, bz = a0z + (lz0 - a0z) * t * 0.82, y = Math.max(hAt(bx, bz), MARSH_POOL) + 0.25; box(far, 1.2, 0.06, 0.3, bx, y, bz, plank.clone().multiplyScalar(0.85 + 0.2 * hash(k, 3)), -Math.atan2(lz0 - a0z, lx0 - a0x) + Math.PI / 2); } }   // the boardwalk
       for (let r = 0; r < 2; r++) { const [rx, rz] = d.W(-6 - r * 2.2, -3.5); cyl(far, 0.05, 0.05, 1.6, rx - 0.8, hAt(rx - 0.8, rz), rz, plank, 6); cyl(far, 0.05, 0.05, 1.6, rx + 0.8, hAt(rx + 0.8, rz), rz, plank, 6); box(far, 1.7, 0.04, 0.04, rx, hAt(rx, rz) + 1.55, rz, plank); const net = new THREE.PlaneGeometry(1.5, 1.2, 6, 4); const pp = net.attributes.position; for (let i = 0; i < pp.count; i++) pp.setZ(i, 0.06 * Math.sin(pp.getX(i) * 7)); net.translate(rx, hAt(rx, rz) + 0.95, rz); far.add(net, C(0x5a5848)); }
       solid(lx0, lz0, 3.0);
-      // willows, pools, reeds and cattails, lily pads, herons
-      for (let k = 0; k < 7; k++) { const s = spot(k + 30, 0.2, 0.8, (px2, pz2, h2) => clearOf(px2, pz2, 3) && h2 > MARSH_POOL + 0.1); if (!s) continue; willow(far, s[0], s[2], s[1], k); solid(s[0], s[1], 0.3); }
+      // pools, reeds and cattails, herons (its willows: world/islandLife.js)
       { const E = I.r * 0.85, st = 0.6; for (let x = I.x - E; x < I.x + E; x += st) for (let z = I.z - E; z < I.z + E; z += st) { const c = [[0, 0], [st, 0], [st, st], [0, st]].map(([a, b]) => hAt(x + a, z + b)); if (Math.min(...c) < MARSH_POOL - 0.02 && Math.hypot(x - I.x, z - I.z) < I.r * 0.8) { const g = new THREE.PlaneGeometry(st, st); g.rotateX(-Math.PI / 2); g.translate(x + st / 2, MARSH_POOL, z + st / 2); water.add(g, C(0x2f4a3c)); } } }
       I.herons = []; for (let k = 0; k < 3; k++) { const s = spot(k + 70, 0.3, 0.8, (px2, pz2, h2) => h2 < MARSH_POOL + 0.25 && clearOf(px2, pz2, 3)); if (s) { heron(near, s[0], Math.max(s[2], MARSH_POOL - 0.1), s[1], hash(k, 9) * 6.28); } }
     }
 
-    /* ---- near life: grass tufts (and reeds on the marsh, flowers on the meadow), instanced ---- */
-    const tufts = [], flowers = [];
-    const nT = { meadow: isTouch ? 700 : 1100, palm: 260, volcano: 180, marsh: isTouch ? 800 : 1200 }[I.kind];
-    for (let k = 0; k < nT * 3 && tufts.length < nT; k++) {
-      const a = hash(k, 11 + I.s) * 6.28, rr = I.r * 0.92 * Math.sqrt(hash(k, 12 + I.s)), x = I.x + Math.cos(a) * rr, z = I.z + Math.sin(a) * rr, h = hAt(x, z);
-      if (h < (I.kind === 'palm' ? SEA_Y + 1.15 : SEA_Y + 0.75) || !clearOf(x, z, 0.5) || I.docks.some(d => d.dist(x, z) < 0.5)) continue;
-      if (I.kind === 'volcano' && hash(k, 13) > 0.35) continue;
-      tufts.push([x, h, z, hash(k, 14), hash(k, 15)]);
-      if (I.kind === 'meadow' && hash(k, 16) < 0.3) flowers.push([x + 0.2, hAt(x + 0.2, z), z, hash(k, 17), hash(k, 18)]);
+    /* ---- near life: reeds and cattails round the marsh's pools and shore, instanced (the grass: world/grass.js) ---- */
+    const nearParts = [];
+    if (I.kind === 'marsh') {
+      const reeds = [], nT = isTouch ? 900 : 1400;
+      for (let k = 0; k < nT * 6 && reeds.length < nT; k++) {
+        const a = hash(k, 11 + I.s) * 6.28, rr = I.r * 0.95 * Math.sqrt(hash(k, 12 + I.s)), x = I.x + Math.cos(a) * rr, z = I.z + Math.sin(a) * rr, h = hAt(x, z);
+        if (h < MARSH_POOL - 0.25 || h > MARSH_POOL + 0.22 || !clearOf(x, z, 0.5) || I.docks.some(d => d.dist(x, z) < 0.6) || site.blocked(x, z, 0.1)) continue;
+        reeds.push([x, Math.max(h, MARSH_POOL - 0.05), z, hash(k, 14), hash(k, 15)]);
+      }
+      nearParts.push(instanced(scene, reedGeo(), reeds, nearMat, 0.8, 1.5));
     }
-    const tuftGeo = I.kind === 'marsh' ? reedGeo() : tuftGeoFor(I.kind), nearParts = [];
-    nearParts.push(instanced(scene, tuftGeo, tufts, nearMat, I.kind === 'marsh' ? 0.8 : 0.9, I.kind === 'marsh' ? 1.5 : 1.3));
-    if (flowers.length) { const im = instanced(scene, flowerGeo(), flowers, nearMat, 0.8, 1.2); const cols = [0xd8382c, 0x4a6ad8, 0xf0d040, 0xf2f2ee, 0xc060c0]; flowers.forEach((f, i) => im.setColorAt(i, C(cols[Math.floor(f[3] * cols.length)]))); im.instanceColor.needsUpdate = true; nearParts.push(im); }
     const nearGeo = near.geometry(); if (nearGeo.attributes.position.count) { const nm = new THREE.Mesh(nearGeo, nearMat); nm.castShadow = true; nm.receiveShadow = true; scene.add(nm); nearParts.push(nm); }
 
-    const fg = far.geometry(), gg = far.groundGeo;
-    const m = new THREE.Mesh(mergeTwo(gg, fg), groundMat); m.castShadow = m.receiveShadow = true; scene.add(m);
-    islands.push({ I, far: m, near: nearParts, moving, at: V3(I.x, 0, I.z) });
+    const gm = new THREE.Mesh(far.groundGeo, farFog(terrainMaterial(ctx, GROUND[I.kind]), IL_LOOK.fogK)); gm.receiveShadow = true; gm.castShadow = true; scene.add(gm);
+    const m = new THREE.Mesh(far.geometry(), partMat); m.castShadow = m.receiveShadow = true; scene.add(m);
+    islands.push({ I, ground: gm, far: m, near: nearParts, moving, at: V3(I.x, 0, I.z) });
   }
 
   /* ---- shared: shallows, still water, windows, lava, lamps' glow ---- */
@@ -226,32 +222,6 @@ export function createOuterIslands({ scene, camera, skyUniforms, tex }) {
 }
 
 /* ---- the plants and animals, built in place into a builder ---- */
-function birch(b, x, h, z, k) {
-  const tall = 5 + 2.5 * hash(k, 1), lean = (hash(k, 2) - 0.5) * 0.2;
-  const trunk = new THREE.CylinderGeometry(0.1, 0.17, tall, 8, 6); trunk.translate(0, tall / 2, 0); trunk.rotateZ(lean); trunk.translate(x, h - 0.1, z);
-  b.add(trunk, (c, px, py, pz) => c.copy(lin(0xe8e4dc)).multiplyScalar(Math.sin(py * 9 + pz * 4 + k) > 0.75 ? 0.25 : 0.95));
-  for (let q = 0; q < 5; q++) { const g = new THREE.IcosahedronGeometry(0.9 + 0.5 * hash(k, q + 3), 1); g.scale(1, 1.3, 1); g.translate(x + (hash(q, k) - 0.5) * 1.4 + Math.sin(lean) * -tall, h + tall * (0.62 + 0.1 * q), z + (hash(k, q + 9) - 0.5) * 1.4); b.add(g, (c, px, py, pz) => c.copy(lin(0x7fa446)).lerp(lin(0xb7c85a), 0.5 + 0.5 * Math.sin(px * 5 + py * 3 + pz * 4))); }
-}
-function palm(b, x, h, z, k) {
-  const tall = 4.5 + 2 * hash(k, 1), bend = 0.8 + 0.8 * hash(k, 2), dir = hash(k, 3) * 6.28, dx = Math.cos(dir), dz = Math.sin(dir), P = t => [x + dx * bend * t * t * tall * 0.35, h + t * tall, z + dz * bend * t * t * tall * 0.35];
-  for (let i = 0; i < 10; i++) { const [ax, ay, az] = P(i / 10), [bx, by, bz] = P((i + 1) / 10), g = new THREE.CylinderGeometry(0.13 - i * 0.006, 0.16 - i * 0.006, Math.hypot(bx - ax, by - ay, bz - az) + 0.03, 8); g.translate(0, Math.hypot(bx - ax, by - ay, bz - az) / 2, 0); g.rotateX(Math.PI / 2); g.lookAt(new THREE.Vector3(bx - ax, by - ay, bz - az)); g.translate(ax, ay, az); b.add(g, i % 2 ? lin(0x8a6f4a) : lin(0x75603f)); }
-  const [tx, ty, tz] = P(1);
-  for (let f = 0; f < 9; f++) { const a = f / 9 * 6.28 + hash(k, f), len = 2.4 + 0.6 * hash(f, k), pts = [], w = 0.32;
-    for (let i = 0; i <= 8; i++) { const t = i / 8, px = tx + Math.cos(a) * len * t, pz = tz + Math.sin(a) * len * t, py = ty + 0.5 * t - 1.6 * t * t; pts.push([px, py, pz, w * Math.sin(Math.PI * Math.min(1, t * 1.2 + 0.05))]); }
-    const pos = []; for (let i = 1; i < pts.length; i++) { const [ax, ay, az, aw] = pts[i - 1], [bx, by, bz, bw] = pts[i], nx = -Math.sin(a), nz = Math.cos(a); pos.push(ax - nx * aw, ay, az - nz * aw, bx - nx * bw, by, bz - nz * bw, bx + nx * bw, by, bz + nz * bw, ax - nx * aw, ay, az - nz * aw, bx + nx * bw, by, bz + nz * bw, ax + nx * aw, ay, az + nz * aw); }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals(); b.add(g, (c, px, py) => c.copy(lin(0x3e7a2c)).lerp(lin(0x7fae3e), clamp((ty - py) / 1.5))); }
-  for (let q = 0; q < 3; q++) { const g = new THREE.SphereGeometry(0.11, 8, 6); g.translate(tx + Math.cos(q * 2.1) * 0.18, ty - 0.2, tz + Math.sin(q * 2.1) * 0.18); b.add(g, lin(0x5a4020)); }
-}
-function willow(b, x, h, z, k) {
-  const tall = 3.2 + 1.2 * hash(k, 1), trunk = new THREE.CylinderGeometry(0.22, 0.4, tall, 9, 3); trunk.translate(x, h + tall / 2 - 0.1, z); b.add(trunk, lin(0x5a4a38));
-  for (let q = 0; q < 40; q++) { const a = q / 40 * 6.28 + hash(k, q), r0 = 0.9 + 1.2 * hash(q, k), len = 1.8 + 1.6 * hash(q + 1, k), px = x + Math.cos(a) * r0, pz = z + Math.sin(a) * r0, py = h + tall + 0.6 - r0 * 0.25;
-    const g = new THREE.PlaneGeometry(0.35, len, 1, 3); g.translate(0, -len / 2, 0); g.rotateY(-a + Math.PI / 2); g.translate(px, py, pz); b.add(g, (c, qx, qy) => c.copy(lin(0x6f9440)).lerp(lin(0xa9bf5e), clamp((py - qy) / len))); }
-  for (let q = 0; q < 5; q++) { const c2 = new THREE.IcosahedronGeometry(0.8 + 0.3 * hash(k, q + 20), 1); c2.scale(1.1, 0.8, 1.1); c2.translate(x + Math.cos(q * 1.26) * 0.9, h + tall + 0.5 + 0.25 * (q % 2), z + Math.sin(q * 1.26) * 0.9); b.add(c2, (c, px, py, pz) => c.copy(lin(0x6d8f3e)).lerp(lin(0x9ab556), 0.5 + 0.5 * Math.sin(px * 4 + pz * 5))); }
-}
-function snag(b, x, h, z, k) {
-  const tall = 1.6 + 1.5 * hash(k, 1), g = new THREE.CylinderGeometry(0.03, 0.12, tall, 6); g.translate(0, tall / 2, 0); g.rotateZ((hash(k, 2) - 0.5) * 0.4); g.translate(x, h - 0.1, z); b.add(g, lin(0x3a3230));
-  for (let q = 0; q < 3; q++) { const br = new THREE.CylinderGeometry(0.015, 0.04, 0.8, 5); br.translate(0, 0.4, 0); br.rotateZ(0.9 * (q % 2 ? 1 : -1)); br.rotateY(q * 2.1); br.translate(x, h + tall * (0.4 + 0.2 * q), z); b.add(br, lin(0x3a3230)); }
-}
 function sheep(b, x, h, z, a) {
   const add = (g, c) => { g.rotateY(a); g.translate(x, h, z); b.add(g, c); };
   const body = new THREE.IcosahedronGeometry(0.42, 1); body.scale(1.35, 0.9, 0.95); body.translate(0, 0.62, 0); add(body, lin(0xeeeae0));
@@ -272,12 +242,6 @@ function hammock(b, p1, p2) {
   b.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.18, 6), (c, px, py) => c.copy(lin(0xd84a3a)).lerp(lin(0xf0d8a0), 0.5 + 0.5 * Math.sin(px * 12 + py * 6)));
 }
 function starfish() { const s = new THREE.Shape(); for (let i = 0; i < 10; i++) { const a = i / 10 * 6.28, r = i % 2 ? 0.035 : 0.09; (i ? s.lineTo : s.moveTo).call(s, Math.cos(a) * r, Math.sin(a) * r); } const g = new THREE.ExtrudeGeometry(s, { depth: 0.02, bevelEnabled: false }); g.rotateX(-Math.PI / 2); return g; }
-function tuftGeoFor(kind) {
-  const pos = [], col = [], base = lin(kind === 'volcano' ? 0x6a5a3a : kind === 'palm' ? 0x7a8a3a : 0x3d5222), tip = lin(kind === 'volcano' ? 0xb8a060 : kind === 'palm' ? 0xc8c070 : 0x9aae52);
-  for (let b = 0; b < 9; b++) { const a = b / 9 * 6.28 + hash(b, 5), h = 0.22 + 0.2 * hash(b, 6), lean = 0.07 + 0.05 * hash(b, 7), w = 0.018, cx = Math.cos(a) * 0.03, cz = Math.sin(a) * 0.03, px = -Math.sin(a) * w, pz = Math.cos(a) * w;
-    pos.push(cx - px, 0, cz - pz, cx + px, 0, cz + pz, cx + Math.cos(a) * lean, h, cz + Math.sin(a) * lean); col.push(base.r, base.g, base.b, base.r, base.g, base.b, tip.r, tip.g, tip.b); }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(pos.map((v, i) => (i % 3 === 1 ? 1 : 0)), 3)); return g;
-}
 function reedGeo() {   // tall reeds and a cattail
   const pos = [], col = [], base = lin(0x4a5a2a), tip = lin(0xa8b060);
   for (let b = 0; b < 7; b++) { const a = b / 7 * 6.28 + hash(b, 8), h = 0.9 + 0.7 * hash(b, 9), lean = 0.12 * hash(b, 10), w = 0.02, cx = Math.cos(a) * 0.05, cz = Math.sin(a) * 0.05, px = -Math.sin(a) * w, pz = Math.cos(a) * w;
@@ -287,18 +251,9 @@ function reedGeo() {   // tall reeds and a cattail
   for (let i = 0; i < cp.count; i++) { pos.push(cp.getX(i), cp.getY(i), cp.getZ(i)); col.push(brown.r, brown.g, brown.b); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(pos.map((v, i) => (i % 3 === 1 ? 1 : 0)), 3)); return g;
 }
-function flowerGeo() {
-  const b = builder(); const st = new THREE.CylinderGeometry(0.006, 0.006, 0.28, 3); st.translate(0, 0.14, 0); b.add(st, lin(0x4a6a2a));
-  const head = new THREE.SphereGeometry(0.035, 6, 4); head.scale(1, 0.55, 1); head.translate(0, 0.29, 0); b.add(head, new THREE.Color(1, 1, 1)); return b.geometry();
-}
 function instanced(scene, geo, list, mat, sMin, sMax) {
   const im = new THREE.InstancedMesh(geo, mat, Math.max(1, list.length)), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
   list.forEach(([x, h, z, a, b], i) => { const sc = sMin + (sMax - sMin) * b; e.set(0, a * 6.28, 0); q.setFromEuler(e); m4.compose(new THREE.Vector3(x, h - 0.02, z), q, new THREE.Vector3(sc, sc * (0.8 + 0.4 * a), sc)); im.setMatrixAt(i, m4); });
   if (!list.length) im.count = 0;
   im.instanceMatrix.needsUpdate = true; im.castShadow = false; im.receiveShadow = true; scene.add(im); return im;
-}
-function mergeTwo(a, b) {
-  const g = new THREE.BufferGeometry();
-  for (const k of ['position', 'normal', 'color']) { const x = a.attributes[k].array, y = b.attributes[k].array, o = new Float32Array(x.length + y.length); o.set(x); o.set(y, x.length); g.setAttribute(k, new THREE.BufferAttribute(o, 3)); }
-  g.computeBoundingSphere(); return g;
 }

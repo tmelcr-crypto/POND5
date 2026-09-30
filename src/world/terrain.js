@@ -79,8 +79,7 @@ function tnoise(x, y, per) { const xi = Math.floor(x), yi = Math.floor(y), xf = 
  * slope and a soil mask (forest floor, bare patches), plus sand on the beaches.
  */
 export function createWorldTerrain(ctx) {
-  const { scene, maxAniso } = ctx;
-  const { detailTex } = ctx.tex;
+  const { scene } = ctx;
   const TC = CONFIG.terrain, WC = CONFIG.world;
   const pos = [], nor = [], uv = [], col = [], soil = [], streamV = [], idx = [];
   const c = new THREE.Color(), cw = new THREE.Color(), dryW = lin(0x6d7a34);
@@ -121,15 +120,36 @@ export function createWorldTerrain(ctx) {
   g.setAttribute('aSoil', new THREE.Float32BufferAttribute(soil, 1)); g.setAttribute('aStream', new THREE.Float32BufferAttribute(streamV, 1)); g.setIndex(idx);
   g.computeBoundingSphere();
 
+  const m = terrainMaterial(ctx);
+  const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh);
+  return { mesh };
+}
+
+/** The dirt and rock detail textures of the terrain shader (built once). */
+let SOIL = null;
+function soilTextures(maxAniso) {
+  if (SOIL) return SOIL;
   const dirtTex = noiseTex(256, (x, y) => { const n = 0.55 * tnoise(x / 16, y / 16, 16) + 0.3 * tnoise(x / 5, y / 5, 51.2) + 0.15 * tnoise(x / 1.7, y / 1.7, 150.6); return (0.35 + 0.8 * n) * (hash2(x, y) > 0.93 ? 0.7 : 1); });
   const rockTex = noiseTex(256, (x, y) => { const n = 0.5 * tnoise(x / 22, y / 22, 11.636) + 0.3 * tnoise(x / 7, y / 7, 36.57) + 0.2 * tnoise(x / 2.3, y / 2.3, 111.3); const crack = Math.abs(tnoise(x / 11, y / 5, 23.27) - 0.5) < 0.025 ? 0.55 : 1; return (0.3 + 0.85 * n) * crack; });
   [dirtTex, rockTex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = maxAniso; });
+  return (SOIL = { dirtTex, rockTex });
+}
+/**
+ * The island terrain's shader: grass (painted vertex colour x the diorama detail texture), dirt / forest floor (aSoil)
+ * and rock by slope, sand on the beaches (below 0.55-0.95 m over the sea), a wet stream bed (aStream). Geometry needs
+ * position, normal, uv, color, aSoil and aStream. o: the layers' colours (dirt, rock, sand, wetSand) and rockSlope, for
+ * the outer islands' grounds (assets/islands/outerIslands.js); the defaults are the home island's.
+ */
+export function terrainMaterial(ctx, o = {}) {
+  const { maxAniso } = ctx, { detailTex } = ctx.tex, TC = CONFIG.terrain;
+  const { dirtTex, rockTex } = soilTextures(maxAniso);
   const uni = {
     uDirtTex: { value: dirtTex }, uRockTex: { value: rockTex },
-    uDirtCol: { value: lin(0x4d3c28) }, uRockCol: { value: lin(0x77736a) },
-    uRockSlope: { value: 1 - TC.rockSlope },
-    uSea: U.uSea, uSand: { value: lin(0xb9a57c) }, uWetSand: { value: lin(0x6f6147) },
+    uDirtCol: { value: lin(o.dirt ?? 0x4d3c28) }, uRockCol: { value: lin(o.rock ?? 0x77736a) },
+    uRockSlope: { value: 1 - (o.rockSlope ?? TC.rockSlope) },
+    uSea: U.uSea, uSand: { value: lin(o.sand ?? 0xb9a57c) }, uWetSand: { value: lin(o.wetSand ?? 0x6f6147) },
   };
+
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, map: detailTex, roughness: 0.95, metalness: 0, envMapIntensity: 0.6 });
   m.onBeforeCompile = s => {
     Object.assign(s.uniforms, uni);
@@ -156,6 +176,5 @@ export function createWorldTerrain(ctx) {
       .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n reflectedLight.directSpecular *= 0.2; reflectedLight.indirectSpecular *= 0.2;');
   };
   m.userData.season = 'ground';   // world/seasonLooks.js
-  const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh);
-  return { mesh };
+  return m;
 }
