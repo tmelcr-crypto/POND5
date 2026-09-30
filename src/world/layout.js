@@ -261,6 +261,7 @@ export function emberWalls(p, prev, feet) {
   const d = Math.hypot(p.x - prev.x, p.z - prev.z); if (d < 1e-5) return;
   const g = q => Math.max(islandH(I, q.x, q.z), ...I.docks.map(k => k.deckAt(q.x, q.z)));
   if (feet > g(prev) + 0.6) return;   // (in the observatory, on its steps)
+  if (I.docks.some(k => k.deckAt(prev.x, prev.z) > -Infinity || k.deckAt(p.x, p.z) > -Infinity)) return;   // (stepping on or off the jetty)
   const g0 = g(prev), g1 = g(p);
   if (g0 > SEA_Y - 0.2 && Math.abs(g1 - g0) / d > 1.4 && g1 > SEA_Y - 0.6) back();
   else if (g0 > SEA_Y + 0.8 && g1 < SEA_Y + 0.2) back();   // off a cliff into the sea
