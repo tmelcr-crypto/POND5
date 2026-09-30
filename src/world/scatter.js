@@ -9,6 +9,8 @@ import { obstacles, rockBodies } from './bounds.js';
 import { createSpruceVariants } from '../assets/trees/spruce.js';
 import { createAppleVariants } from '../assets/trees/appleTree.js';
 import { createRockVariants } from '../assets/rocks/scatteredRocks.js';
+import { createBirchVariants, createWillowVariants, createPalmVariants, createSnagVariants } from '../assets/trees/islandTrees.js';
+import { islandLife } from './islandLife.js';
 
 /**
  * Seeded scatter of trees and rocks over the island.
@@ -159,7 +161,7 @@ export function billboards(atlas, list, uniforms = THIN) {
   const m = new THREE.MeshStandardMaterial({ map: atlas.texture, color: new THREE.Color(2, 2, 2), alphaTest: 0.5, roughness: 0.9, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.5 });
   m.onBeforeCompile = s => {
     Object.assign(s.uniforms, uniforms, { uRows: { value: atlas.rows } });
-    s.vertexShader = 'attribute vec2 aBB; uniform vec3 uViewPos; uniform vec2 uFade; uniform float uRows; varying float vTreeD;\n' + s.vertexShader
+    s.vertexShader = 'attribute vec2 aBB; uniform vec3 uViewPos; uniform vec2 uFade; uniform float uRows; varying float vTreeD; varying float vFarK;\n' + s.vertexShader
       .replace('#include <uv_vertex>', `
         vec3 bbC = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
         vec3 bbT = uViewPos - bbC; bbT.y = 0.0; bbT = normalize(bbT + vec3(1e-4, 0.0, 0.0));
@@ -172,12 +174,22 @@ export function billboards(atlas, list, uniforms = THIN) {
       .replace('#include <defaultnormal_vertex>', 'vec3 transformedNormal = normalize((viewMatrix * vec4(objectNormal, 0.0)).xyz);')
       .replace('#include <project_vertex>', `
         vTreeD = distance(bbC, uViewPos);
+        vFarK = 1.0 - 0.5 * smoothstep(58.0, 80.0, length(bbC.xz));   // the outer islands' trees fog as their islands do (IL_LOOK.fogK)
         float bbSX = length(instanceMatrix[0].xyz), bbSY = length(instanceMatrix[1].xyz);
         vec3 bbW = bbC + (bbR * transformed.x * bbSX + vec3(0.0, transformed.y * bbSY, 0.0)) * step(uFade.x - 0.5, vTreeD);
         vec4 mvPosition = viewMatrix * vec4(bbW, 1.0);
         gl_Position = projectionMatrix * mvPosition;`);
-    s.fragmentShader = 'uniform vec2 uFade; varying float vTreeD;\n' + s.fragmentShader.replace('void main() {', `void main() {
-      if (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) >= smoothstep(uFade.x, uFade.y, vTreeD)) discard;`);
+    s.fragmentShader = 'uniform vec2 uFade; varying float vTreeD; varying float vFarK;\n' + s.fragmentShader.replace('void main() {', `void main() {
+      if (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) >= smoothstep(uFade.x, uFade.y, vTreeD)) discard;`)
+      .replace('#include <fog_fragment>', `
+      #ifdef USE_FOG
+        #ifdef FOG_EXP2
+          float fdK = fogDepth * vFarK;
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, 1.0 - exp(-fogDensity * fogDensity * fdK * fdK));
+        #else
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, smoothstep(fogNear, fogFar, fogDepth));
+        #endif
+      #endif`);
   };
   const bb = new THREE.InstancedMesh(q, m, list.length);
   const M = new THREE.Matrix4(), P = new THREE.Vector3(), S = new THREE.Vector3(), Q = new THREE.Quaternion();
@@ -231,14 +243,23 @@ export function createScatter(ctx) {
     }
     rocksAll.push(...rocks.map(l => l.slice())); rocks.forEach((l, k) => { rocks[k] = l.filter(r => walkwayDist(r.x, r.z) > r.s * 1.1 + 0.2 && caveDist(r.x, r.z) > r.s * 0.3); });   // none on the walkways or in the cave's knoll
   }
+  // the outer islands' and the lighthouse rock's boulders (world/islandLife.js; Ember Rock's dark), after the island's own
+  const life = islandLife();
+  life.rocks.forEach(r => rocks[Math.floor(r.v * rocks.length)].push({ x: r.x, y: r.y, z: r.z, s: r.s, rot: r.rot, tilt: r.tilt, dark: r.dark }));
 
   /* ---- full-detail tree variants (each built from its own seed, after all placement draws) ---- */
   const spruceV = createSpruceVariants(ctx, TC.variants, CONFIG.world.seed + 101);
   const appleV = createAppleVariants(ctx, TC.variants, CONFIG.world.seed + 202);
+  // the outer islands' trees: the same spruces and apples, and their own species (assets/trees/islandTrees.js)
+  const IV = TC.islandVariants, islandV = { spruce: spruceV, apple: appleV, birch: createBirchVariants(ctx, IV, CONFIG.world.seed + 303), willow: createWillowVariants(ctx, IV, CONFIG.world.seed + 404),
+    palm: createPalmVariants(ctx, IV, CONFIG.world.seed + 505), snag: createSnagVariants(ctx, IV, CONFIG.world.seed + 606) };
+  const isl = {};
+  for (const sp in life.trees) isl[sp] = life.trees[sp].map(t => ({ x: t.x, y: t.y, z: t.z, s: t.s, rot: t.lean !== undefined ? -t.lean + (t.v - 0.5) * 0.6 : t.rot, pitch: t.pitch, variant: Math.floor(t.v * islandV[sp].length) }));   // (a palm leans out to sea)
 
   /* ---- colliders ---- */
   spruce.forEach(t => obstacles.add(t.x, t.z, spruceV[t.variant].trunkRadius * t.s + 0.2, t.y + spruceV[t.variant].height * t.s));
   apple.forEach(t => obstacles.add(t.x, t.z, appleV[t.variant].trunkRadius * t.s + 0.2, t.y + 1.6 * t.s));
+  for (const sp in isl) isl[sp].forEach(t => { const v = islandV[sp][t.variant]; obstacles.add(t.x, t.z, v.trunkRadius * t.s + 0.2, t.y + Math.min(v.height, 2.5) * t.s); });
   // boulders: rotated ellipsoids fitted to each variant's mesh, in the outcrop's collider format (radii padded by 0.2),
   // so the controls can stand on low ones and push the player (0.25 m body) around tall ones
   rocks.forEach((list, k) => list.forEach(r => { const e = rockSet.variants[k].ellipsoid;
@@ -247,22 +268,27 @@ export function createScatter(ctx) {
 
   /* ---- tree meshes: one small group per tree, everything shared with its variant ---- */
   const trees = plantGroups(scene, spruce, spruceV, 'spruce').concat(plantGroups(scene, apple, appleV, 'apple'));
+  // (after the island's own: the apples you can pick keep their order; the islands' spruces are no squirrel's)
+  for (const sp in isl) trees.push(...plantGroups(scene, isl[sp], islandV[sp], sp === 'spruce' ? 'islandSpruce' : sp));
   const bbs = [];
-  if (spruce.length) bbs.push(seasonalBillboards(renderer, spruceV, TC.billboardTile, spruce));
-  if (apple.length) bbs.push(seasonalBillboards(renderer, appleV, TC.billboardTile, apple));
+  if (spruce.length) bbs.push(seasonalBillboards(renderer, spruceV, TC.billboardTile, spruce.concat(isl.spruce)));
+  if (apple.length) bbs.push(seasonalBillboards(renderer, appleV, TC.billboardTile, apple.concat(isl.apple)));
+  for (const sp of ['birch', 'willow', 'palm', 'snag']) if (isl[sp].length) bbs.push(seasonalBillboards(renderer, islandV[sp], TC.billboardTile, isl[sp]));
   /** Bake every seasonal billboard again as it looks in this season (world/seasons.js): trees, bushes, the plot's. */
   const rebake = rebakeBillboards;
   bbs.forEach(b => scene.add(b));
 
   /* ---- rocks: full-detail mesh per rock near the camera, one instanced far mesh per variant, cross-faded like the trees ---- */
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), Sv = new THREE.Vector3(), E = new THREE.Euler();
-  const nearRocks = [];
+  const nearRocks = [], DARK = new THREE.Color(0.34, 0.31, 0.3), WHITE = new THREE.Color(1, 1, 1);   // Ember Rock's basalt: the sandstone paint darkened
+  const nearDark = rockSet.nearMat.clone(); nearDark.onBeforeCompile = rockSet.nearMat.onBeforeCompile; nearDark.color.copy(DARK);
   rockSet.variants.forEach((v, k) => {
     if (!rocks[k].length) return;
     const far = new THREE.InstancedMesh(v.far, rockSet.farMat, rocks[k].length);
     rocks[k].forEach((t, i) => {
       far.setMatrixAt(i, M.compose(P.set(t.x, t.y, t.z), Q.setFromEuler(E.set(t.tilt, t.rot, 0)), Sv.setScalar(t.s)));
-      const m = new THREE.Mesh(v.near, rockSet.nearMat); m.matrix.copy(M); m.matrixAutoUpdate = false; m.matrixWorldNeedsUpdate = true;
+      far.setColorAt(i, t.dark ? DARK : WHITE);
+      const m = new THREE.Mesh(v.near, t.dark ? nearDark : rockSet.nearMat); m.matrix.copy(M); m.matrixAutoUpdate = false; m.matrixWorldNeedsUpdate = true;
       m.castShadow = m.receiveShadow = true; m.customDepthMaterial = rockSet.nearDepth; m.visible = false; m.userData.dynamic = true;
       scene.add(m); nearRocks.push({ m, p: new THREE.Vector3(t.x, t.y, t.z) });
     });

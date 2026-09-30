@@ -3,6 +3,7 @@ import { clamp, smooth, lin } from '../core/math.js';
 import { fbm2 } from '../core/noise.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
+import { grassRegions } from './islandLife.js';
 import { H, HALF, WORLD_HALF, forest, excluded, coastDist, streamDist, footpathDist, bridgeDist, benchDist, chestDist, firepitDist, builtDist, signDist, lieDist, keepsakeDist } from './layout.js';
 
 /**
@@ -29,6 +30,24 @@ export function createGroundTexture() {
   tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.needsUpdate = true;
   // world (x, z) -> uv = (x + offset) * scale
   return { tex, N, ext, st, data, scale: 1 / (2 * ext + st), offset: ext + st / 2 };
+}
+/**
+ * The same texture for each outer island and the lighthouse rock (world/islandLife.js: density, blade height, tints),
+ * centred on it; the grass samples the one it is on (createWorldGrass update). Blank (no grass) at the edges.
+ */
+export function createIslandGrounds() {
+  const half = THREE.DataUtils.toHalfFloat;
+  return grassRegions().map(R => {
+    const st = 0.25, N = Math.ceil(2 * R.ext / st) + 1, ext = (N - 1) * st / 2, data = new Uint16Array(N * N * 4);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const x = R.x - ext + i * st, z = R.z - ext + j * st, k = (j * N + i) * 4, edge = i === 0 || j === 0 || i === N - 1 || j === N - 1;
+      const [d, tall] = edge ? [0, 1] : R.at(x, z);
+      data[k] = half(H(x, z)); data[k + 1] = half(d); data[k + 2] = half(clamp(fbm2(x * 0.9 + 4, z * 0.9 - 2) + 0.5)); data[k + 3] = half(tall);
+    }
+    const tex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat, THREE.HalfFloatType);
+    tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.needsUpdate = true;
+    return { tex, region: R, ext, st: new THREE.Vector3(1 / (2 * ext + st), ext + st / 2 - R.x, ext + st / 2 - R.z), tint: R.tint.map(lin) };
+  });
 }
 
 /**
@@ -72,7 +91,7 @@ const SECTORS = 8, bs0 = new THREE.Vector3();
 /** d(r) / full: 1 to fullRadius, quadratic falloff to 0 at radius. */
 export function grassFalloff(r, G = CONFIG.grass) { return r < G.fullRadius ? 1 : Math.pow(clamp((G.radius - r) / (G.radius - G.fullRadius)), 2); }
 
-export function createWorldGrass(ctx, ground) {
+export function createWorldGrass(ctx, ground, islands = []) {
   const { scene } = ctx;
   const G = CONFIG.grass;
   const rings = [];
@@ -91,7 +110,7 @@ export function createWorldGrass(ctx, ground) {
     }
     const uni = {
       uOrigin: { value: new THREE.Vector2() }, uCam: { value: new THREE.Vector3() }, uGround: { value: ground.tex },
-      uGroundST: { value: new THREE.Vector2(ground.scale, ground.offset) },
+      uGroundST: { value: new THREE.Vector3(ground.scale, ground.offset, ground.offset) },
       uRing: { value: new THREE.Vector4(ri === 0 ? -1e3 : rin, ri === G.rings.length - 1 ? 1e3 : rout, cell, G.blend) },
       uFall: { value: new THREE.Vector4(G.fullRadius, G.radius, G.density / cap, HALF) },
       uClump: { value: G.clumping },
@@ -104,7 +123,7 @@ export function createWorldGrass(ctx, ground) {
       s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uWindDir = U.uWindDir;
       s.vertexShader = `attribute vec4 aBlade; attribute vec2 aCell;
         uniform float uTime; uniform float uWind; uniform vec2 uWindDir;
-        uniform vec2 uOrigin; uniform vec3 uCam; uniform sampler2D uGround; uniform vec2 uGroundST;
+        uniform vec2 uOrigin; uniform vec3 uCam; uniform sampler2D uGround; uniform vec3 uGroundST;
         uniform vec4 uRing; uniform vec4 uFall; uniform float uClump; uniform vec2 uH; uniform vec3 uTA; uniform vec3 uTB; uniform vec3 uTDry;
         float gh(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
         ` + s.vertexShader
@@ -115,7 +134,7 @@ export function createWorldGrass(ctx, ground) {
           float rnd = gh(bp * 1.37 + aBlade.z);
           float r = distance(bp, uCam.xz);
           float rj = r + (gh(bp * 3.1 + 0.7) - 0.5) * uRing.w;   // per-blade dither across ring seams
-          vec4 gd = texture2D(uGround, (bp + uGroundST.y) * uGroundST.x);
+          vec4 gd = texture2D(uGround, (bp + uGroundST.yz) * uGroundST.x);
           float gPatch = gd.b;                                    // low-frequency noise, 0..1
           float fall = r < uFall.x ? 1.0 : pow(clamp((uFall.y - r) / (uFall.y - uFall.x), 0.0, 1.0), 2.0);
           float d = gd.g * fall * (1.0 + (gPatch - 0.5) * 2.0 * uClump);   // d(r) / full, clumped
@@ -160,7 +179,17 @@ export function createWorldGrass(ctx, ground) {
     });
     rings.push({ meshes, uni, cell });
   });
+  // which ground the grass grows on: the home island's, or the outer island (or the lighthouse rock) the camera is at
+  const home = { tex: ground.tex, st: new THREE.Vector3(ground.scale, ground.offset, ground.offset), tint: [tA, tB, tDry] };
+  let on = home;
+  function groundFor(cam) {
+    const reach = G.radius + 2;
+    for (const g of islands) if (Math.abs(cam.x - g.region.x) < g.ext + reach && Math.abs(cam.z - g.region.z) < g.ext + reach) return g;
+    return home;
+  }
   function update(cam) {
+    const g = groundFor(cam);
+    if (g !== on) { on = g; for (const r of rings) { r.uni.uGround.value = g.tex; r.uni.uGroundST.value.copy(g.st); r.uni.uTA.value = g.tint[0]; r.uni.uTB.value = g.tint[1]; r.uni.uTDry.value = g.tint[2]; } }
     for (const r of rings) {
       const o = r.uni.uOrigin.value.set(Math.floor(cam.x / r.cell), Math.floor(cam.z / r.cell)); // in cells, not metres
       r.uni.uCam.value.copy(cam);
