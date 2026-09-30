@@ -246,6 +246,20 @@ export function createScatter(ctx) {
   // the outer islands' and the lighthouse rock's boulders (world/islandLife.js; Ember Rock's dark), after the island's own
   const life = islandLife();
   life.rocks.forEach(r => rocks[Math.floor(r.v * rocks.length)].push({ x: r.x, y: r.y, z: r.z, s: r.s, rot: r.rot, tilt: r.tilt, dark: r.dark }));
+  // seat every boulder on the ground: its mesh's lower part against the terrain under it, lowered until no part of its
+  // underside hangs in the air (on a slope its centre's height left the downhill side floating); sea stacks stay as set
+  const rockFit = { n: 0, floating: 0, maxGap: 0, clamped: 0 };
+  { const Mf = new THREE.Matrix4(), Qf = new THREE.Quaternion(), Ef = new THREE.Euler(), Pf = new THREE.Vector3(), Sf = new THREE.Vector3(), vf = new THREE.Vector3();
+    // each variant's underside rim (its lowest eighth), and how high that rim stands over flat ground as placed (y - 0.12 s)
+    const low = rockSet.variants.map(v => { const p = v.near.attributes.position, b = v.near.boundingBox || (v.near.computeBoundingBox(), v.near.boundingBox), cut = b.min.y + (b.max.y - b.min.y) * 0.13, out = [];
+      let top = -Infinity; for (let i = 0; i < p.count; i++) if (p.getY(i) < cut) { out.push(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i))); top = Math.max(top, p.getY(i)); } out.flat = top - 0.12; out.h = b.max.y - b.min.y; return out; });
+    rocks.forEach((list, k) => list.forEach(r => {
+      if (H(r.x, r.z) < r.y - r.s * 0.5) return;   // (standing in the sea)
+      Mf.compose(Pf.set(r.x, r.y, r.z), Qf.setFromEuler(Ef.set(r.tilt, r.rot, 0)), Sf.setScalar(r.s));
+      let gap = -Infinity; for (const q of low[k]) { vf.copy(q).applyMatrix4(Mf); gap = Math.max(gap, vf.y - H(vf.x, vf.z)); }
+      gap -= low[k].flat * r.s;   // (more than on flat ground: hanging over a slope)
+      rockFit.n++; if (gap > 0.02) { rockFit.floating++; rockFit.maxGap = Math.max(rockFit.maxGap, gap); const d = Math.min(gap, low[k].h * r.s * 0.45); if (d < gap) rockFit.clamped++; r.y -= d; }   // (never sunk past half its height: a cliff-edge one stays mostly visible)
+    })); }
 
   /* ---- full-detail tree variants (each built from its own seed, after all placement draws) ---- */
   const spruceV = createSpruceVariants(ctx, TC.variants, CONFIG.world.seed + 101);
@@ -299,7 +313,7 @@ export function createScatter(ctx) {
      trees that have fully become billboards. One distance and a few binary searches per tree. ---- */
   const frustum = new THREE.Frustum(), pm = new THREE.Matrix4();
   const hideBeyond = TC.fade[1] + 1;
-  const stats = { trees: trees.length, rocks: rocks.reduce((s, l) => s + l.length, 0), near: 0, far: 0, cards: 0, nearRocks: 0 };
+  const stats = { rockFit, trees: trees.length, rocks: rocks.reduce((s, l) => s + l.length, 0), near: 0, far: 0, cards: 0, nearRocks: 0 };
   function update(camera, withStats) {
     const c = camera.position; THIN.uViewPos.value.copy(c);
     for (const r of nearRocks) r.m.visible = r.p.distanceTo(c) < hideBeyond;   // the far mesh covers the rest

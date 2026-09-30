@@ -6,6 +6,7 @@ import { canvasTex } from '../../core/canvasTexture.js';
 import { U } from '../../core/uniforms.js';
 import { FIREPITS, H } from '../../world/layout.js';
 import { obstacles } from '../../world/bounds.js';
+import { islandLife } from '../../world/islandLife.js';
 import { makeFlame } from './cabin.js';
 
 /**
@@ -13,7 +14,7 @@ import { makeFlame } from './cabin.js';
  * to sit on, and a small roofed woodpile. Everything that does not burn is one mesh per pit (bark / end-grain atlas and
  * vertex colours); the firewood is a second mesh whose embers glow. Burning (set(i, k, e) from app/fires.js, k 0..1 the
  * fire, e 0..1 how hot the embers still are): flames (the fireplace's), a glow, a warm pool on the ground, sparks and
- * smoke. No real lights. Its own random numbers, so the seeded build is unchanged. Every number is in FIREPIT_LOOK.
+ * smoke. No real lights. The other islands' pits (world/islandLife.js) come after the home island's. Its own random numbers, so the seeded build is unchanged. Every number is in FIREPIT_LOOK.
  */
 export const FIREPIT_LOOK = {
   stones: 12, stoneSize: [0.12, 0.17],
@@ -23,9 +24,11 @@ export const FIREPIT_LOOK = {
   glow: 1.3, sparks: 24, smoke: 5,
   collider: { top: 1.9 },
   near: 45,                        // m: flicker, sparks and smoke only animate this close
+  show: 90,                        // m: the other islands' firepits are drawn only this close
 };
 
 export function createFirepits(ctx) {
+  islandLife();   // (the other islands' firepits join FIREPITS when their sites are laid out)
   const { scene, maxAniso } = ctx, F = FIREPIT_LOOK, { softDot } = ctx.tex;
   let seed = 7373; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }, rr = (a, b) => a + (b - a) * rnd();
 
@@ -160,7 +163,7 @@ export function createFirepits(ctx) {
     const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp.pos, 3));
     const sparks = new THREE.Points(sg, new THREE.PointsMaterial({ size: 0.022, map: softDot, color: 0xffa040, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); sparks.frustumCulled = false; fire.add(sparks);
     const smoke = Array.from({ length: F.smoke }, (_, i) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDot, color: 0xa8a39c, transparent: true, opacity: 0, depthWrite: false })); scene.add(s); return { s, u: i / F.smoke, ph: rr(0, 6.28) }; });
-    pits.push({ P, fire, flames, glow, pool, poolMat, sparks, sp, smoke, emberMat, k: 1, e: 1, at: new V(P.x, P.y + 0.3, P.z), pile: pileAt });
+    pits.push({ P, still, firewood, far: P.name.startsWith('isle-'), fire, flames, glow, pool, poolMat, sparks, sp, smoke, emberMat, k: 1, e: 1, at: new V(P.x, P.y + 0.3, P.z), pile: pileAt });
   }
 
   let night = 1;   // the warm pool and glow show at night, faintly by day (update() follows the sky)
@@ -182,6 +185,7 @@ export function createFirepits(ctx) {
   function update(t, dt, camera, nightNow = 1) {
     night = nightNow; cam.copy(camera.position); const wd = U.uWindDir.value, ws = 0.4 + U.uWind.value;
     for (const p of pits) {
+      if (p.far) { const v = p.at.distanceTo(cam) < F.show; p.still.visible = p.firewood.visible = p.fire.visible = v; }   // an island's: drawn only nearby
       const hot = Math.max(p.k, p.e);
       p.smoke.forEach(s => { s.s.visible = hot > 0.02; });
       if (hot <= 0.02 || p.at.distanceTo(cam) > F.near) continue;

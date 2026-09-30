@@ -5,12 +5,15 @@ import { CONFIG } from '../config.js';
  * little softer (a lower pixel ratio, one step at a time, down to min x the top); when it stays above .high fps for
  * longer, sharper again, up to CONFIG.render.maxPixelRatio (and the device's own). Slow on purpose: a step at most every
  * .wait seconds, and it must hold for .hold seconds first, so it settles instead of flickering.
+ * soften(k): render at k x that (sleepy sight, app/body.js: a few fixed steps, so it re-sizes only when one changes).
  */
 export function createDynamicRes(renderer) {
   const D = CONFIG.render.dynamic, top = Math.min(window.devicePixelRatio || 1, CONFIG.render.maxPixelRatio), bottom = top * D.min;
-  let pr = renderer.getPixelRatio(), avg = 1 / 60, slow = 0, fast = 0, wait = D.wait;
+  let pr = renderer.getPixelRatio(), avg = 1 / 60, slow = 0, fast = 0, wait = D.wait, soft = 1;
+  const apply = () => { renderer.setPixelRatio(pr * soft); renderer.setSize(innerWidth, innerHeight, false); };
   return {
     get ratio() { return pr; },
+    soften(k) { if (k === soft) return; soft = k; apply(); avg = 1 / 60; slow = fast = 0; },
     update(dt) {
       if (!D.enabled || dt <= 0 || dt > 0.5) return;   // a hitch (a tab switch, a shader compile) says nothing about the steady rate
       avg += (dt - avg) * Math.min(1, dt * 2);
@@ -20,7 +23,7 @@ export function createDynamicRes(renderer) {
       let next = pr;
       if (slow > D.hold && pr > bottom + 1e-3) next = Math.max(bottom, pr - D.step);
       else if (fast > D.hold * 2.5 && pr < top - 1e-3) next = Math.min(top, pr + D.step);
-      if (next !== pr) { pr = next; renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false); wait = D.wait; slow = fast = 0; }
+      if (next !== pr) { pr = next; apply(); wait = D.wait; slow = fast = 0; }
     },
   };
 }

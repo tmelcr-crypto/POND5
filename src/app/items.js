@@ -18,7 +18,7 @@ import { SHOWN } from '../world/seasonLooks.js';
  *    the island's cones and sticks (world/undergrowth.js), the stream's pebbles, the windfall apples, berries and
  *    pebbles, shells and driftwood of assets/vegetation/forage.js (one shell in CONFIG.items.rareShell is a nautilus, a keepsake); what small moments drops (apples, cones, gust petals) and what you throw;
  *    petals straight off any rose bush (CONFIG.items.rosePetals a day each) and sticks from the firepits' woodpiles
- *    (CONFIG.items.pileSticks a day each).
+ *    (CONFIG.items.pileSticks a day each); a cup of coffee in each house (addCups).
  *  - aim: whatever is in the middle of the screen (no crosshair) and within reach: CONFIG.items.reach around you, from
  *    the ground to a little above your head (your hand gets within 0.4 m: you crouch for low things, reach up for high
  *    ones). The item glows softly and its icon shows below the middle of the screen.
@@ -342,6 +342,8 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   /** The keepsakes hidden round the island (assets/story/keepsakes.js): one source each, taken once only. */
   const keeps = [];
   function addKeepsakes(ks) { ks.kinds.forEach((kind, i) => { addSource('ks_' + kind, kind, [ks.points[i]], () => ks.hide(i), () => ks.show(i), null, false); sources[sources.length - 1].once = true; keeps.push(kind); }); }
+  /** The cups of coffee in the houses (assets/cabin/coffeeCups.js): one source each, back a day after you take one. */
+  function addCups(c) { c.cups.forEach((cup, i) => addSource('coffee' + i, 'coffee', [cup.at], () => { cup.mesh.visible = false; }, () => { cup.mesh.visible = true; }, () => ({ geo: c.geo, mat: c.mat, m: cup.mesh.matrixWorld.clone() }))); }
   const found = () => keeps.filter(k => taken['ks_' + k + ':0'] !== undefined);
-  return { addKeepsakes, keepsakes: () => ({ all: keeps.slice(), found: found() }), update, pickUpdate, use, sfx, drop, model: kind => model(kind), season: s => { season = s; }, get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
+  return { addKeepsakes, addCups, keepsakes: () => ({ all: keeps.slice(), found: found() }), update, pickUpdate, use, sfx, drop, model: kind => model(kind), season: s => { season = s; }, get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
 }

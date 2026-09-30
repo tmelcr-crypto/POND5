@@ -220,6 +220,9 @@ export const CONFIG = {
     warm: ['bakedApple', 'grilledFish', 'roastedMushroom', 'bakedPotato', 'roastedPumpkin', 'roastedOnion'],   // cooked food that warms you
     grace: 60, freeze: 180, melt: 25,      // s outdoors in winter before frost starts; s to full frost; s to melt it
     fireWarm: 3.5,                 // m from a burning fire that warms you
+    // sleepiness (1 = rested): drain per in-game hour awake (16 h from rested to `slow`, 19 h to `collapse`), below
+    // `slow` you walk at slowWalk x and see blurred, at `collapse` you fall asleep; coffee adds, sleepHours fill it
+    awake: { perHour: 0.05, slow: 0.2, collapse: 0.05, slowWalk: 0.5, coffee: 0.2, sleepHours: 7 },
   },
 
   // Footsteps (audio/footsteps.js) and the soundtrack (audio/music.js)

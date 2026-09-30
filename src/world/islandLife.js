@@ -1,6 +1,6 @@
 import { smooth, clamp } from '../core/math.js';
 import { fbm2 } from '../core/noise.js';
-import { ISLANDS, islandH, MARSH_POOL, SEA_Y, LIGHTHOUSE, lighthouseH, EMBER } from './layout.js';
+import { ISLANDS, islandH, MARSH_POOL, SEA_Y, LIGHTHOUSE, lighthouseH, EMBER, addFirepit, PIT_SIZE } from './layout.js';
 
 /**
  * Where the home island's systems grow on the four outer islands and the lighthouse rock: full-detail trees (the
@@ -62,12 +62,50 @@ function lighthouseSite() {
   return { hAt: lighthouseH, blocked, pathDist: (x, z) => (x > L.x - G.u0 && x < T.x ? Math.abs(z - L.z) : Infinity) };
 }
 
+/**
+ * A firepit on an island (as the home island's: world/layout.js FIREPITS, assets/cabin/firepits.js): the level, dry
+ * place nearest a path with room for the fire, three logs round it and a woodpile; else just the ring of stones. By
+ * hashes only. The site then keeps everything else clear of it.
+ */
+function pitSite(S, key) {
+  const I = S.I, cx = I ? I.x : LIGHTHOUSE.x, cz = I ? I.z : LIGHTHOUSE.z, rad = I ? I.r : 8, hAt = S.hAt;
+  const floor = !I ? LIGHTHOUSE.top - 0.4 : I.kind === 'marsh' ? MARSH_POOL + 0.2 : SEA_Y + 0.9;
+  const level = (x, z, r, span) => { let lo = Infinity, hi = -Infinity; for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; for (const f of [0.5, 1]) { const h = hAt(x + Math.cos(a) * r * f, z + Math.sin(a) * r * f); lo = Math.min(lo, h); hi = Math.max(hi, h); } } return lo > floor && hi - lo < span; };
+  const reach = PIT_SIZE.logR + 0.6;
+  if (I && I.kind === 'volcano') { const Q = EMBER.pit, a0 = Math.atan2(Q.z - I.z, Q.x - I.x) * 180 / Math.PI + 60; return { x: Q.x, z: Q.z, logs: [a0, a0 + 120, a0 + 240].map(d => (d % 360 + 360) % 360), pile: null, bare: false }; }   // its own terrace (world/layout.js)
+  for (const full of [true, false]) {
+    let best = null;
+    for (let t = 0; t < 500; t++) {
+      const a = ihash(t, 51 + key) * Math.PI * 2, r = rad * (0.1 + 0.85 * Math.sqrt(ihash(53 + key, t))), x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
+      const R = full ? reach : 1.0, pd = S.pathDist(x, z);
+      if (pd < R + 0.4 || S.blocked(x, z, R) || !level(x, z, R, full ? 0.8 : 0.3)) continue;
+      if (I && I.kind === 'volcano' && Math.abs(Math.atan2(Math.sin(Math.atan2(z - I.z, x - I.x) - EMBER.cove.a), Math.cos(Math.atan2(z - I.z, x - I.x) - EMBER.cove.a))) < EMBER.cove.half + 0.25) continue;   // (not in the cove: only a boat gets there)
+      if (!best || pd < best.pd) best = { x, z, pd, full };
+    }
+    if (!best) continue;
+    let pile = null;
+    if (best.full) for (let k = 0; k < 12 && !pile; k++) {   // the woodpile: a few metres off, level, clear of paths
+      const a = (k * 30 + 360 * ihash(key, 57)) % 360, ar = a * Math.PI / 180, px = best.x + Math.cos(ar) * 3.3, pz = best.z + Math.sin(ar) * 3.3;
+      if (!S.blocked(px, pz, 1.1) && S.pathDist(px, pz) > 1.6 && level(px, pz, 1.0, 0.35)) pile = [a, 3.3];
+    }
+    const a0 = pile ? pile[0] + 60 : 360 * ihash(key, 59);
+    return { x: best.x, z: best.z, logs: best.full ? [a0, a0 + 120, a0 + 240].map(d => d % 360) : [], pile, bare: !best.full };
+  }
+  return null;
+}
+
 let LIFE = null;
 /** Everything the islands grow, placed once. */
 export function islandLife() {
   if (LIFE) return LIFE;
   const trees = { apple: [], spruce: [], birch: [], willow: [], palm: [], snag: [] }, rocks = [], bushes = [], roses = [], ferns = [], flowers = [], sticks = [], mush = [], butterflies = [];
   const sites = ISLANDS.map(siteOf), lh = lighthouseSite();
+  [...sites, lh].forEach((S, i) => {   // a firepit on each (the fires, the logs to sit on: world/layout.js addFirepit)
+    const f = pitSite(S, i * 7 + 3); if (!f) return;
+    S.pit = addFirepit({ name: 'isle-' + (S.I ? S.I.kind : 'rock'), ...f });
+    const clear = [[f.x, f.z, f.bare ? 1.1 : PIT_SIZE.logR + 0.6]]; if (S.pit.pile) clear.push([S.pit.pile.x, S.pit.pile.z, 1.2]);
+    const b0 = S.blocked; S.blocked = (x, z, m) => b0(x, z, m) || clear.some(([cx, cz, r]) => Math.hypot(x - cx, z - cz) < r + m);
+  });
   for (const S of [...sites, lh]) {
     const I = S.I, R = stream(I ? 9001 + Math.round(I.s * 1000) : 4242), rr = (a, b) => a + (b - a) * R(), hAt = S.hAt;
     const cx = I ? I.x : LIGHTHOUSE.x, cz = I ? I.z : LIGHTHOUSE.z, rad = I ? I.r : 11.5;

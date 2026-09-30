@@ -118,7 +118,7 @@ export function createBenches(ctx) {
     for (let i = 0, n = 4; i < n; i++) { const a = -half + 0.2 + i * (b.length - 0.4) / (n - 1), [cx, cz] = benchPoint(b, a, -0.02); obstacles.add(cx, cz, b.depth / 2, b.y + BL.collider.top); }
   }
   // the cabin's bench under the front window is solid too
-  const cs = SEATS[SEATS.length - 1];
+  const cs = SEATS[BENCHES.length];   // (after the benches' own seats; the firepits' logs come after it)
   for (const a of [-0.34, 0, 0.34]) obstacles.add(cs.x + a, cs.z, 0.17, cs.top + BL.collider.top);
 
   kit.register();

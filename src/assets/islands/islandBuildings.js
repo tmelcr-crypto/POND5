@@ -240,7 +240,7 @@ export function createIslandBuildings(ctx) {
       // the loft: the miller's bunk, a table and stool, shelves of jars, a sack or two
       bed(-0.75, f1, -0.95, 0.55, lin(0x8a2a24), 1.8, 0.85, 0.38); solid(-0.75, -0.95, 0.95, 0.47, f1 - 0.3, f1 + 0.6, 0.55);
       table(0.75, f1, -0.75, 0.6, 0.5, -0.3, 0.7); chair(0.95, f1, -0.25, -1.9); solid(0.75, -0.75, 0.34, 0.3, f1 - 0.3, f1 + 0.75, -0.3);
-      K.cyl('plain', 0.07, 0.08, 0.2, 0.7, f1 + 0.74, -0.8, 12, lin(0x7a5a3a)); K.ball('plain', 0.09, 0.85, f1 + 0.78, -0.65, 1.4, 0.7, 1, lin(0xb07a3a));
+      K.cyl('plain', 0.07, 0.08, 0.2, 0.7, f1 + 0.74, -0.8, 12, lin(0x7a5a3a)); P.cup = [0.62, f1 + 0.74, -0.58, 0.4];   // (a cup of coffee on it: assets/cabin/coffeeCups.js) K.ball('plain', 0.09, 0.85, f1 + 0.78, -0.65, 1.4, 0.7, 1, lin(0xb07a3a));
       shelf(-1.25, f1 + 0.9, 0.4, 0.7, Math.PI / 2 + 0.25, 3, (k, y) => { for (let i = 0; i < 4; i++) jar(-1.25 + 0.03 * (i - 1.5), y, 0.4 + (i - 1.5) * 0.16, new THREE.Color().setHSL(0.08 + 0.1 * R(), 0.4, 0.35 + 0.2 * R())); });
       sack(-0.3, f1, 0.95, 0.9, 0.5);
       lantern(-0.2, f1 + 2.0, -0.5, 0.6);
@@ -275,7 +275,7 @@ export function createIslandBuildings(ctx) {
       { const g = new THREE.CircleGeometry(0.8, 24); g.rotateX(-Math.PI / 2); g.translate(0.15, d + 0.005, 0.35); K.put('rug', g, lin(0xd8c8a0), 1.6); }
       table(0.35, d, 0.75, 0.7, 0.5, 0, 0.45); solid(0.35, 0.75, 0.38, 0.28, d - 0.3, d + 0.5);
       for (const [u, v] of [[0.2, 0.7], [0.45, 0.85]]) { const g = new THREE.SphereGeometry(0.06, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2); g.translate(u, d + 0.55, v); K.put('plain', g, lin(0x5a3a1e)); }
-      lantern(0.55, d + 0.63, 0.65);
+      lantern(0.55, d + 0.63, 0.65); P.cup = [0.12, d + 0.49, 0.9, -0.6];
       shelf(-1.5, d + 1.1, 0.6, 0.8, Math.PI / 2, 2, (k, y) => { for (let i = 0; i < 4; i++) { const g = new THREE.SphereGeometry(0.045, 8, 6); g.scale(1, 0.6, 1.3); g.translate(-1.5, y + 0.03, 0.6 + (i - 1.5) * 0.17); K.put('plain', g, new THREE.Color().setHSL(0.06 + 0.05 * R(), 0.4, 0.6 + 0.3 * R())); } });
       { const u = -1.55; for (let i = 0; i <= 6; i++) { K.rod('plain', V(u, d + 0.7 + i * 0.16, -0.6), V(u, d + 0.7 + i * 0.16, 0.2), 0.004, 3, lin(0x8a8060)); K.rod('plain', V(u, d + 0.7, -0.6 + i * 0.13), V(u, d + 1.66, -0.6 + i * 0.13), 0.004, 3, lin(0x8a8060)); } }   // a net on the back wall
       K.rod('plank', V(1.45, d, 1.35), V(1.3, d + 2.0, 1.45), 0.02, 5, wood); { const g = new THREE.ConeGeometry(0.03, 0.18, 6); g.translate(1.3, d + 2.08, 1.45); K.put('metal', g, iron); }
@@ -305,7 +305,7 @@ export function createIslandBuildings(ctx) {
         K.picture(0, 0.5, 0.36, u + 0.2, f + 0.785, v - 0.05, 0); const pp = lists => lists; void pp;
         { const g = new THREE.PlaneGeometry(0.5, 0.36), uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * 0.5, 0.5 + uv.getY(k) * 0.5); g.userData.keepUV = true; g.rotateX(-Math.PI / 2); g.rotateY(0.2); g.translate(u - 0.2, f + 0.782, v); K.put('paper', g); }
         const sx = new THREE.TorusGeometry(0.1, 0.008, 4, 16, Math.PI / 3); sx.rotateX(-Math.PI / 2); sx.translate(u + 0.35, f + 0.8, v - 0.1); K.put('metal', sx, brass);
-        lantern(u - 0.45, f + 0.92, v + 0.12); books(u + 0.1, f + 0.78, v + 0.2, 0.3, 0.1);
+        lantern(u - 0.45, f + 0.92, v + 0.12); P.cup = [u - 0.42, f + 0.8, v - 0.16, 2.2]; books(u + 0.1, f + 0.78, v + 0.2, 0.3, 0.1);
         chair(u, f, v - 0.55, a - Math.PI / 2 + 0.3); }
       // bookshelves along the wall
       for (const a of [2.55, 3.35]) { const r = P.rIn - 0.16, u = Math.cos(a) * r, v = Math.sin(a) * r, ry = a + Math.PI / 2; shelf(u, f + 0.05, v, 0.9, ry, 5, (k, y) => books(u, y, v, 0.84, ry)); solid(u, v, 0.47, 0.14, f - 0.3, f + 2.1, ry); }
@@ -315,7 +315,26 @@ export function createIslandBuildings(ctx) {
         const ring = new THREE.TorusGeometry(0.27, 0.012, 4, 24, Math.PI * 1.3); ring.rotateY(0.4); ring.translate(u, f + 0.98, v); K.put('metal', ring, brass); P.posts.push([u, v, 0.28, f - 0.3, f + 1.2]); }
       { const a = Math.PI, r = P.rIn - 0.02; K.picture(2, 1.2, 0.9, Math.cos(a) * r, f + 1.6, Math.sin(a) * r + 0.0, a + Math.PI); }
       { const a = -Math.PI / 2 - 0.5, r = P.rIn - 0.02; K.picture(0, 0.7, 0.7, Math.cos(a) * r, f + 1.55, Math.sin(a) * r, a + Math.PI); }
-      { const a = -2.3, r = 1.55, u = Math.cos(a) * r, v = Math.sin(a) * r; bed(u, f, v, a + Math.PI / 2, lin(0x3a4a6a), 1.8, 0.8, 0.38); solid(u, v, 0.95, 0.42, f - 0.3, f + 0.6, a + Math.PI / 2); }
+      { const a = -2.3, r = 1.55, u = Math.cos(a) * r, v = Math.sin(a) * r, ry = a + Math.PI / 2, L = 1.8, Wd = 0.8, h = 0.38; bed(u, f, v, ry, lin(0x3a4a6a), L, Wd, h); solid(u, v, 0.95, 0.42, f - 0.3, f + 0.6, ry);
+        // the bed you sleep in (app/sleeping.js, as the cabin's): its edge on the room's side, the pillow, the feet's way;
+        // by its head a nightstand with the alarm clock that wakes you when you ask (its hands turn, the red one is the alarm)
+        const du = Math.cos(ry), dv = Math.sin(ry), nu = -dv * Math.sign(-u * -dv + -v * du), nv = du * Math.sign(-u * -dv + -v * du), top = f + h + 0.12;
+        const Wl = (lu, lv) => P.W(lu, lv), [cx, cz] = Wl(u, v), [ex, ez] = Wl(u + nu * (Wd / 2 - 0.14), v + nv * (Wd / 2 - 0.14)), [px, pz] = Wl(u - du * (L / 2 - 0.36), v - dv * (L / 2 - 0.36));
+        const wn = [Math.cos(P.a) * nu - Math.sin(P.a) * nv, Math.sin(P.a) * nu + Math.cos(P.a) * nv], wf = [Math.cos(P.a) * du - Math.sin(P.a) * dv, Math.sin(P.a) * du + Math.cos(P.a) * dv];
+        P.bed = { cx, cz, top, floor: f, edge: { x: ex, z: ez, fx: wn[0], fz: wn[1], top }, pillow: { x: px, z: pz, y: top + 0.14 }, feet: { x: wf[0], z: wf[1] }, alarm: true, inside: q => buildingAt(q.x, q.z) === P };
+        const su = u - du * (L / 2 - 0.2) + nu * 0.72, sv = v - dv * (L / 2 - 0.2) + nv * 0.72;
+        K.box('plank', 0.42, 0.52, 0.38, su, f, sv, -ry, wood); K.box('plank', 0.46, 0.03, 0.42, su, f + 0.52, sv, -ry, dark); K.box('plank', 0.3, 0.12, 0.02, su + nu * 0.2, f + 0.3, sv + nv * 0.2, -ry, dark);
+        solid(su, sv, 0.23, 0.21, f - 0.3, f + 0.6, ry); books(su - du * 0.08, f + 0.55, sv - dv * 0.08, 0.14, ry);
+        const clk = new THREE.Group(); clk.position.set(su + du * 0.08, f + 0.55, sv + dv * 0.08); clk.rotation.y = -Math.atan2(nv, nu) + Math.PI / 2; group.add(clk);
+        const cm = (g, c, x, y, z, m = 'metal') => { const o2 = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: c, roughness: m === 'metal' ? 0.3 : 0.6, metalness: m === 'metal' ? 0.7 : 0 })); o2.position.set(x, y, z); o2.castShadow = true; clk.add(o2); return o2; };
+        const body = new THREE.CylinderGeometry(0.075, 0.075, 0.05, 28); body.rotateX(Math.PI / 2); cm(body, 0xa8322a, 0, 0.1, 0);
+        const faceTex = new THREE.CanvasTexture((() => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d'); g.fillStyle = '#f4eee0'; g.beginPath(); g.arc(64, 64, 62, 0, 6.283); g.fill(); g.fillStyle = '#222'; g.font = 'bold 18px Georgia'; g.textAlign = 'center'; g.textBaseline = 'middle'; for (let k = 1; k <= 12; k++) { const a2 = k / 12 * 6.283 - Math.PI / 2; g.fillText(String(k), 64 + Math.cos(a2) * 47, 64 + Math.sin(a2) * 47); } for (let k = 0; k < 60; k++) { const a2 = k / 60 * 6.283; g.fillRect(64 + Math.cos(a2) * 58 - 1, 64 + Math.sin(a2) * 58 - 1, k % 5 ? 1.5 : 3, k % 5 ? 1.5 : 3); } return cv; })());
+        faceTex.encoding = THREE.sRGBEncoding; { const fm = new THREE.Mesh(new THREE.CircleGeometry(0.066, 28), new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.5 })); fm.position.set(0, 0.1, 0.026); clk.add(fm); }
+        { const g2 = new THREE.TorusGeometry(0.07, 0.008, 6, 28); cm(g2, 0xc8c8c0, 0, 0.1, 0.027); }
+        for (const sx of [-1, 1]) { const bell = new THREE.SphereGeometry(0.035, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2); const b2 = cm(bell, 0xc8c8c0, sx * 0.045, 0.172, 0); b2.rotation.z = -sx * 0.5; cm(new THREE.CylinderGeometry(0.006, 0.006, 0.05, 6), 0x9a9a92, sx * 0.045, 0.02, -0.01).rotation.z = sx * 0.4; }
+        cm(new THREE.SphereGeometry(0.012, 8, 6), 0xc8c8c0, 0, 0.19, 0); cm(new THREE.BoxGeometry(0.008, 0.035, 0.008), 0x9a9a92, 0, 0.175, 0.005);
+        const hand = (len, wdt, c, z) => { const g2 = new THREE.BoxGeometry(wdt, len, 0.003); g2.translate(0, len / 2 - 0.006, 0); const m2 = cm(g2, c, 0, 0.1, z, 'paint'); return m2; };
+        P.clock = { group: clk, hour: hand(0.036, 0.007, 0x111111, 0.03), minute: hand(0.052, 0.005, 0x111111, 0.031), alarm: hand(0.045, 0.003, 0xc81e1e, 0.029) }; }
       lantern(-1.2, f + 2.3, 0.6, 0.35);
     }
 
@@ -358,7 +377,7 @@ export function createIslandBuildings(ctx) {
         for (const [a, b] of [[-0.45, -0.4], [1.45, -0.4], [-0.45, 0.4], [1.45, 0.4]]) K.box('plank', 0.07, 1.8, 0.07, u + a, f, v + b, 0, dark);
         K.rod('plank', V(u + 1.45, f + 0.4, v - 0.42), V(u + 1.45, f + 1.3, v - 0.42), 0.02, 4, dark); solid(u + 0.5, v, 1.0, 0.45, f - 0.3, f + 1.9); }
       table(0.35, f, 0.2, 1.0, 0.7, 0); chair(0.35, f, -0.45, Math.PI / 2); chair(0.35, f, 0.85, -Math.PI / 2); chair(-0.4, f, 0.2, 0); solid(0.35, 0.2, 0.52, 0.37, f - 0.3, f + 0.8);
-      lantern(0.5, f + 0.9, 0.3); for (const [u, v] of [[0.1, 0.05], [0.6, 0.45]]) K.cyl('plain', 0.11, 0.09, 0.02, u, f + 0.78, v, 16, lin(0xe8e4dc)); K.ball('plain', 0.05, 0.1, f + 0.82, 0.05, 2.4, 0.6, 1, lin(0x8a9aa0));
+      lantern(0.5, f + 0.9, 0.3); P.cup = [0.08, f + 0.78, 0.42, 1.1]; for (const [u, v] of [[0.1, 0.05], [0.6, 0.45]]) K.cyl('plain', 0.11, 0.09, 0.02, u, f + 0.78, v, 16, lin(0xe8e4dc)); K.ball('plain', 0.05, 0.1, f + 0.82, 0.05, 2.4, 0.6, 1, lin(0x8a9aa0));
       shelf(hu1 - 0.2, f + 0.9, hv0 + 0.9, 0.8, Math.PI / 2, 3, (k, y) => { for (let i = 0; i < 4; i++) jar(hu1 - 0.2, y, hv0 + 0.9 + (i - 1.5) * 0.18, new THREE.Color().setHSL(R() < 0.5 ? 0.1 : 0.3, 0.4, 0.3 + 0.25 * R())); }); solid(hu1 - 0.2, hv0 + 0.9, 0.14, 0.42, f - 0.3, f + 2.0);
       { const u = hu0 + 0.06; for (let i = 0; i <= 7; i++) { K.rod('plain', V(u, f + 0.9 + i * 0.14, -0.9), V(u, f + 0.9 + i * 0.14, 0.2), 0.004, 3, lin(0x6a6a50)); K.rod('plain', V(u, f + 0.9, -0.9 + i * 0.15), V(u, f + 1.9, -0.9 + i * 0.15), 0.004, 3, lin(0x6a6a50)); } }
       for (let k = 0; k < 3; k++) K.rod('plank', V(hu1 - 0.15, f, hv1 - 0.3 - k * 0.12), V(hu1 - 0.35, f + 2.1, hv1 - 0.3 - k * 0.12), 0.012, 4, lin(0x6a4a2a));

@@ -221,7 +221,7 @@ export function createControls(app) {
     wish.set(0, 0, 0).addScaledVector(fwd, mf).addScaledVector(right, mr);
     if (!st.walk) wish.addScaledVector(UPV, mu);
     if (wish.lengthSq() > 1) wish.normalize();
-    const sp = st.speed * (K.ShiftLeft || K.ShiftRight ? 2.6 : 1);
+    const sp = st.speed * (K.ShiftLeft || K.ShiftRight ? 2.6 : 1) * (st.walk ? st.pace || 1 : 1);   // (sleepy: slower, app/body.js)
     if (st.walk) {
       const k = 1 - Math.exp(-dt * (st.grounded ? 10 : 2));
       st.vel.x += (wish.x * sp - st.vel.x) * k; st.vel.z += (wish.z * sp - st.vel.z) * k;

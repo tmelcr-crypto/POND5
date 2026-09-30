@@ -278,10 +278,14 @@ export function createRoseBush(ctx) {
   with a stick, cone or driftwood selected, Use says Burn and tosses it in: the fire flares up 30 % bigger for 30 s
   (again from the start with each piece) and cooks 60 % faster meanwhile (`CONFIG.fire.boost`). Lit, the flames catch over 4 s; put out, they die down over 1.6 s, and the embers glow (and the chimney
   smokes) for 45 s more. Flames, light, sparks, ember glow, smoke and crackle all follow. Each fire's state is remembered.
-  Every fire registers with `fires.add()` in `main.js`: the cabin's fireplace and the three firepits.
+  Every fire registers with `fires.add()` in `main.js`: the cabin's fireplace and the firepits.
 - **Firepits** (`assets/cabin/firepits.js`, sites `FIREPITS` in `world/layout.js`): one on the beach by the jetty (just
-  a ring of stones on the sand), one in a clearing of the north-west woods, one on the south-west hill. The two inland
-  ones have three cut logs to sit on (the seat button, as at the benches) and a roofed woodpile within 5 m that gives up
+  a ring of stones on the sand, high enough up the beach that the tide never reaches it), one in a clearing of the
+  north-west woods, one on the south-west hill, and one on each of the other islands and the lighthouse rock (not the
+  islet): `pitSite` in `world/islandLife.js` finds the level, dry place nearest a path with room for the logs and a
+  woodpile (by hashes; the island's trees and rocks keep clear of it); on Ember Rock a small terrace is cut beside the
+  switchback path for it (`EMBER.pit`), with logs but no woodpile. An island's pit is drawn only within 90 m. The ones
+  with logs have three cut logs to sit on (the seat button, as at the benches) and a roofed woodpile within 5 m that gives up
   to 10 sticks a day (`CONFIG.items.pileSticks`). They start cold; lighting one takes 3 sticks, cones or driftwood from
   what you carry (the icon shows the cost, and a note says so when you lack them). You can light or put out a fire while
   sitting on a log. No real lights: flames, a glow, a warm pool on the ground (dimmer by day), sparks and smoke, and the
@@ -432,9 +436,21 @@ export function createRoseBush(ctx) {
   steps, sail round the island, catch 3 fish, pick apples, light a fire, climb to the treehouse, ...), never yesterday's
   and only what the season allows; a note tells it. Done, it is ticked off in the journal's calendar (a row per season)
   with a handwritten check mark; a missed day stays blank.
-- **Hunger and frost** (`app/body.js`, `CONFIG.body`): a thin bar under the quick slots empties slowly (never below a
-  quarter) and eating fills it, cooked food more. In winter, a minute or more outdoors away from a fire frosts the
-  screen's edges; a fire, the cabin or hot food thaws it. Both are only shown, nothing happens when they are low.
+- **Hunger, sleepiness and frost** (`app/body.js`, `CONFIG.body`): a thin bar under the quick slots empties slowly
+  (never below a quarter) and eating fills it, cooked food more. Under it a second bar shows how rested you are
+  (`CONFIG.body.awake`): it drains 5% an in-game hour awake (from rested to 20% in 16 h, to 5% in 19 h) and sleeping
+  fills it (7 h to full). Below 20% you walk at half speed and your sight blurs: the frame is rendered at a lower
+  resolution in three steps (0.6, 0.45, 0.34 of the usual pixel ratio, via `engine/dynamicRes.js` `soften`, re-sized
+  only when a step changes, so it costs nothing and saves GPU time) and the eyelids droop now and then (a CSS overlay).
+  At 5% you fall asleep where you stand (`sleeping.collapse`): you sink down as the screen goes black, the clock moves
+  on as for a night, and you wake in the cabin's bed (the boat is brought back to the home jetty if you were away); in
+  summer instead lying in the grass somewhere on the same island (`wakeSpot`: level, dry, off paths' obstacles, water,
+  lava and the cove), and you get up. Not while in the boat, seated or in bed: it waits until you are on your feet.
+  When sleepy you may go to bed any time. A cup of coffee adds 20%: one stands on a saucer in every house (the cabin's
+  dining table, the windmill's loft, the beach hut, the observatory's desk, the lodge; `assets/cabin/coffeeCups.js`),
+  to pick up, carry and drink when you like; a taken cup is back the next day. Eating more than the hunger bar holds
+  takes what is over from the sleepiness bar. In winter, a minute or more outdoors away from a fire frosts the
+  screen's edges; a fire, the cabin or hot food thaws it.
 - **Footsteps** (`audio/footsteps.js`, `CONFIG.steps`): soft steps by what is underfoot (grass, sand, stone, wood, snow,
   ice, shallow water).
 - **Music** (`audio/music.js`, `CONFIG.music`, off by default in the panel): a quiet generated piano and pads per season,
