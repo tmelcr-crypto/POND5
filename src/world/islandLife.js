@@ -1,6 +1,6 @@
 import { smooth, clamp } from '../core/math.js';
 import { fbm2 } from '../core/noise.js';
-import { ISLANDS, islandH, MARSH_POOL, SEA_Y, LIGHTHOUSE, lighthouseH } from './layout.js';
+import { ISLANDS, islandH, MARSH_POOL, SEA_Y, LIGHTHOUSE, lighthouseH, EMBER } from './layout.js';
 
 /**
  * Where the home island's systems grow on the four outer islands and the lighthouse rock: full-detail trees (the
@@ -35,11 +35,12 @@ function siteOf(I) {
   if (I.kind === 'meadow') for (let w = 0; w < 3; w++) { const a0 = ihash(w, 7) * 6.28; for (let t = 0; t < 22; t++) { const a = a0 + t * 0.06, rr = I.r * (0.45 + 0.05 * w), sx = I.x + Math.cos(a) * rr, sz = I.z + Math.sin(a) * rr; if (!clearOf(sx, sz, 1) || I.docks.some(d => d.dist(sx, sz) < 2)) continue; S.walls.push([sx, sz, w, t]); } }
   // the paths worn from each jetty's root to the building's door side
   const door = I.kind === 'marsh' ? I.docks[0].W(-1.5, 2.5) : [S.build[0] + (I.docks[0].rx - S.build[0]) / Math.hypot(I.docks[0].rx - S.build[0], I.docks[0].rz - S.build[1]) * (S.build[2] + 0.2), S.build[1] + (I.docks[0].rz - S.build[1]) / Math.hypot(I.docks[0].rx - S.build[0], I.docks[0].rz - S.build[1]) * (S.build[2] + 0.2)];
-  I.docks.forEach(d => { const a = d.W(-0.3, 0), mid = [(a[0] + door[0]) / 2 + (ihash(d.index, I.s) - 0.5) * 2.5, (a[1] + door[1]) / 2 + (ihash(I.s, d.index) - 0.5) * 2.5]; S.paths.push([a, mid], [mid, door]); });
+  if (I.kind === 'volcano') for (let i = 1; i < EMBER.path.length; i++) S.paths.push([EMBER.path[i - 1], EMBER.path[i]]);   // (Ember Rock's switchback path: world/layout.js)
+  else I.docks.forEach(d => { const a = d.W(-0.3, 0), mid = [(a[0] + door[0]) / 2 + (ihash(d.index, I.s) - 0.5) * 2.5, (a[1] + door[1]) / 2 + (ihash(I.s, d.index) - 0.5) * 2.5]; S.paths.push([a, mid], [mid, door]); });
   S.pathDist = (x, z) => S.paths.reduce((m, [a, b]) => Math.min(m, segDist(x, z, a, b)), Infinity);
   // the marsh lodge's boardwalk and the nets' drying racks; the hot spring
   if (I.kind === 'marsh') { const d = I.docks[0], a = d.W(0, 0); S.avoid.push({ seg: [a, [a[0] + (S.build[0] - a[0]) * 0.82, a[1] + (S.build[1] - a[1]) * 0.82]], r: 0.9 }); for (let r = 0; r < 2; r++) { const [rx, rz] = d.W(-6 - r * 2.2, -3.5); S.avoid.push({ x: rx, z: rz, r: 1.3 }); } }
-  if (I.kind === 'volcano') S.avoid.push({ x: I.spring.x, z: I.spring.z, r: I.spring.r + 0.9 });
+  if (I.kind === 'volcano') { S.avoid.push({ x: I.spring.x, z: I.spring.z, r: I.spring.r + 0.9 }); const L = EMBER.lava; for (let i = 4; i < L.length; i += 4) S.avoid.push({ seg: [[L[i - 4].x, L[i - 4].z], [L[i].x, L[i].z]], r: L[i].w + 0.9 }); }   // the spring, the lava creek
   // the way in: from each building's door out to where its steps reach the ground (world/buildingPlans.js)
   { const a = I.kind === 'palm' ? Math.atan2(I.z - S.build[1] - 30, I.x - S.build[0] - 60) : I.kind === 'marsh' ? null : Math.atan2(-S.build[1], -S.build[0]);
     if (a !== null) S.avoid.push({ seg: [[S.build[0], S.build[1]], [S.build[0] + Math.cos(a) * (S.build[2] + 3.6), S.build[1] + Math.sin(a) * (S.build[2] + 3.6)]], r: 1.3 }); }
@@ -104,6 +105,11 @@ export function islandLife() {
     if (kind === 'volcano') {
       plant(8, 400, () => at(0.3, 0.85), (x, z) => dryAbove(1.2)(x, z) && free(x, z, 1.8) && S.pathDist(x, z) > 1.4, (x, z) => tree('snag', x, z, rr(0.85, 1.25), { clear: 1.0 }));
       plant(30, 900, () => at(0.25, 1.05), (x, z) => hAt(x, z) > SEA_Y - 0.2 && free(x, z, 0.5) && S.pathDist(x, z) > 1.0, (x, z) => boulder(x, z, R() < 0.25 ? rr(0.9, 1.6) : rr(0.3, 0.8), true));
+      // the rocky coast: basalt blocks along the cliff tops and sea stacks off them (clear of the landing and the cove's mouth)
+      const ang = (x, z) => Math.atan2(z - cz, x - cx), off = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+      plant(22, 900, () => at(0.86, 0.97), (x, z) => hAt(x, z) > SEA_Y + 0.4 && free(x, z, 0.3) && S.pathDist(x, z) > 1.2 && off(ang(x, z), EMBER.dA) > 0.45 && off(ang(x, z), EMBER.cove.a) > 0.5, (x, z) => boulder(x, z, rr(0.5, 1.3), true));
+      plant(9, 900, () => at(1.0, 1.18), (x, z) => hAt(x, z) < SEA_Y - 0.6 && off(ang(x, z), EMBER.dA) > 0.6 && off(ang(x, z), EMBER.cove.a) > 0.65 && free(x, z, 1.2), (x, z) => { const sz = rr(1.4, 2.3); rocks.push({ x, y: SEA_Y - 0.55 - 0.2 * sz, z, s: sz, rot: R() * 6.28, tilt: rr(-0.1, 0.1), v: R(), dark: true }); taken.push([x, z, sz]); });   // (standing out of the sea)
+      plant(5, 300, () => at(0.55, 0.85), (x, z) => off(ang(x, z), EMBER.cove.a) < 0.3 && hAt(x, z) > SEA_Y - 0.3 && hAt(x, z) < SEA_Y + 0.9 && free(x, z, 0.8), (x, z) => boulder(x, z, rr(0.3, 0.7), true));   // a few on the cove's sand
     }
     if (kind === 'marsh') {
       const near = (x, z) => { for (let a = 0; a < 6.28; a += 0.8) if (hAt(x + Math.cos(a) * 3, z + Math.sin(a) * 3) < MARSH_POOL - 0.05) return true; return false; };

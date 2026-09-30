@@ -163,19 +163,99 @@ export const ISLANDS = [
   { name: 'Ember Rock', kind: 'volcano', x: 20, z: 108, r: 13, top: 8.5, s: 4.3, docks: [null] },
   { name: 'Heron Marsh', kind: 'marsh', x: -86, z: -78, r: 22, top: 0.5, s: 5.9, docks: [null, -0.3] },
 ].map(I => ({ ...I, reach: I.r * 1.6 + 12 }));
-{ const V = ISLANDS[2], a = 2.6, x = V.x + Math.cos(a) * V.r * 0.4, z = V.z + Math.sin(a) * V.r * 0.4; V.spring = { x, z, r: 1.8, y: 0 }; V.spring.y = islandH({ ...V, spring: { x: 1e9, z: 1e9, r: 0 } }, x, z) - 0.25; }   // (the hot spring's water level)
+/**
+ * Ember Rock (ISLANDS[2]) in detail: a black cone with a flat summit for the observatory, basalt cliffs all round (you
+ * cannot climb or drop down them: emberWalls), low only at the jetty's landing on the side facing home; from there a
+ * path zigzags up the cone to the observatory's door (five legs, a gentle grade; the slopes between its legs are too
+ * steep to cut across). A creek of lava runs from a vent below the summit down a channel between low levees and falls
+ * into the sea; the hot spring sits in its own basin on a terrace. On the far side, walled in by cliffs, a black-sand
+ * cove you can only reach by boat. All angles from dA, the direction home.
+ */
+export const EMBER = (() => {
+  const I = ISLANDS[2], dA = Math.atan2(-I.z, -I.x), E = { I, dA, plateau: 4.4, T: I.top - 1.8, base: 1.9, cliffS: 0.93, cove: { a: dA + Math.PI, half: 0.42, rIn: 0.52 } };
+  const P = (r, a) => [I.x + Math.cos(dA + a) * r, I.z + Math.sin(dA + a) * r];
+  E.top = SEA_Y + E.base + E.T;
+  // the landing and the path: waypoints (r m out, angle from dA), y rising evenly along it from the landing to the summit
+  const W = [[0.86 * islandR(I, dA) , 0], [10.0, 0.58], [8.2, -0.52], [6.5, 0.46], [4.9, -0.3], [3.3, 0]].map(([r, a]) => P(r, a));
+  let L = 0; const lens = [0]; for (let i = 1; i < W.length; i++) { L += Math.hypot(W[i][0] - W[i - 1][0], W[i][1] - W[i - 1][1]); lens.push(L); }
+  const y0 = SEA_Y + 1.3; E.path = W.map(([x, z], i) => [x, z, y0 + (E.top - y0) * lens[i] / L]); E.pathLen = L;
+  // the lava creek: from the vent down the cone's side (a meander), over the cliff into the sea
+  const pts = []; for (let k = 0; k <= 11; k++) pts.push(new THREE.Vector3(...(([x, z]) => [x, 0, z])(P(4.9 + k * 0.85, 2.2 + 0.2 * Math.sin(k * 1.1) + 0.03 * k))));
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal'), n = Math.ceil(curve.getLength() / 0.25);
+  E.lava = curve.getSpacedPoints(n).map((p, i) => ({ x: p.x, z: p.z, s: i * curve.getLength() / n }));
+  E.lava.forEach(q => { q.w = 0.32 + 0.38 * Math.min(1, q.s / 6); q.y = emberLand(E, q.x, q.z) - 0.28; });
+  for (let i = 1; i < E.lava.length; i++) E.lava[i].y = Math.min(E.lava[i].y, E.lava[i - 1].y - 0.02);   // always downhill
+  E.vent = E.lava[0];
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; E.lava.forEach(q => { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); z0 = Math.min(z0, q.z); z1 = Math.max(z1, q.z); }); E.lavaBox = [x0 - 2, x1 + 2, z0 - 2, z1 + 2];
+  // the hot spring on its terrace
+  { const [x, z] = P(6.3, -1.95); E.spring = { x, z, r: 1.5, y: emberLand(E, x, z) - 0.12 }; I.spring = E.spring; }
+  return E;
+})();
+function angD(a, b) { return Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))); }
+/** Ember Rock without its carving: the cone on its plateau, the coast (low at the landing), the cliffs, the cove. */
+function emberLand(E, x, z) {
+  const I = E.I, dx = x - I.x, dz = z - I.z, r = Math.hypot(dx, dz), a = Math.atan2(dz, dx), R = islandR(I, a), s = r / R;
+  const land = angD(a, E.dA) < 0.5 ? smooth(0.42, 0.24, angD(a, E.dA)) * smooth(0.55, 0.84, s) : 0;
+  const base = SEA_Y + E.base + 0.45 * fbm2(a * 2.2 + 3, 1.7, 2) * smooth(0.7, 0.9, s), foot = base + (SEA_Y + 1.3 - base) * land;
+  const cone = r < E.plateau ? E.T : E.T * Math.pow(Math.max(0, 1 - (r - E.plateau) / (0.88 * R - E.plateau)), 1.2);
+  let h = foot + cone * (1 - 0.35 * land * smooth(0.6, 0.85, s)) + (r > E.plateau ? 0.28 * fbm2(x * 0.45, z * 0.45, 3) * smooth(E.plateau, E.plateau + 1.5, r) : 0);
+  const cs = E.cliffS + 0.02 * Math.sin(a * 5 + 1);
+  if (s > cs) h = Math.max(h - (s - cs) * R * 5, SEA_Y - 1.7 - (s - cs) * R * 0.35);
+  // the cove: a pocket of black sand behind the cliffs, open to the sea
+  const C = E.cove, k = smooth(C.half, C.half - 0.14, angD(a, C.a)) * smooth(C.rIn * R - 0.35, C.rIn * R + 0.35, r);
+  if (k > 0) h = h + (SEA_Y + 0.7 - Math.pow(Math.max(0, s - C.rIn) / (1 - C.rIn), 1.6) * 2.6 + 0.08 * fbm2(x * 0.8, z * 0.8, 2) - h) * k;
+  return h;
+}
+/** Ember Rock's height: its land, with the path cut in, the lava's channel and levees, the spring's basin and terrace. */
+function emberH(E, x, z) {
+  let h = emberLand(E, x, z);
+  // the path: a bench along each leg at the path's height (continuous across the switchbacks)
+  let Wt = 0, Ys = 0, Wm = 0;
+  for (let i = 1; i < E.path.length; i++) {
+    const [ax, az, ay] = E.path[i - 1], [bx, bz, by] = E.path[i], ux = bx - ax, uz = bz - az, l2 = ux * ux + uz * uz, t = clamp(((x - ax) * ux + (z - az) * uz) / l2);
+    const d = Math.hypot(x - ax - ux * t, z - az - uz * t); if (d > 1.3) continue;
+    const w = smooth(1.3, 0.72, d), k = w * Math.exp(-d / 0.12); Wt += k; Ys += k * (ay + (by - ay) * t); Wm = Math.max(Wm, w);   // (the nearest leg decides the height)
+  }
+  if (Wt > 0) h += (Ys / Wt - h) * Wm;
+  // the spring: its basin, a rim of sinter and a terrace round it
+  const S = E.spring, ds = Math.hypot(x - S.x, z - S.z);
+  if (ds < S.r + 1.9) { const rim = S.y + 0.14, b = ds < S.r ? S.y - 0.6 * (1 - (ds / S.r) ** 2) : rim; h = ds < S.r + 0.5 ? b : h + (rim - h) * smooth(S.r + 1.9, S.r + 0.5, ds); }
+  // the lava creek: its channel and levees
+  const B = E.lavaBox;
+  if (x > B[0] && x < B[1] && z > B[2] && z < B[3]) {
+    const q = lavaNear(E, x, z);
+    if (q.d < q.w + 0.75) { if (q.d < q.w) h = Math.min(h, q.y - 0.12 - 0.22 * (1 - (q.d / q.w) ** 2)); else { const lv = q.y + 0.08 + 0.2 * Math.sin(Math.PI * (q.d - q.w) / 0.75); h = h + (Math.max(h, lv) - h) * smooth(q.w + 0.75, q.w + 0.3, q.d); } }
+  }
+  return h;
+}
+/** The lava course's nearest point to (x, z): distance d, its half-width w, surface y, distance along s. */
+export function lavaNear(E, x, z) {
+  const L = E.lava; let best = { d: 1e9, w: 0, y: 0, s: 0 };
+  for (let i = 1; i < L.length; i++) { const a = L[i - 1], b = L[i], ux = b.x - a.x, uz = b.z - a.z, l2 = ux * ux + uz * uz, t = clamp(((x - a.x) * ux + (z - a.z) * uz) / l2), d = Math.hypot(x - a.x - ux * t, z - a.z - uz * t);
+    if (d < best.d) best = { d, w: a.w + (b.w - a.w) * t, y: a.y + (b.y - a.y) * t, s: a.s + (b.s - a.s) * t }; }
+  return best;
+}
+/** Keep a walker off Ember Rock's cliffs (no step steeper than 1.4) and out of its lava. p moves back to prev. */
+export function emberWalls(p, prev, feet) {
+  const E = EMBER, I = E.I; if (Math.abs(p.x - I.x) > I.reach || Math.abs(p.z - I.z) > I.reach) return;
+  const back = () => { p.x = prev.x; p.z = prev.z; };
+  const B = E.lavaBox; if (p.x > B[0] && p.x < B[1] && p.z > B[2] && p.z < B[3]) { const q = lavaNear(E, p.x, p.z); if (q.d < q.w + 0.12 && feet < q.y + 0.6 && q.d < lavaNear(E, prev.x, prev.z).d) { back(); return; } }   // (never nearer: out of it is always fine)
+  const d = Math.hypot(p.x - prev.x, p.z - prev.z); if (d < 1e-5) return;
+  const g = q => Math.max(islandH(I, q.x, q.z), ...I.docks.map(k => k.deckAt(q.x, q.z)));
+  if (feet > g(prev) + 0.6) return;   // (in the observatory, on its steps)
+  const g0 = g(prev), g1 = g(p);
+  if (g0 > SEA_Y - 0.2 && Math.abs(g1 - g0) / d > 1.4 && g1 > SEA_Y - 0.6) back();
+  else if (g0 > SEA_Y + 0.8 && g1 < SEA_Y + 0.2) back();   // off a cliff into the sea
+}
 function islandR(I, a) { return I.r * (1 + 0.12 * Math.sin(a * 3 + I.s) + 0.07 * Math.sin(a * 5 + I.s * 2) + (I.kind === 'marsh' ? 0.16 * Math.sin(a * 2 + 1) : 0)); }
 /** An island's height at (x, z): its beach and inland by its kind; the sea floor round it. */
 export function islandH(I, x, z) {
   const dx = x - I.x, dz = z - I.z, a = Math.atan2(dz, dx), R = islandR(I, a), s = Math.hypot(dx, dz) / R;
+  if (I.kind === 'volcano') return Math.max(SEA_Y - 6, emberH(EMBER, x, z));   // (EMBER above: its cliffs go straight into deep water)
   if (s > 1) return SEA_Y - Math.min(6, (s - 1) * R * 0.35);
   const n = fbm2(x * 0.11 + I.s, z * 0.11 - I.s, 3), rise = I.kind === 'marsh' ? 0.95 : 1.25, beach = SEA_Y + rise * smooth(1.0, 0.72, s), inl = smooth(0.8, 0.15, s);
   if (I.kind === 'meadow') return beach + inl * (I.top * (0.65 + 0.35 * n) * Math.pow(inl, 0.6) + 0.3 * fbm2(x * 0.3, z * 0.3, 2));
   if (I.kind === 'palm') return beach + inl * (I.top * (0.7 + 0.3 * n)) + 0.04 * fbm2(x, z, 2);
-  if (I.kind === 'volcano') {   // a cone with a flat top for the observatory, and the hot spring's basin on its flank
-    const c = Math.min(I.top * Math.pow(Math.max(0, 1 - s / 0.82), 1.05), I.top * 0.9), h = beach + c + 0.3 * inl * (fbm2(x * 0.5, z * 0.5, 2) - 0.2);
-    const sp = I.spring, d = Math.hypot(x - sp.x, z - sp.z); return d < sp.r + 1.2 ? Math.min(h, sp.y + 0.35 + 0.9 * smooth(sp.r * 0.3, sp.r + 1.2, d) - 0.6 * (1 - smooth(0, sp.r, d))) : h;
-  }
   // the marsh: low and flat, with hollows that hold its pools
   const hol = smooth(0.35, 0.65, fbm2(x * 0.09 - 3, z * 0.09 + 5, 3));
   return beach + inl * (I.top + 0.25 * n - 0.75 * hol);

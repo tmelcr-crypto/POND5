@@ -2,7 +2,7 @@ import { isTouch } from '../core/env.js';
 import { V, UPV, clamp } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
-import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, bridgeRails, jettyDeckY, SEATS, LIE_SPOTS, lakeD, treehouseDeckY, treehouseRails, caveWalls, caveGround, towerY, lighthouseWalls } from '../world/layout.js';
+import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, bridgeRails, jettyDeckY, SEATS, LIE_SPOTS, lakeD, treehouseDeckY, treehouseRails, caveWalls, caveGround, towerY, lighthouseWalls, emberWalls } from '../world/layout.js';
 import { buildingFloorY, buildingWalls } from '../world/buildingPlans.js';
 import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
 
@@ -239,6 +239,7 @@ export function createControls(app) {
     if (st.walk) treehouseRails(np, st.pos, 0.2, st.pos.y - PC.eyeHeight);   // on the treehouse deck: its railings and the hut's walls
     if (st.walk) caveWalls(np, st.pos, st.pos.y - PC.eyeHeight);   // the caverns: in and out by the ramps' tops only
     if (st.walk) lighthouseWalls(np, st.pos, st.pos.y - PC.eyeHeight);   // the lighthouse rock's cliffs, the tower's walls and stair
+    if (st.walk) emberWalls(np, st.pos, st.pos.y - PC.eyeHeight);   // Ember Rock's cliffs and its lava
     if (st.walk) buildingWalls(np, st.pos, st.pos.y - PC.eyeHeight);   // the islands' buildings: in by their doors (world/buildingPlans.js)
     applyBounds(np, st.vel, dt, st.walk && jettyDeckY(np.x, np.z) === -Infinity);   // on the jetty, deep water below is fine
     if (st.walk) {
