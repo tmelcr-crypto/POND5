@@ -369,7 +369,7 @@ function dressMouths(ctx, C, basalt) {
       const P = portal;
       const big = basalt ? 1.35 : 1;   // (on a steep slope the cut is bigger: bigger stones)
       for (const side of [-1, 1]) { k++; addRock(P.x + P.nx * side * (t.w + 0.55) - P.dx * 0.3, P.z + P.nz * side * (t.w + 0.55) - P.dz * 0.3, (0.9 + 0.3 * hash(k, sd + 11)) * big, k); if (!basalt) addFern(P.x + P.nx * side * (t.w + 1.5), P.z + P.nz * side * (t.w + 1.5), 0.8, k + 50, 0); }
-      k++; addRock(P.x + P.dx * (basalt ? 0.75 : 0.6), P.z + P.dz * (basalt ? 0.75 : 0.6), basalt ? 1.2 : 1.25, k, basalt ? -0.25 : 0.15, false);   // (over the roofed part: the opening shows under it)   // (the lintel: on the ground at its middle, over the opening)
+      k++; addRock(P.x + P.dx * (basalt ? 0.3 : 0.6), P.z + P.dz * (basalt ? 0.3 : 0.6), basalt ? 1.15 : 1.25, k, basalt ? -0.45 : 0.15, false);   // (over the roofed part: the opening shows under it)   // (the lintel: on the ground at its middle, over the opening)
       if (!basalt) for (let i = 0; i < 3; i++) addFern(P.x + P.dx * (1.4 + 0.3 * i) + P.nx * (i - 1) * 0.9, P.z + P.dz * (1.4 + 0.3 * i) + P.nz * (i - 1) * 0.9, 0.7, k + 60 + i, Math.atan2(-P.dz, -P.dx));
     }
   }
