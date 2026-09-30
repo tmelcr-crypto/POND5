@@ -3,6 +3,7 @@ import { lin, clamp } from '../../core/math.js';
 import { canvasTex } from '../../core/canvasTexture.js';
 import { mergeGeos, limb } from '../../core/geometry.js';
 import { buildingPlans, buildingAt } from '../../world/buildingPlans.js';
+import { islandH } from '../../world/layout.js';
 
 /**
  * The outer islands' buildings at the cabin's detail, to walk into (their floors, stairs and walls: world/buildingPlans.js):
@@ -160,7 +161,7 @@ export function createIslandBuildings(ctx) {
     paper: std(T.paper, { roughness: 0.8 }), plain: std(null, { roughness: 0.7 }), metal: std(null, { roughness: 0.45, metalness: 0.6 }), stone: std(T.ashlar, { roughness: 0.95 }),
   };
   mats.thatch.userData.season = 'roof';
-  const warm = new THREE.Color(1, 0.72, 0.42); Object.values(mats).forEach(m => { m.emissive = warm.clone(); m.emissiveIntensity = 0; });
+  const warm = new THREE.Color(1, 0.72, 0.42); Object.values(mats).forEach(m => { m.emissive = warm.clone(); m.emissiveMap = m.map; m.emissiveIntensity = 0; });   // (the lamp's glow keeps the textures)
   const R = stream(3301), rr = (a, b) => a + (b - a) * R();
   const out = [];
 
@@ -171,7 +172,7 @@ export function createIslandBuildings(ctx) {
     const solid = (u, v, hu, hv, yLo, yHi, ang = 0) => { const c = Math.cos(ang), s = Math.sin(ang), pt = (a, b) => [u + c * a - s * b, v + s * a + c * b], q = [pt(-hu, -hv), pt(hu, -hv), pt(hu, hv), pt(-hu, hv)];
       for (let i = 0; i < 4; i++) P.walls.push([...q[i], ...q[(i + 1) % 4], yLo, yHi, 0.02]); };
     const outSteps = () => { const S = P.outStair; if (!S) return; const [u0, u1] = S.rect, run = (u1 - u0) / S.n, dy = (S.y0 - S.y1) / S.n;   // stone steps down from the door, solid to the ground
-      for (let k = 1; k <= S.n; k++) { const y = S.y0 - k * dy; K.box('stone', run + 0.02, y - (P.footMin - 0.4), 1.25, u0 + (k - 0.5) * run, P.footMin - 0.4, 0, 0, stoneC.clone().multiplyScalar(0.85 + 0.2 * R()), 1); } };
+      for (let k = 1; k <= S.n; k++) { const y = S.y0 - k * dy, uc = u0 + (k - 0.5) * run, gy = Math.min(...[-0.62, 0, 0.62].map(v => islandH(P.I, ...P.W(uc, v)))) - 0.3; K.box('stone', run + 0.02, y - gy, 1.25, uc, gy, 0, 0, stoneC.clone().multiplyScalar(0.85 + 0.2 * R()), 1); } };
     const lantern = (u, y, v, hang = 0) => {   // a small iron lantern (its glass lit by its own material)
       K.box('metal', 0.18, 0.02, 0.18, u, y - 0.14, v, 0, iron); K.box('metal', 0.2, 0.02, 0.2, u, y + 0.12, v, 0, iron);
       const cap = new THREE.ConeGeometry(0.15, 0.12, 4); cap.rotateY(Math.PI / 4); cap.translate(u, y + 0.2, v); K.put('metal', cap, iron);
@@ -399,7 +400,7 @@ export function createIslandBuildings(ctx) {
         b.paneMat.color.setRGB(0.54 + 0.9 * lit, 0.63 + 0.55 * lit, 0.66 + 0.1 * lit); b.paneMat.opacity = 0.5 + 0.4 * lit;
         b.glowMat.opacity = 0.8 * lit; b.glow.visible = lit > 0.02;
         for (const s of b.spins) s.spin.rotation[s.axis] += dt * s.speed * sailSpeed;
-        if (inside === b.P) warmK = 0.16 * lit + 0.03 * b.lamp.k * (1 - night);
+        if (inside === b.P) warmK = 0.07 * lit;
       }
       for (const k in mats) mats[k].emissiveIntensity = warmK;
     },
