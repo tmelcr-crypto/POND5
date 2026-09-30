@@ -28,11 +28,11 @@ export function createTelescope({ scene, camera, st, skyUniforms, clock, hours, 
   const note = (text, ms = 4200) => { const n = document.getElementById('fireNote'); if (!n) return; n.textContent = text; n.classList.remove('hide'); clearTimeout(note.t); note.t = setTimeout(() => n.classList.add('hide'), ms); };
 
   /* ---- the panel: a wooden pedestal by the wall, a sloping brass plate, two numbered dials, a lever ---- */
-  const pa = 0.72, pr = 1.62, [pu, pv] = [Math.cos(pa) * pr, Math.sin(pa) * pr], face = pa + Math.PI;   // facing the room's middle
+  const pa = 0.8, pr = 2.35, [pu, pv] = [Math.cos(pa) * pr, Math.sin(pa) * pr], face = pa + Math.PI;   // free-standing, facing the telescope
   const panel = new THREE.Group(); { const [x, z] = P.W(pu, pv); panel.position.set(x, f, z); panel.rotation.y = -(face + P.a) + Math.PI / 2; }
   const wood = new THREE.MeshStandardMaterial({ color: lin(0x6a4a30), roughness: 0.8 }), brass = new THREE.MeshStandardMaterial({ color: lin(0xc09a4a), roughness: 0.35, metalness: 0.7 }), dark = new THREE.MeshStandardMaterial({ color: lin(0x2a2622), roughness: 0.6, metalness: 0.4 });
   const add = (g, m, x, y, z, rx = 0) => { const o = new THREE.Mesh(g, m); o.position.set(x, y, z); o.rotation.x = rx; o.castShadow = true; o.receiveShadow = true; panel.add(o); return o; };
-  add(new THREE.BoxGeometry(0.62, 0.9, 0.4), wood, 0, 0.45, 0);
+  add(new THREE.BoxGeometry(0.62, 0.9, 0.4), wood, 0, 0.45, 0); add(new THREE.BoxGeometry(0.7, 0.06, 0.48), dark, 0, 0.03, 0);
   const plate = new THREE.Group(); plate.position.set(0, 0.95, 0); plate.rotation.x = 0.55; panel.add(plate);
   const pAdd = (g, m, x, y, z) => { const o = new THREE.Mesh(g, m); o.position.set(x, y, z); o.castShadow = true; plate.add(o); return o; };
   pAdd(new THREE.BoxGeometry(0.66, 0.04, 0.46), wood, 0, 0, 0); pAdd(new THREE.BoxGeometry(0.6, 0.012, 0.4), brass, 0, 0.026, 0);
@@ -47,7 +47,7 @@ export function createTelescope({ scene, camera, st, skyUniforms, clock, hours, 
     for (let i = 0; i < 4; i++) P.walls.push([...q[i], ...q[(i + 1) % 4], f - 0.3, f + 1.2, 0.02]); }
   const dialAngle = d => -((d + 0.5) / 10) * Math.PI * 2 + Math.PI / 2;   // the digit on top, under the window
   const dialNow = S.dials.slice(); dials.forEach((m, i) => { m.rotation.x = dialAngle(dialNow[i]); });
-  const panelAt = new THREE.Vector3(); panel.localToWorld(panelAt.set(0, 1.05, 0));
+  const panelAt = new THREE.Vector3(); panel.updateMatrixWorld(true); panel.localToWorld(panelAt.set(0, 1.05, 0));   // (its matrix first: the icon shows at the panel)
 
   /* ---- the telescope: the dome's azimuth, the tube's altitude, slewing to a setting ---- */
   const aim = code => ({ az: ((code * 37) % 360) * Math.PI / 180, alt: (25 + ((code * 7 + 3) % 10) * 5) * Math.PI / 180 });
@@ -62,7 +62,7 @@ export function createTelescope({ scene, camera, st, skyUniforms, clock, hours, 
     slew = { from: { ...cur }, to: { az: cur.az + dAz, alt: to.alt }, t: 0, T: 2.5 + Math.abs(dAz) * 1.1 + Math.abs(to.alt - cur.alt) * 2, dial: dialNow.slice() };
     if (items) items.sfx('dig');
   }
-  const epWorld = new THREE.Vector3();
+  const epWorld = new THREE.Vector3(), tubeMid = new THREE.Vector3();
 
   /* ---- the eyepiece: its own little scene of the sky ---- */
   const eye = { scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 400) };
@@ -175,9 +175,9 @@ export function createTelescope({ scene, camera, st, skyUniforms, clock, hours, 
   iconPanel.onPress = () => { if (can() === 'panel') showPanel(); }; iconEye.onPress = () => { if (can() === 'eye') look(); };
   function can() {
     if (!st.playing || !st.walk || st.aboard || st.seat || viewing || open) return null;
-    const p = camera.position; if (Math.abs(p.x - P.x) > 3 || Math.abs(p.z - P.z) > 3) return null;
-    if (lookingAt(camera, panelAt, 1.9, 0.6)) return 'panel';
-    if (!slew && S.set !== null && lookingAt(camera, epWorld, 1.8, 0.7)) return 'eye';
+    const p = camera.position; if (Math.hypot(p.x - P.x, p.z - P.z) > P.rIn) return null;
+    if (lookingAt(camera, panelAt, 2.2, 0.6)) return 'panel';
+    if (!slew && (lookingAt(camera, epWorld, 2.6, 0.75) || lookingAt(camera, tubeMid, 2.6, 0.45))) return 'eye';   // (at the eyepiece, or the telescope near it: look() says if the dials are not set)
     return null;
   }
 
@@ -193,7 +193,7 @@ export function createTelescope({ scene, camera, st, skyUniforms, clock, hours, 
         S.dials.forEach((d, i) => { const from = slew.dial[i]; dials[i].rotation.x = dialAngle(from + (d - from) * Math.min(1, k * 2.5)); });
         if (k >= 1) { slew = null; dialNow.splice(0, 2, ...S.dials); cur.az = Math.atan2(Math.sin(cur.az), Math.cos(cur.az)); }
       }
-      tubePivot.updateWorldMatrix(true, false); tubePivot.localToWorld(epWorld.copy(eyepiece));
+      tubePivot.updateWorldMatrix(true, false); tubePivot.localToWorld(epWorld.copy(eyepiece)); tubePivot.localToWorld(tubeMid.set(0, -0.2, 0));
       const k = can();
       iconPanel.show(k === 'panel' ? panelAt : null, 'panel', ICON_PANEL, 'The telescope’s dials', t);
       iconEye.show(k === 'eye' ? epWorld : null, 'eye', ICON_EYE, 'Look through the telescope', t, 0.25);

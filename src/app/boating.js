@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { V, clamp } from '../core/math.js';
 import { CONFIG } from '../config.js';
 import { U } from '../core/uniforms.js';
-import { H, SEA_Y, seaY, JETTY, LIGHTHOUSE, ISLAND_DOCKS, coastDist, jettyDeckY, jettyDist, roughAt, swellAt, ROUGH } from '../world/layout.js';
+import { H, SEA_Y, seaY, JETTY, LIGHTHOUSE, ISLAND_DOCKS, coastDist, jettyDeckY, jettyDist, roughAt, swellAt, ROUGH, dockBerths } from '../world/layout.js';
 
 /**
  * Sailing the boat (assets/water/sailboat.js). One icon button (B on desktop) does what fits where you are:
@@ -14,8 +14,8 @@ import { H, SEA_Y, seaY, JETTY, LIGHTHOUSE, ISLAND_DOCKS, coastDist, jettyDeckY,
  *    across in a turn, and the boat heels. Looking around stays free and turns with the
  *    boat. More than CONFIG.boat.maxOffshore from the shore the boat turns itself back towards the island. It cannot
  *    sail through the jetty; in shallow water it drags and runs aground.
- *  - dock: near the berth at the jetty head the boat brings itself in and ties up (steering off); exit then steps you
- *    out onto the jetty. Pushing ahead casts off again.
+ *  - dock: near a berth at any jetty's head (either side of it, or across its end: layout.js dockBerths) the boat brings
+ *    itself in and ties up (steering off); exit then steps you out onto the jetty. Pushing ahead casts off again.
  *  - exit elsewhere: only where there is land within a jump of the boat; you walk forward and jump ashore.
  *  - anchor: out on open water, once the boat has (nearly) stopped, the anchor drops with a splash and the boat stays,
  *    swinging slowly bow into the wind (you can fish from it: app/fishing.js); weigh anchor to sail on.
@@ -23,8 +23,10 @@ import { H, SEA_Y, seaY, JETTY, LIGHTHOUSE, ISLAND_DOCKS, coastDist, jettyDeckY,
  */
 export function createBoating({ camera, st, boat, resetInput = () => {} }) {
   const BC = CONFIG.boat, PC = CONFIG.player, DOCKS = [JETTY, LIGHTHOUSE.jetty, ...ISLAND_DOCKS];   // the home jetty, the lighthouse's and the four islands'
-  let J = JETTY;   // the jetty the boat is at or nearest to (docking, mooring lines, stepping ashore)
-  const nearestDock = () => DOCKS.reduce((a, d) => Math.hypot(b.x - d.berth.x, b.z - d.berth.z) < Math.hypot(b.x - a.berth.x, b.z - a.berth.z) ? d : a);
+  let J = JETTY, BT = dockBerths(JETTY)[0];   // the jetty and berth the boat is at or nearest to (docking, mooring lines, stepping ashore)
+  const BERTHS = DOCKS.flatMap(d => dockBerths(d).map(q => ({ ...q, dock: d })));
+  const nearestBerth = () => BERTHS.reduce((a, q) => Math.hypot(b.x - q.x, b.z - q.z) < Math.hypot(b.x - a.x, b.z - a.z) ? q : a);
+  const lines = q => boat.mooringLines(true, { bollards: q.bollards, deckY: q.dock.deckY });
   const btn = document.getElementById('btnBoat');
   const svg = p => `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
   const ICONS = {
@@ -93,7 +95,7 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     }
     return best;
   }
-  const nearBerth = () => (J = mode === 'docking' || b.docked ? J : nearestDock(), true) && Math.hypot(b.x - J.berth.x, b.z - J.berth.z) < BC.dockReach && (J.side ? J.side(b) : b.z < J.z - J.head.halfW - 0.3) && Math.abs(b.speed) < BC.dockSpeed;
+  const nearBerth = () => { if (mode !== 'docking' && !b.docked) { BT = nearestBerth(); J = BT.dock; } return Math.hypot(b.x - BT.x, b.z - BT.z) < BC.dockReach && Math.abs(b.speed) < BC.dockSpeed; };
   /** Distance from the player to the hull's outline (in the boat's frame, an ellipse-ish box). */
   function hullDist(px, pz) { const c = Math.cos(b.h), s = Math.sin(b.h), dx = px - b.x, dz = pz - b.z, lx = c * dx + s * dz, lz = -s * dx + c * dz; return Math.hypot(Math.max(Math.abs(lx) - 2.2, 0), Math.max(Math.abs(lz) - boat.halfBeam(clamp(lx, -2.2, 2.2)), 0)); }
 
@@ -134,16 +136,16 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
   }
   /* ---- dock ---- */
   function dock() {
-    const x0 = b.x, z0 = b.z, h0 = b.h, dh = wrapA(J.berth.heading - h0), dur = clamp(Math.hypot(J.berth.x - x0, J.berth.z - z0) / 1.2, 2.5, 7);
+    const T2 = BT, h0 = b.h, rev = Math.abs(wrapA(T2.heading - h0)) > Math.PI / 2 ? Math.PI : 0, dh = wrapA(T2.heading + rev - h0), dur = clamp(Math.hypot(T2.x - b.x, T2.z - b.z) / 1.2, 2.5, 7), x0 = b.x, z0 = b.z;   // (bow whichever way it already points)
     mode = 'docking'; auto = true;
-    play([step(dur, k => { const prev = b.h; b.x = x0 + (J.berth.x - x0) * k; b.z = z0 + (J.berth.z - z0) * k; b.h = h0 + dh * k; b.speed = 0; st.yaw -= b.h - prev; wheelA += (-Math.sign(dh) * 0.6 * Math.sin(k * Math.PI) - wheelA) * 0.1; })],
-      () => { b.docked = true; b.aground = false; auto = false; boat.mooringLines(true, J); mode = 'moored'; });
+    play([step(dur, k => { const prev = b.h; b.x = x0 + (T2.x - x0) * k; b.z = z0 + (T2.z - z0) * k; b.h = h0 + dh * k; b.speed = 0; st.yaw -= b.h - prev; wheelA += (-Math.sign(dh) * 0.6 * Math.sin(k * Math.PI) - wheelA) * 0.1; })],
+      () => { b.docked = true; b.aground = false; auto = false; lines(rev ? { ...T2, bollards: T2.bollards.slice().reverse() } : T2); mode = 'moored'; });
   }
   /* ---- exit ---- */
   function exit() {
     const p0 = st.pos.clone(), y0 = st.yaw, pi0 = st.pitch;
     let land, arc;
-    if (b.docked) { const l = J.landAt ? J.landAt(b) : [b.x - 0.3 * Math.cos(J.berth.heading), J.z - J.head.halfW + 0.45]; land = new V(l[0], 0, l[1]); arc = 0.35; }   // up onto the jetty head (towards the shore)
+    if (b.docked) { const l = BT.land; land = new V(l[0], 0, l[1]); arc = 0.35; }   // up onto the jetty head
     else { const L = landing(); if (!L) return; land = new V(L.x, 0, L.z); arc = 0.55; }
     land.y = eyeAt(land.x, land.z);
     const yawL = yawTo(land.x - p0.x, land.z - p0.z), d1 = wrapA(yawL - y0);
@@ -233,6 +235,6 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     return mode !== null;
   }
   /** Back at the home jetty's berth, tied up (you fell asleep away from home and woke in the cabin: app/sleeping.js). */
-  function home() { if (mode) return; J = JETTY; Object.assign(b, { x: J.berth.x, z: J.berth.z, h: J.berth.heading, speed: 0, docked: true, aground: false }); rope.visible = false; boat.mooringLines(true, J); pose(); }
+  function home() { if (mode) return; BT = BERTHS[0]; J = BT.dock; Object.assign(b, { x: BT.x, z: BT.z, h: BT.heading, speed: 0, docked: true, aground: false }); rope.visible = false; lines(BT); pose(); }
   return { update, home, state: b, get mode() { return mode; }, get anchored() { return mode === 'anchored'; }, set onSplash(f) { splash = f; } };
 }

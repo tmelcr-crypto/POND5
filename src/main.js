@@ -143,8 +143,9 @@ createWorldTerrain(ctx);
 await step(40);
 const ground = createGroundTexture();
 await step(55);
-const ocean = createOcean(ctx, ground, SEA_Y);
-const worldGrass = createWorldGrass(ctx, ground, createIslandGrounds());   // (and on the outer islands and the lighthouse rock)
+const islandGrounds = createIslandGrounds();   // (the outer islands' ground heights: the grass, the surf round Ember Rock)
+const ocean = createOcean(ctx, ground, SEA_Y, islandGrounds);
+const worldGrass = createWorldGrass(ctx, ground, islandGrounds);   // (and on the outer islands and the lighthouse rock)
 const scatter = createScatter(ctx);
 await step(75);
 const undergrowth = createUndergrowth(ctx, { scatter, pollen });
@@ -184,7 +185,7 @@ function frame(now) {
   birds.update(dt);
   ambience.update(dt);
   waterLife.update(dt);
-  tod.update(dt); seasons.update(); tide.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt, t); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); climbing.update(dt, t); cave.update(dt, t); { const ug = cave.inside(); ocean.sea.visible = ocean.patch.visible = !ug; weather.under(ug); } treasure.update(dt, t); bottles.update(dt, t); dailyTasks.update(dt); keepsakes.update(ctx.camera); godRays.update(); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); rabbits.update(dt); squirrels.update(dt); frogs.update(dt); gulls.update(dt); dynRes.soften(body.soft); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt); lighthouse.update(dt); outerIslands.update(dt, t); telescope.update(dt, t);
+  tod.update(dt); seasons.update(); tide.update(); weather.update(dt, t); wind.update(); items.update(dt); chestUI.update(dt); fires.update(dt); cooking.update(dt); fishing.update(dt); shelf.update(dt); curtains.update(dt, t); body.update(dt); footsteps.update(); music.update(dt); timelapse.update(); lantern.update(dt, t); climbing.update(dt, t); cave.update(dt, t); { const ug = cave.inside(); ocean.sea.visible = !ug; for (const q of ocean.patches) q.visible = !ug; weather.under(ug); } treasure.update(dt, t); bottles.update(dt, t); dailyTasks.update(dt); keepsakes.update(ctx.camera); godRays.update(); hours.update(dt); drawWater.update(dt, t); gardening.update(dt, t); planting.update(dt); rabbits.update(dt); squirrels.update(dt); frogs.update(dt); gulls.update(dt); dynRes.soften(body.soft); dynRes.update(rawDt); skyWeather.update(dt); atmosphere.update(dt); moments.update(dt); horizon.update(dt); lighthouse.update(dt); outerIslands.update(dt, t); telescope.update(dt, t);
   if ((tAcc += dt) > 1) { tAcc = 0; showTime(clock.hours); }
   if (plotBands.pollen.on) updatePollen(t);
   if (telescope.viewing) telescope.render(renderer); else renderer.render(scene, camera);   // (through the eyepiece: its own sky)

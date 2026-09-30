@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { V, clamp, lin } from '../../core/math.js';
 import { mergeGeos } from '../../core/geometry.js';
 import { canvasTex } from '../../core/canvasTexture.js';
-import { JETTY, SEA_Y, H, jettyDeckY } from '../../world/layout.js';
+import { JETTY, SEA_Y, H, jettyDeckY, dockBerths } from '../../world/layout.js';
 import { obstacles } from '../../world/bounds.js';
 import { createLanternKit } from '../cabin/benches.js';
 
@@ -123,6 +123,14 @@ export function createJetty(ctx) {
   const netMesh = new THREE.Mesh(net, new THREE.MeshStandardMaterial({ map: netTex, alphaTest: 0.35, side: THREE.DoubleSide, roughness: 0.9, metalness: 0 }));
   netMesh.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: netTex, alphaTest: 0.35 });
 
+  // bollards for the other berths (the head's other side, across its end: layout.js dockBerths); no random numbers, so
+  // what follows is unchanged
+  for (const q of dockBerths(J)) for (const [x, z] of q.bollards) {
+    if (J.bollards.some(([bx, bz]) => Math.hypot(bx - x, bz - z) < 0.3)) continue;
+    const g = new THREE.CylinderGeometry(0.095, 0.1, 0.58, 10).toNonIndexed(); g.translate(x, top + 0.19, z); const c = new Float32Array(g.attributes.position.count * 3); for (let k = 0; k < c.length; k += 3) c.set(C.pile, k); g.setAttribute('color', new THREE.BufferAttribute(c, 3)); parts.push(g);
+    const cap = new THREE.CylinderGeometry(0.12, 0.11, 0.05, 10).toNonIndexed(); cap.translate(x, top + 0.5, z); const c2 = new Float32Array(cap.attributes.position.count * 3); for (let k = 0; k < c2.length; k += 3) c2.set(C.pile, k); cap.setAttribute('color', new THREE.BufferAttribute(c2, 3)); parts.push(cap);
+    obstacles.add(x, z, 0.14, top + 1.9);
+  }
   const geo = mergeGeos(parts.map(g => { if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); return g; }), ['position', 'normal', 'uv', 'color']);
   geo.computeBoundingSphere();
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: woodTex, vertexColors: true, roughness: 0.88, metalness: 0, envMapIntensity: 0.4, userData: { season: 'ice' } }));   // iced over in winter
