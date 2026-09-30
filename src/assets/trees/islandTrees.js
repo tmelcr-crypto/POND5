@@ -155,13 +155,13 @@ export function createWillowVariants(ctx, count, seed) {
         const side = new V().crossVectors(tan, UPV); if (side.lengthSq() < 1e-4) side.set(1, 0, 0); side.normalize().multiplyScalar((Math.round(u / step) % 2 ? 1 : -1) * rr(0.4, 0.9));
         const ld = tan.clone().multiplyScalar(0.8).add(side).add(out3.clone().multiplyScalar(0.25)).normalize(), sz = rr(0.1, 0.15);
         const shade = 0.5 + 0.45 * clamp(p.y / 5) + 0.2 * clamp(Math.hypot(p.x, p.z) / 4);
-        cards.push([card(p, ld, sz * 0.3, sz, rr(-0.6, 0.6)), new THREE.Color(rr(0.85, 1.0), rr(1.05, 1.18), rr(0.62, 0.82)).multiplyScalar(shade + 0.15)]);
+        cards.push([card(p, ld, sz * 0.4, sz, rr(-0.6, 0.6)), new THREE.Color(rr(0.85, 1.0), rr(1.05, 1.18), rr(0.62, 0.82)).multiplyScalar(shade + 0.15)]);
       }
     }
     // a few leafy sprays up on the arches (the crown's top)
-    for (let k = 0; k < 520 * dens; k++) {
+    for (let k = 0; k < 950 * dens; k++) {
       const [a, b] = arches[Math.floor(R() * arches.length)], p = a.clone().lerp(b, R()).add(new V(rr(-0.25, 0.25), rr(0, 0.2), rr(-0.25, 0.25))), d = new V(rr(-1, 1), rr(-0.5, 0.8), rr(-1, 1)).normalize(), sz = rr(0.085, 0.12);
-      cards.push([card(p, d, sz * 0.28, sz, rr(-1, 1)), new THREE.Color(rr(0.8, 0.95), rr(1.02, 1.12), rr(0.65, 0.8)).multiplyScalar(0.95 + 0.2 * R())]);
+      cards.push([card(p, d, sz * 0.4, sz, rr(-1, 1)), new THREE.Color(rr(0.8, 0.95), rr(1.02, 1.12), rr(0.65, 0.8)).multiplyScalar(0.95 + 0.2 * R())]);
     }
     out.push(finish('willow' + v, R, wood, cards, leafGeo, mats, 0.45));
   }
