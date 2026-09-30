@@ -3,6 +3,7 @@ import { V, UPV, clamp } from '../core/math.js';
 import { U } from '../core/uniforms.js';
 import { CONFIG } from '../config.js';
 import { WATER_Y, HOUSE, PAD_H, CB, roofY, rockColliders, CON, APP, H, bridgeDeckY, bridgeRails, jettyDeckY, SEATS, LIE_SPOTS, lakeD, treehouseDeckY, treehouseRails, caveWalls, caveGround, towerY, lighthouseWalls } from '../world/layout.js';
+import { buildingFloorY, buildingWalls } from '../world/buildingPlans.js';
 import { obstacles, rockBodies, applyBounds } from '../world/bounds.js';
 
 /** Icons of the sit and stand buttons (also used by the bed, app/sleeping.js). */
@@ -185,6 +186,7 @@ export function createControls(app) {
     const ix = p.x - HOUSE.x, iz = p.z - HOUSE.z;
     if (Math.abs(ix) < 1.58 && Math.abs(iz) < 1.23) g = Math.max(g, PAD_H + CB.FL);
     const deck = Math.max(bridgeDeckY(p.x, p.z), jettyDeckY(p.x, p.z), treehouseDeckY(p.x, p.z), towerY(p.x, p.z, feet)); if (deck - feet <= PC.stepHeight) g = Math.max(g, deck);   // the footbridge, the jetty and the treehouse (not from under them)
+    g = Math.max(g, buildingFloorY(p.x, p.z, feet));   // the islands' buildings: floors, stairs, boardwalk (their own step rule)
     if (U.uWinter.value > 0.5 && lakeD(p.x, p.z) < 1.0) g = Math.max(g, WATER_Y + 0.02);   // the frozen pond (world/seasons.js)
     const standOn = c => {
       // in the collider's own (rotated) frame; radii are padded by 0.2, body is the player's radius
@@ -237,6 +239,7 @@ export function createControls(app) {
     if (st.walk) treehouseRails(np, st.pos, 0.2, st.pos.y - PC.eyeHeight);   // on the treehouse deck: its railings and the hut's walls
     if (st.walk) caveWalls(np, st.pos, st.pos.y - PC.eyeHeight);   // the caverns: in and out by the ramps' tops only
     if (st.walk) lighthouseWalls(np, st.pos, st.pos.y - PC.eyeHeight);   // the lighthouse rock's cliffs, the tower's walls and stair
+    if (st.walk) buildingWalls(np, st.pos, st.pos.y - PC.eyeHeight);   // the islands' buildings: in by their doors (world/buildingPlans.js)
     applyBounds(np, st.vel, dt, st.walk && jettyDeckY(np.x, np.z) === -Infinity);   // on the jetty, deep water below is fine
     if (st.walk) {
       // eye height above the walkable surface; step up smoothly, stick to the ground going down hill

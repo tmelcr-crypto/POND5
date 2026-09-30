@@ -500,6 +500,22 @@ export function createRoseBush(ctx) {
   fisherman's lodge on stilts with a boardwalk and net racks; two jetties. Each island's jetties and building are one
   mesh (the sails and the dome apart), its ground another; windows, shallows and still water are shared meshes; the
   sheep, herons and reeds show within 55 m.
+- **Buildings you walk into** (`world/buildingPlans.js`: each building's frame, floors, stairs, walls, rails and
+  furniture colliders; `assets/islands/islandBuildings.js`: the meshes). The windmill, the beach hut, the observatory and
+  the lodge are built to the cabin's detail with their own canvas textures (whitewashed stone, ashlar, planks,
+  board-and-batten, bamboo, thatch, a rug, pictures) and furnished inside:
+  **the windmill**: a round tower with a door and deep-set windows, stone steps up to it; the millstones in their tun
+  under the hopper, grain sacks, the flour bin; a steep stair to the loft (the miller's bunk, a table, shelves of jars),
+  open to the cap, where the main shaft and its great spur wheel and the windshaft's brake wheel turn with the sails.
+  **The beach hut**: on stilts, steps up to a porch with a bench, a bamboo room under the thatch: a bed, a rug, a table
+  with coconut cups, shells on a shelf, a net, a spear, a sea chest, a straw hat. **The observatory**: steps up the cone
+  to the stone drum; inside, the telescope on its pier turning with the dome (its eyepiece at your eye), a desk with star
+  charts and a sextant, bookshelves, a globe, a chalkboard of orbits, a cot. **The lodge**: steps from the boardwalk up to
+  a railed porch; an iron stove, bunk beds, a table and chairs, jars, a net, rods, a barrel, boots, a map of the marsh.
+  You go in by the doors only; `app/controls.js` stands you on their floors and stairs (`buildingFloorY`) and keeps you
+  out of walls and furniture (`buildingWalls`). Each has a lantern you can light like the cabin's lamps (at night: the
+  lantern, the windows and a warm glow on the walls inside). Drawn within 60 m (a few merged meshes each); further out the
+  islands' cheap shells stand in (their part of the island mesh is skipped by its draw range when the building is near).
 - **The islands at the home island's detail** (`world/islandLife.js` places it all from its own random streams, so
   nothing on the home island moves): the outer islands and the lighthouse rock grow with the home island's own systems.
   Their ground is the terrain shader (`terrainMaterial` in `world/terrain.js`: the detail texture, dirt and rock layers by

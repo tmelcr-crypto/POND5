@@ -45,13 +45,14 @@ function windmill(S) {
   const mid = y => P.Ro(y) - P.wall / 2;
   ring(P, mid(P.f0 + 1), 22, [[0, P.door.w / 2]], P.f0 - 0.6, P.f1, P.wall / 2);
   ring(P, mid(P.f1 + 1), 20, [], P.f1 - 0.1, P.base + P.height, P.wall / 2);
-  P.stair = { rect: [-1.25, 1.1, 0.35, 1.0], y0: P.f0, y1: P.f1, n: 11 };
-  P.hole = [-0.45, 1.1, 0.3, 1.1];
-  P.floors.push({ r: P.Ri(P.f0), y: P.f0 }, { rect: [P.Ri(P.f0) - 0.2, P.Ro(P.f0) + 0.3, -0.55, 0.55], y: P.f0 }, { r: P.Ri(P.f1), y: P.f1, holes: [P.hole] });
+  P.stair = { rect: [-1.25, 1.0, 0.45, 1.1], y0: P.f0, y1: P.f1, n: 11 };
+  P.hole = [-0.45, 1.0, 0.4, 1.2];
+  P.floors.push({ r: P.Ri(P.f0), y: P.f0 }, { rect: [P.Ri(P.f0) - 0.2, P.Ro(P.f0), -0.55, 0.55], y: P.f0 }, { r: P.Ri(P.f1), y: P.f1, holes: [P.hole] });
   P.stairs.push(P.stair);
-  P.walls.push([-0.3, 0.32, 1.1, 0.32, P.f0 - 0.3, P.f0 + 1.0, 0.03]);                                        // under the stair
-  P.walls.push([-0.45, 0.3, 1.1, 0.3, P.f1 - 0.2, P.f1 + 1.0, 0.03], [-0.45, 0.3, -0.45, 1.1, P.f1 - 0.2, P.f1 + 1.0, 0.03]);   // the loft's rail round the stairwell
+  P.walls.push([-0.3, 0.42, 1.0, 0.42, P.f0 - 0.3, P.f0 + 1.0, 0.03]);                                        // under the stair
+  P.walls.push([-0.45, 0.4, 1.0, 0.4, P.f1 + 0.6, P.f1 + 1.0, 0.03], [-0.45, 0.4, -0.45, 1.2, P.f1 + 0.6, P.f1 + 1.0, 0.03]);   // the loft's rail round the stairwell (its top: whoever is on the stair passes under it)
   P.posts = [[0, 0, 0.18, P.f0 - 0.5, P.base + P.height + 1]];                                              // the main shaft
+  doorSteps(P, S, P.Ro(P.f0), P.f0);
   return P;
 }
 function hut(S) {
@@ -73,8 +74,9 @@ function observatory(S) {
   const [x, z, h] = S.top, P = { kind: 'observatory', ...frame(x, z, Math.atan2(-z, -x)), floors: [], stairs: [], walls: [], reach: 5 };
   P.base = h - 0.2; P.floor = h + 0.1; P.rOut = 2.6; P.rIn = 2.3; P.drumH = 3.0; P.door = { w: 1.0, h: 2.05 };
   ring(P, (P.rOut + P.rIn) / 2, 24, [[0, P.door.w / 2]], P.floor - 0.6, P.base + P.drumH + 2.5, (P.rOut - P.rIn) / 2);
-  P.floors.push({ r: P.rIn, y: P.floor }, { rect: [P.rIn - 0.2, P.rOut + 0.3, -0.55, 0.55], y: P.floor });
+  P.floors.push({ r: P.rIn, y: P.floor }, { rect: [P.rIn - 0.2, P.rOut, -0.55, 0.55], y: P.floor });
   P.posts = [[0, 0, 0.36, P.floor - 0.5, P.floor + 2.4]];   // the telescope's pier
+  doorSteps(P, S, P.rOut, P.floor);
   return P;
 }
 function lodge(S) {
@@ -100,6 +102,17 @@ function lodge(S) {
   return P;
 }
 
+/** Stone steps from a door (at u0, floor y) down to the ground outside it when it drops away; the lowest ground round
+ *  the building (r m out) for its foundation. */
+function doorSteps(P, S, u0, y) {
+  const foot = islandH(S.I, ...P.W(u0 + 1.2, 0)), drop = y - foot;
+  P.footMin = Infinity; for (let k = 0; k < 24; k++) P.footMin = Math.min(P.footMin, islandH(S.I, ...P.W(Math.cos(k / 24 * 6.283) * (u0 + 0.3), Math.sin(k / 24 * 6.283) * (u0 + 0.3))));
+  if (drop < 0.3) return;
+  const n = Math.ceil(drop / 0.24); let d = drop;
+  for (let k = 0; k < 3; k++) { const f = islandH(S.I, ...P.W(u0 + n * 0.3 + 0.2, 0)); d = y - f; }   // (the ground at the stair's foot)
+  const m = Math.max(n, Math.ceil(d / 0.24));
+  P.outStair = { rect: [u0, u0 + m * 0.3, -0.62, 0.62], y0: y, y1: y - d * m / (m + 0.5), n: m, down: true }; P.stairs.push(P.outStair);
+}
 let PLANS = null;
 /** The four buildings' plans (built once). */
 export function buildingPlans() {
@@ -118,7 +131,7 @@ export function buildingFloorY(x, z, feet) {
     if (Math.abs(x - P.x) > P.reach + 8 || Math.abs(z - P.z) > P.reach + 8) continue;
     const [u, v] = P.L(x, z), ok = y => { if (y <= feet + STEP && y > best) best = y; };
     for (const f of P.floors) if ((f.rect ? inRect(u, v, f.rect) : u * u + v * v <= f.r * f.r) && !(f.holes || []).some(hh => inRect(u, v, hh))) ok(f.y);
-    for (const s of P.stairs) if (inRect(u, v, s.rect)) { const t = (u - s.rect[0]) / (s.rect[1] - s.rect[0]), k = s.down ? Math.floor(t * s.n) + 1 : Math.ceil(t * s.n); ok(s.y0 + (s.y1 - s.y0) * Math.min(1, k / s.n)); }
+    for (const s of P.stairs) if (inRect(u, v, s.rect)) { const t = (u - s.rect[0]) / (s.rect[1] - s.rect[0]), k = s.down ? Math.floor(t * s.n) + 1 : Math.ceil(t * s.n), y = s.y0 + (s.y1 - s.y0) * Math.min(1, k / s.n); if (y <= feet + 0.95 && y > best) best = y; }   // (a stair: the climb's easing lags a tread or two)
     if (P.boardwalk) for (let k = 1; k < P.boardwalk.length; k++) { const [ax, ay, az] = P.boardwalk[k - 1], [bx, , bz] = P.boardwalk[k], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz, t = ((x - ax) * dx + (z - az) * dz) / l2;
       if (t >= 0 && t <= 1 && Math.abs((x - ax) * dz - (z - az) * dx) / Math.sqrt(l2) < 0.62) ok(ay); }
   }
