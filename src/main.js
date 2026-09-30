@@ -271,6 +271,7 @@ seasons.on(s => { if (s !== bakedFor) { bakedFor = s; scatter.rebake(s); } items
 makeCloudTexture(CONFIG.clouds);   // before finalizeScene, which puts the cloud shadows on the materials
 const outerIslands = createOuterIslands({ ...ctx, skyUniforms });   // four more islands: the windmill, the palm hut, the observatory, the marsh lodge (no random numbers)
 const lighthouse = createLighthouse({ ...ctx, skyUniforms });   // the lighthouse rock ~110 m east: its jetty, the tower you can climb (no random numbers)
+{ const ob = outerIslands.buildings.buildings.find(b => b.P.kind === 'observatory'); if (ob && ob.P.bed) sleeping.addBed({ ...ob.P.bed, clock: ob.P.clock }); }   // the observatory's bed, its alarm clock
 const telescope = createTelescope({ scene: ctx.scene, camera: ctx.camera, st, skyUniforms, clock, hours, softDot: ctx.tex.softDot, observatory: outerIslands.islands.find(o => o.I.kind === 'volcano').I.observatory, items }); addTakeover(telescope.takeover); bottles.addPage(telescope.page);   // the observatory's telescope: its dials, the eyepiece, the Stars page
 outerIslands.buildings.buildings.forEach((b, i) => b.lamps.slice(0, 1).forEach(at => fires.add({ id: 'isleLamp-' + b.P.kind, at, label: 'lantern', reach: 2.4, quick: true, near: () => true, set: k => outerIslands.buildings.setLamp(i, k > 0.5 ? 1 : 0) })));   // each island building's lantern, to light or put out
 finalizeScene(scene, cabin.group, cabin.interior.materials);

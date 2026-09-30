@@ -315,7 +315,26 @@ export function createIslandBuildings(ctx) {
         const ring = new THREE.TorusGeometry(0.27, 0.012, 4, 24, Math.PI * 1.3); ring.rotateY(0.4); ring.translate(u, f + 0.98, v); K.put('metal', ring, brass); P.posts.push([u, v, 0.28, f - 0.3, f + 1.2]); }
       { const a = Math.PI, r = P.rIn - 0.02; K.picture(2, 1.2, 0.9, Math.cos(a) * r, f + 1.6, Math.sin(a) * r + 0.0, a + Math.PI); }
       { const a = -Math.PI / 2 - 0.5, r = P.rIn - 0.02; K.picture(0, 0.7, 0.7, Math.cos(a) * r, f + 1.55, Math.sin(a) * r, a + Math.PI); }
-      { const a = -2.3, r = 1.55, u = Math.cos(a) * r, v = Math.sin(a) * r; bed(u, f, v, a + Math.PI / 2, lin(0x3a4a6a), 1.8, 0.8, 0.38); solid(u, v, 0.95, 0.42, f - 0.3, f + 0.6, a + Math.PI / 2); }
+      { const a = -2.3, r = 1.55, u = Math.cos(a) * r, v = Math.sin(a) * r, ry = a + Math.PI / 2, L = 1.8, Wd = 0.8, h = 0.38; bed(u, f, v, ry, lin(0x3a4a6a), L, Wd, h); solid(u, v, 0.95, 0.42, f - 0.3, f + 0.6, ry);
+        // the bed you sleep in (app/sleeping.js, as the cabin's): its edge on the room's side, the pillow, the feet's way;
+        // by its head a nightstand with the alarm clock that wakes you when you ask (its hands turn, the red one is the alarm)
+        const du = Math.cos(ry), dv = Math.sin(ry), nu = -dv * Math.sign(-u * -dv + -v * du), nv = du * Math.sign(-u * -dv + -v * du), top = f + h + 0.12;
+        const Wl = (lu, lv) => P.W(lu, lv), [cx, cz] = Wl(u, v), [ex, ez] = Wl(u + nu * (Wd / 2 - 0.14), v + nv * (Wd / 2 - 0.14)), [px, pz] = Wl(u - du * (L / 2 - 0.36), v - dv * (L / 2 - 0.36));
+        const wn = [Math.cos(P.a) * nu - Math.sin(P.a) * nv, Math.sin(P.a) * nu + Math.cos(P.a) * nv], wf = [Math.cos(P.a) * du - Math.sin(P.a) * dv, Math.sin(P.a) * du + Math.cos(P.a) * dv];
+        P.bed = { cx, cz, top, floor: f, edge: { x: ex, z: ez, fx: wn[0], fz: wn[1], top }, pillow: { x: px, z: pz, y: top + 0.14 }, feet: { x: wf[0], z: wf[1] }, alarm: true, inside: q => buildingAt(q.x, q.z) === P };
+        const su = u - du * (L / 2 - 0.2) + nu * 0.72, sv = v - dv * (L / 2 - 0.2) + nv * 0.72;
+        K.box('plank', 0.42, 0.52, 0.38, su, f, sv, -ry, wood); K.box('plank', 0.46, 0.03, 0.42, su, f + 0.52, sv, -ry, dark); K.box('plank', 0.3, 0.12, 0.02, su + nu * 0.2, f + 0.3, sv + nv * 0.2, -ry, dark);
+        solid(su, sv, 0.23, 0.21, f - 0.3, f + 0.6, ry); books(su - du * 0.08, f + 0.55, sv - dv * 0.08, 0.14, ry);
+        const clk = new THREE.Group(); clk.position.set(su + du * 0.08, f + 0.55, sv + dv * 0.08); clk.rotation.y = -Math.atan2(nv, nu) + Math.PI / 2; group.add(clk);
+        const cm = (g, c, x, y, z, m = 'metal') => { const o2 = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: c, roughness: m === 'metal' ? 0.3 : 0.6, metalness: m === 'metal' ? 0.7 : 0 })); o2.position.set(x, y, z); o2.castShadow = true; clk.add(o2); return o2; };
+        const body = new THREE.CylinderGeometry(0.075, 0.075, 0.05, 28); body.rotateX(Math.PI / 2); cm(body, 0xa8322a, 0, 0.1, 0);
+        const faceTex = new THREE.CanvasTexture((() => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d'); g.fillStyle = '#f4eee0'; g.beginPath(); g.arc(64, 64, 62, 0, 6.283); g.fill(); g.fillStyle = '#222'; g.font = 'bold 18px Georgia'; g.textAlign = 'center'; g.textBaseline = 'middle'; for (let k = 1; k <= 12; k++) { const a2 = k / 12 * 6.283 - Math.PI / 2; g.fillText(String(k), 64 + Math.cos(a2) * 47, 64 + Math.sin(a2) * 47); } for (let k = 0; k < 60; k++) { const a2 = k / 60 * 6.283; g.fillRect(64 + Math.cos(a2) * 58 - 1, 64 + Math.sin(a2) * 58 - 1, k % 5 ? 1.5 : 3, k % 5 ? 1.5 : 3); } return cv; })());
+        faceTex.encoding = THREE.sRGBEncoding; { const fm = new THREE.Mesh(new THREE.CircleGeometry(0.066, 28), new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.5 })); fm.position.set(0, 0.1, 0.026); clk.add(fm); }
+        { const g2 = new THREE.TorusGeometry(0.07, 0.008, 6, 28); cm(g2, 0xc8c8c0, 0, 0.1, 0.027); }
+        for (const sx of [-1, 1]) { const bell = new THREE.SphereGeometry(0.035, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2); const b2 = cm(bell, 0xc8c8c0, sx * 0.045, 0.172, 0); b2.rotation.z = -sx * 0.5; cm(new THREE.CylinderGeometry(0.006, 0.006, 0.05, 6), 0x9a9a92, sx * 0.045, 0.02, -0.01).rotation.z = sx * 0.4; }
+        cm(new THREE.SphereGeometry(0.012, 8, 6), 0xc8c8c0, 0, 0.19, 0); cm(new THREE.BoxGeometry(0.008, 0.035, 0.008), 0x9a9a92, 0, 0.175, 0.005);
+        const hand = (len, wdt, c, z) => { const g2 = new THREE.BoxGeometry(wdt, len, 0.003); g2.translate(0, len / 2 - 0.006, 0); const m2 = cm(g2, c, 0, 0.1, z, 'paint'); return m2; };
+        P.clock = { group: clk, hour: hand(0.036, 0.007, 0x111111, 0.03), minute: hand(0.052, 0.005, 0x111111, 0.031), alarm: hand(0.045, 0.003, 0xc81e1e, 0.029) }; }
       lantern(-1.2, f + 2.3, 0.6, 0.35);
     }
 

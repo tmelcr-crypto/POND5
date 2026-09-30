@@ -19,14 +19,39 @@ import { ICON_SIT, ICON_STAND } from './controls.js';
 const ICON_SLEEP = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/><path d="M14 3h4l-4 4h4"/></svg>';
 const SYMBOLS = ['☀', '☾', '⛵', '⚓', '✿', '★', '♣', '☂', '❄', '♥'];
 
-export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv, afterTimeJump = () => {}, resetInput = () => {} }) {
-  const SL = CONFIG.sleep, PC = CONFIG.player, E = BED.edge, standY = BED.floor + PC.eyeHeight;
-  const A = new V(E.x + E.fx * 0.7, standY, E.z + E.fz * 0.7);                               // standing in front of the edge
-  const S = new V(E.x + E.fx * 0.02, E.top + PC.sit.eye, E.z + E.fz * 0.02);                  // the seated eye
-  const S2 = new V(E.x + 0.25, E.top + PC.sit.eye - 0.05, E.z);                             // seated, legs swung up onto the bed
-  const P = new V(BED.pillow.x, BED.pillow.y, BED.pillow.z);                                 // lying, head on the pillow
+export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv, afterTimeJump = () => {}, resetInput = () => {}, beds: more = [] }) {
+  const SL = CONFIG.sleep, PC = CONFIG.player;
   const yawTo = (dx, dz) => Math.atan2(-dx, -dz), wrapA = a => Math.atan2(Math.sin(a), Math.cos(a)), ease = t => t * t * (3 - 2 * t);
-  const yawRoom = yawTo(E.fx, E.fz), yawFeet = yawTo(0, 1);
+  // the beds: the cabin's, and any more (the observatory's on Ember Rock: its alarm clock asks when to wake you); each
+  // { cx, cz, top, floor, edge { x, z, fx, fz, top }, pillow { x, z, y }, feet { x, z }, inside(p), alarm?, clock? }
+  const beds = [{ ...BED, feet: { x: 0, z: 1 }, cabin: true, inside: p => Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW }].concat(more);
+  let B = beds[0], standY = 0, yawRoom = 0, yawFeet = 0; const A = new V(), S = new V(), S2 = new V(), P = new V();
+  function useBed(b) {   // the poses for this bed
+    B = b; const E = b.edge; standY = b.floor + PC.eyeHeight;
+    A.set(E.x + E.fx * 0.7, standY, E.z + E.fz * 0.7);                                          // standing in front of the edge
+    S.set(E.x + E.fx * 0.02, E.top + PC.sit.eye, E.z + E.fz * 0.02);                             // the seated eye
+    S2.set(E.x - E.fx * 0.25, E.top + PC.sit.eye - 0.05, E.z - E.fz * 0.25);                   // seated, legs swung up onto the bed
+    P.set(b.pillow.x, b.pillow.y, b.pillow.z);                                                  // lying, head on the pillow
+    yawRoom = yawTo(E.fx, E.fz); yawFeet = yawTo(b.feet.x, b.feet.z);
+  }
+  useBed(B);
+  // the alarm clock: when to wake (hours, 0..24 in quarters); chosen before you lie down, kept for next time
+  let alarmAt = 21; try { const v = parseFloat(localStorage.getItem('meadow.alarm')); if (v >= 0 && v < 24) alarmAt = v; } catch (err) { void err; }
+  const fmt = h => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
+  const alarmUi = document.createElement('div'); alarmUi.id = 'alarmView'; alarmUi.className = 'hide'; document.body.appendChild(alarmUi);
+  let alarmThen = null, pickA = alarmAt;
+  function askAlarm(then) {
+    alarmThen = then; pickA = alarmAt; alarmUi.classList.remove('hide');
+    alarmUi.innerHTML = `<div class="plate"><h2>Wake me at</h2><div class="dials"><div class="dial"><button data-s="1" aria-label="An hour later">▲</button><b class="hh"></b><button data-s="-1" aria-label="An hour earlier">▼</button></div><span class="dot">:</span><div class="dial"><button data-s="0.25" aria-label="A quarter later">▲</button><b class="mm"></b><button data-s="-0.25" aria-label="A quarter earlier">▼</button></div></div><div class="note"></div><div class="btns"><button class="cancel">Not now</button><button class="go">Sleep</button></div></div>`;
+    showA();
+  }
+  function showA() { const [hh, mm] = fmt(pickA).split(':'); alarmUi.querySelector('.hh').textContent = hh; alarmUi.querySelector('.mm').textContent = mm; const d = ((pickA - clock.hours) % 24 + 24) % 24; alarmUi.querySelector('.note').textContent = `It is ${fmt(((clock.hours % 24) + 24) % 24)} now: you would sleep ${d < 0.5 ? 24 : Math.floor(d)} h ${d < 0.5 ? '' : Math.round((d % 1) * 60) + ' min'}`.trim(); }
+  alarmUi.addEventListener('pointerdown', e => {
+    e.stopPropagation(); const b = e.target.closest && e.target.closest('button'); if (!b) return; e.preventDefault();
+    if (b.dataset.s) { pickA = ((pickA + +b.dataset.s) % 24 + 24) % 24; showA(); return; }
+    alarmUi.classList.add('hide'); const t = alarmThen; alarmThen = null;
+    if (b.classList.contains('go')) { alarmAt = pickA; try { localStorage.setItem('meadow.alarm', String(alarmAt)); } catch (err) { void err; } if (t) t(); }
+  });
   let mode = null, anim = null, roll = 0, total = 0, prevH = clock.hours, lastSleep = -Infinity, check = 0, fade = null;
   const allowed = () => total - lastSleep >= SL.every;
 
@@ -80,7 +105,6 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
   addEventListener('keydown', e => { if (e.repeat || !st.playing) return; if (e.code === 'KeyR' && (mode || acts.length)) press(0); if (e.code === 'KeyT') press(1); });
 
   /* ---- in reach and in view ---- */
-  const target = new V(BED.cx, BED.top, BED.cz);
   function blocked(a, b) {   // does the segment a-b pass through one of the cabin's solid boxes (walls, chimney)?
     for (const bx of cabin.boxes) {
       if (bx.on && !bx.on()) continue;
@@ -93,23 +117,26 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
     }
     return false;
   }
-  function bedInView() {
-    if (!st.walk || !st.grounded || !st.playing || st.aboard || st.seat) return false;
-    const p = st.pos, inside = Math.abs(p.x - HOUSE.x) < CB.XW && Math.abs(p.z - HOUSE.z) < CB.ZW;
-    if (!inside || Math.hypot(p.x - BED.cx, p.z - BED.cz) > SL.reach) return false;
-    const d = target.clone().sub(p).normalize(), f = new V(-Math.sin(st.yaw) * Math.cos(st.pitch), Math.sin(st.pitch), -Math.cos(st.yaw) * Math.cos(st.pitch));
-    return d.dot(f) > Math.cos(SL.cone) && !blocked(p, target);
+  function bedInView() {   // the bed you are by and looking at, or null
+    if (!st.walk || !st.grounded || !st.playing || st.aboard || st.seat) return null;
+    const p = st.pos, f = new V(-Math.sin(st.yaw) * Math.cos(st.pitch), Math.sin(st.pitch), -Math.cos(st.yaw) * Math.cos(st.pitch));
+    for (const b of beds) {
+      if (!b.inside(p) || Math.hypot(p.x - b.cx, p.z - b.cz) > SL.reach) continue;
+      const target = new V(b.cx, b.top, b.cz), d = target.clone().sub(p).normalize();
+      if (d.dot(f) > Math.cos(SL.cone) && !(b.cabin && blocked(p, target))) return b;
+    }
+    return null;
   }
 
   /* ---- animations ---- */
   const step = (dur, f) => ({ dur: Math.max(dur, 0.05), f });
   function play(steps, then) { anim = { steps, i: 0, t: 0, then }; setButtons([]); }
   function sitSteps() {   // as on a bench: turn to the bed, walk up, turn round, sit down
-    const p0 = st.pos.clone(), y0 = st.yaw, pi0 = st.pitch, yC = yawTo(BED.cx - p0.x, BED.cz - p0.z), d1 = wrapA(yC - y0), walk = Math.hypot(A.x - p0.x, A.z - p0.z);
+    const p0 = st.pos.clone(), y0 = st.yaw, pi0 = st.pitch, yC = yawTo(B.cx - p0.x, B.cz - p0.z), d1 = wrapA(yC - y0), walk = Math.hypot(A.x - p0.x, A.z - p0.z);
     let yW = 0, dT = 0;
     return [
       step(Math.abs(d1) / PC.sit.turn + 0.25, k => { st.yaw = y0 + d1 * k; st.pitch = pi0 + (-0.35 - pi0) * k; }),
-      step(walk / PC.sit.walk, k => { st.pos.set(p0.x + (A.x - p0.x) * k, standY + (p0.y - standY) * (1 - k) + Math.sin(k * walk * 7) * 0.012, p0.z + (A.z - p0.z) * k); st.yaw = yW = yC + wrapA(yawTo(BED.cx - st.pos.x, BED.cz - st.pos.z) - yC) * Math.min(1, k * 3); }),
+      step(walk / PC.sit.walk, k => { st.pos.set(p0.x + (A.x - p0.x) * k, standY + (p0.y - standY) * (1 - k) + Math.sin(k * walk * 7) * 0.012, p0.z + (A.z - p0.z) * k); st.yaw = yW = yC + wrapA(yawTo(B.cx - st.pos.x, B.cz - st.pos.z) - yC) * Math.min(1, k * 3); }),
       step(0.01, () => { dT = wrapA(yawRoom - yW); }),
       step(Math.abs(Math.PI) / PC.sit.turn + 0.2, k => { st.yaw = yW + dT * k; st.pitch = -0.35 + 0.31 * k; }),
       step(PC.sit.lower, k => { st.pos.lerpVectors(A, S, k); st.pos.y -= Math.sin(k * Math.PI) * 0.04; }),
@@ -136,6 +163,10 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
   const free = () => { mode = null; roll = 0; st.vel.set(0, 0, 0); st.grounded = true; resetInput(); };
   function sleep() { mode = 'sleeping'; lastSleep = total; fade = { t: 0, jumped: false }; }
   function act(a) {
+    if (a === 'sleep' && B.alarm && !alarmThen && alarmUi.classList.contains('hide')) { askAlarm(() => act2(a)); return; }   // the alarm clock first
+    act2(a);
+  }
+  function act2(a) {
     if (!mode) {
       mode = 'anim'; st.vel.set(0, 0, 0); resetInput();
       if (a === 'sleep') play([...sitSteps(), ...lieSteps()], sleep); else play(sitSteps(), toSitting);
@@ -152,8 +183,8 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
     const h = clock.hours, d = ((h - prevH) % 24 + 24) % 24; if (d < 3) total += d; prevH = h;   // the running clock only
     st.inBed = mode !== null;
     if (!mode) {
-      if ((check -= dt) <= 0) { check = 0.2; setButtons(bedInView() ? [allowed() ? 'sleep' : 'sit'] : []); }
-      return false;
+      if ((check -= dt) <= 0) { check = 0.2; const b = alarmThen ? null : bedInView(); if (b && b !== B) useBed(b); setButtons(b ? [allowed() ? 'sleep' : 'sit'] : []); }
+      hands(); return false;
     }
     if (anim) {
       const Q = anim; Q.t += dt;
@@ -164,15 +195,27 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
       fade.t += dt; const F = SL.fade, t = fade.t;
       black.style.opacity = String(t < F ? t / F : t < F + SL.black ? 1 : Math.max(0, 1 - (t - F - SL.black) / F));
       if (!fade.jumped && t >= F + SL.black * 0.5) {
-        fade.jumped = true; const hrs = SL.hours[0] + Math.random() * (SL.hours[1] - SL.hours[0]);
+        fade.jumped = true; let hrs = SL.hours[0] + Math.random() * (SL.hours[1] - SL.hours[0]);
+        if (B.alarm) { hrs = ((alarmAt - clock.hours) % 24 + 24) % 24; if (hrs < 0.5) hrs += 24; fade.alarm = true; }   // until the alarm
         setHours(clock.hours + hrs); prevH = clock.hours; total += hrs; afterTimeJump(hrs); scheduleEnv(true);
       }
-      if (t >= 2 * F + SL.black) { fade = null; black.style.opacity = '0'; mode = 'lying'; }
+      if (t >= 2 * F + SL.black) { if (fade.alarm) ring(); fade = null; black.style.opacity = '0'; mode = 'lying'; }
     } else if (mode === 'sitting') setButtons(['stand', allowed() && 'sleep', !albumOpen() && 'album'].filter(Boolean));
     else if (mode === 'lying') setButtons(['stand', 'sit']);
-    if (mode === 'sitting' && !anim) st.pos.copy(S); else if (mode === 'lying' && !anim) st.pos.copy(P);
+    hands(); if (mode === 'sitting' && !anim) st.pos.copy(S); else if (mode === 'lying' && !anim) st.pos.copy(P);
     camera.position.copy(st.pos); camera.rotation.set(st.pitch, st.yaw, roll);
     return true;
   }
-  return { update, get mode() { return mode; }, get hoursAwake() { return total - lastSleep; } };
+  // the alarm clock's hands (the time, and the red one at the alarm), and its ring as you wake
+  function hands() {
+    for (const b of beds) if (b.clock) { const h = ((clock.hours % 24) + 24) % 24; b.clock.hour.rotation.z = -(h % 12) / 12 * Math.PI * 2; b.clock.minute.rotation.z = -(h % 1) * Math.PI * 2; b.clock.alarm.rotation.z = -(alarmAt % 12) / 12 * Math.PI * 2; }
+  }
+  let ac = null;
+  function ring() {
+    const n = document.getElementById('fireNote'); if (n) { n.textContent = `The alarm clock rings: ${fmt(alarmAt)}.`; n.classList.remove('hide'); clearTimeout(ring.t); ring.t = setTimeout(() => n.classList.add('hide'), 3800); }
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); const t0 = ac.currentTime; for (let i = 0; i < 14; i++) { const o = ac.createOscillator(), g = ac.createGain(); o.type = 'square'; o.frequency.value = i % 2 ? 2350 : 2600; g.gain.setValueAtTime(0, t0 + i * 0.09); g.gain.linearRampToValueAtTime(0.03, t0 + i * 0.09 + 0.01); g.gain.exponentialRampToValueAtTime(0.0005, t0 + i * 0.09 + 0.08); o.connect(g); g.connect(ac.destination); o.start(t0 + i * 0.09); o.stop(t0 + i * 0.09 + 0.09); } } catch (err) { void err; }
+    if (B.clock) B.clock.group.rotation.z = 0.08;   // (it shakes)
+    setTimeout(() => { if (B.clock) B.clock.group.rotation.z = 0; }, 1300);
+  }
+  return { update, /** Another bed to sleep in (the observatory's). */ addBed(b) { beds.push(b); }, get mode() { return mode; }, get hoursAwake() { return total - lastSleep; }, get alarmAt() { return alarmAt; }, _act: a => act(a), _bed: () => B, _alarmUi: alarmUi };
 }
