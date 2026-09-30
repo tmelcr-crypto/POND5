@@ -339,7 +339,7 @@ function dressMouths(ctx, C, basalt) {
   const addRock = (x, z, sz, k, lift = 0) => {
     const g = new THREE.IcosahedronGeometry(1, 3), p = g.attributes.position, ph = hash(k, sd) * 40;
     for (let i = 0; i < p.count; i++) { const a = p.getX(i), b = p.getY(i), c = p.getZ(i), f = 1 + 0.13 * Math.sin(a * 3.1 + b * 3.7 + c * 2.9 + ph) + 0.05 * Math.sin(a * 7 - c * 6 + ph) - 0.12 * Math.max(0, b - 0.4); p.setXYZ(i, a * f, b * f, c * f); }   // (a little flattened on top)
-    g.scale(sz * (1.05 + 0.4 * hash(k, sd + 1)), sz * (0.62 + 0.25 * hash(k, sd + 2)), sz); g.rotateY(hash(k, sd + 3) * 6.28); g.translate(x, H(x, z) - sz * 0.22 + lift, z); g.computeVertexNormals();
+    g.scale(sz * (1.05 + 0.4 * hash(k, sd + 1)), sz * (0.62 + 0.25 * hash(k, sd + 2)), sz); g.rotateY(hash(k, sd + 3) * 6.28); let gy = H(x, z); for (let q = 0; q < 8; q++) gy = Math.min(gy, H(x + Math.cos(q * 0.785) * sz, z + Math.sin(q * 0.785) * sz)); g.translate(x, gy - sz * 0.22 + lift, z); g.computeVertexNormals();   // (sunk to the lowest ground under it: none hangs over a slope)
     const n = g.attributes.normal, q = g.attributes.position, col = new Float32Array(p.count * 3), cc = new THREE.Color();
     for (let i = 0; i < p.count; i++) { const px = q.getX(i), py = q.getY(i), pz = q.getZ(i), up = n.getY(i);
       if (basalt) cc.copy(lin(0x2c2927)).lerp(lin(0x4a3a32), smooth(0.4, 0.8, fbm3(px * 1.4, py * 1.4, pz * 1.4)) * 0.6);
