@@ -45,12 +45,12 @@ function windmill(S) {
   const mid = y => P.Ro(y) - P.wall / 2;
   ring(P, mid(P.f0 + 1), 22, [[0, P.door.w / 2]], P.f0 - 0.6, P.f1, P.wall / 2);
   ring(P, mid(P.f1 + 1), 20, [], P.f1 - 0.1, P.base + P.height, P.wall / 2);
-  P.stair = { rect: [-1.25, 1.1, 0.35, 1.0], y0: P.f0, y1: P.f1, n: 11 };
-  P.hole = [-0.45, 1.1, 0.3, 1.1];
+  P.stair = { rect: [-1.25, 1.0, 0.45, 1.1], y0: P.f0, y1: P.f1, n: 11 };
+  P.hole = [-0.45, 1.0, 0.4, 1.2];
   P.floors.push({ r: P.Ri(P.f0), y: P.f0 }, { rect: [P.Ri(P.f0) - 0.2, P.Ro(P.f0), -0.55, 0.55], y: P.f0 }, { r: P.Ri(P.f1), y: P.f1, holes: [P.hole] });
   P.stairs.push(P.stair);
-  P.walls.push([-0.3, 0.32, 1.1, 0.32, P.f0 - 0.3, P.f0 + 1.0, 0.03]);                                        // under the stair
-  P.walls.push([-0.45, 0.3, 1.1, 0.3, P.f1 - 0.2, P.f1 + 1.0, 0.03], [-0.45, 0.3, -0.45, 1.1, P.f1 - 0.2, P.f1 + 1.0, 0.03]);   // the loft's rail round the stairwell
+  P.walls.push([-0.3, 0.42, 1.0, 0.42, P.f0 - 0.3, P.f0 + 1.0, 0.03]);                                        // under the stair
+  P.walls.push([-0.45, 0.4, 1.0, 0.4, P.f1 - 0.2, P.f1 + 1.0, 0.03], [-0.45, 0.4, -0.45, 1.2, P.f1 - 0.2, P.f1 + 1.0, 0.03]);   // the loft's rail round the stairwell
   P.posts = [[0, 0, 0.18, P.f0 - 0.5, P.base + P.height + 1]];                                              // the main shaft
   doorSteps(P, S, P.Ro(P.f0), P.f0);
   return P;

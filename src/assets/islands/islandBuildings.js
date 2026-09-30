@@ -217,13 +217,13 @@ export function createIslandBuildings(ctx) {
         for (let k = 0; k < 32; k++) { const a = k / 32 * Math.PI * 2, cog = new THREE.BoxGeometry(0.05, 0.12, 0.05); cog.translate(Math.cos(a) * 0.78, f1 + 1.0, Math.sin(a) * 0.78); sk.put('plank', cog, dark); }
         sk.meshes(sh, mats); group.add(sh); spins.push({ spin: sh, axis: 'y', speed: 0.6 }); }
       // the millstones in their tun, the hopper over them on its horse
-      { const u = -0.55, v = -0.95; K.cyl('board', 0.62, 0.62, 0.55, u, f0, v, 10, wood, 1); K.cyl('stone', 0.58, 0.58, 0.04, u, f0 + 0.55, v, 20, stoneC.clone().multiplyScalar(0.85), 0.8);
-        const hop = new THREE.CylinderGeometry(0.42, 0.1, 0.45, 4, 1, true); hop.rotateY(Math.PI / 4); hop.translate(u, f0 + 1.2, v); K.put('board', hop, wood); K.cyl('plain', 0.3, 0.3, 0.02, u, f0 + 1.35, v, 12, lin(0xd9c38a));
-        for (const [a, b] of [[-0.35, -0.35], [0.35, -0.35], [0.35, 0.35], [-0.35, 0.35]]) K.rod('plank', V(u + a, f0 + 0.55, v + b), V(u + a * 0.5, f0 + 1.05, v + b * 0.5), 0.025, 5, dark);
-        K.box('plank', 0.1, 0.06, 0.5, u + 0.45, f0 + 0.62, v, 0.4, wood); P.posts.push([u, v, 0.66, f0 - 0.5, f0 + 1.3]); }
-      sack(0.85, f0, -1.05, 1, 0.3); sack(1.15, f0, -0.7, 0.9, 1.2); sack(0.95, f0 + 0.52, -0.85, 0.8, 2); P.posts.push([0.95, -0.9, 0.42, f0 - 0.5, f0 + 1.2]);
-      { const u = -1.32, v = -0.2; K.box('board', 0.5, 0.75, 0.75, u, f0, v, 0, wood, 1); K.box('plank', 0.54, 0.04, 0.79, u, f0 + 0.75, v, 0, dark); K.cyl('metal', 0.08, 0.1, 0.12, u, f0 + 0.79, v + 0.1, 10, lin(0x9a9a92)); solid(u, v, 0.27, 0.4, f0 - 0.5, f0 + 0.8); }   // the flour bin, a scoop
-      table(0.15, f0, -1.5, 1.0, 0.4, 0, 0.8); K.box('metal', 0.3, 0.03, 0.08, 0.0, f0 + 0.84, -1.5, 0.3, iron); K.box('plank', 0.35, 0.02, 0.12, 0.35, f0 + 0.84, -1.45, -0.2, wood); solid(0.15, -1.5, 0.52, 0.22, f0 - 0.5, f0 + 0.85);
+      { const u = -0.95, v = -0.95; K.cyl('board', 0.45, 0.45, 0.55, u, f0, v, 10, wood, 1); K.cyl('stone', 0.42, 0.42, 0.04, u, f0 + 0.55, v, 20, stoneC.clone().multiplyScalar(0.85), 0.8);
+        const hop = new THREE.CylinderGeometry(0.34, 0.08, 0.4, 4, 1, true); hop.rotateY(Math.PI / 4); hop.translate(u, f0 + 1.2, v); K.put('board', hop, wood); K.cyl('plain', 0.24, 0.24, 0.02, u, f0 + 1.33, v, 12, lin(0xd9c38a));
+        for (const [a, b] of [[-0.26, -0.26], [0.26, -0.26], [0.26, 0.26], [-0.26, 0.26]]) K.rod('plank', V(u + a, f0 + 0.55, v + b), V(u + a * 0.5, f0 + 1.05, v + b * 0.5), 0.025, 5, dark);
+        K.box('plank', 0.1, 0.06, 0.4, u + 0.35, f0 + 0.62, v, 0.4, wood); P.posts.push([u, v, 0.48, f0 - 0.5, f0 + 1.3]); }
+      sack(0.25, f0, -1.3, 1, 0.3); sack(0.6, f0, -1.25, 0.9, 1.2); sack(0.42, f0 + 0.52, -1.28, 0.8, 2); P.posts.push([0.42, -1.28, 0.42, f0 - 0.5, f0 + 1.2]);
+      { const u = 1.2, v = -0.85; K.box('board', 0.5, 0.75, 0.75, u, f0, v, 0.6, wood, 1); K.box('plank', 0.54, 0.04, 0.79, u, f0 + 0.75, v, 0.6, dark); K.cyl('metal', 0.08, 0.1, 0.12, u, f0 + 0.79, v + 0.1, 10, lin(0x9a9a92)); solid(u, v, 0.27, 0.4, f0 - 0.5, f0 + 0.8, -0.6); }   // the flour bin, a scoop
+      K.box('metal', 0.3, 0.03, 0.08, 1.2, f0 + 0.79, -0.95, 0.3, iron);
       lantern(0.7, f1 - 0.45, -0.4, 0.3);
       // the stair to the loft, a rail on its open side; the loft's floor (the stairwell cut out), its rail, a beam under it
       { const [u0, u1, v0, v1] = P.stair.rect, n = P.stair.n, run = (u1 - u0) / n, rise = (P.stair.y1 - P.stair.y0) / n;
