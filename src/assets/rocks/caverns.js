@@ -5,7 +5,6 @@ import { canvasTex } from '../../core/canvasTexture.js';
 import { CAVERNS, LAVA_TUBE, caveSDF, caveFloor, caveOpen, underground, H } from '../../world/layout.js';
 import { U } from '../../core/uniforms.js';
 import { fernTexture, fernGeometry } from './rockOutcrop.js';
-import { obstacles } from '../../world/bounds.js';
 import { voice } from '../fauna/animalKit.js';
 import { starTexture } from '../story/friendship.js';
 import { isTouch } from '../../core/env.js';
@@ -333,21 +332,20 @@ export function createCaverns(ctx, { ambience } = {}) {
  * Where a cave's ramp is cut into the ground, its edges hidden the way a real cave mouth is: boulders half sunk along the
  * rims of the open trench, bigger ones framing the portal where the ramp goes under the ground (and one over it), and
  * ferns leaning over the edges between them (limestone and ferns at home, black basalt on Ember Rock). The entrance's
- * corridor stays clear. One mesh for the rocks, one for the ferns; the big rocks are solid. No random numbers (hashes).
+ * corridor stays clear; none is solid (the one over the portal is over the tunnel). One mesh for the rocks, one for the ferns. No random numbers (hashes).
  */
 function dressMouths(ctx, C, basalt) {
   const { scene } = ctx, rocks = [], ferns = [], sd = C.box.x0 * 7.1 + C.box.z0 * 3.3;
   const addRock = (x, z, sz, k, lift = 0) => {
-    const g = new THREE.IcosahedronGeometry(1, 2), p = g.attributes.position, ph = hash(k, sd) * 40;
-    for (let i = 0; i < p.count; i++) { const a = p.getX(i), b = p.getY(i), c = p.getZ(i), f = 1 + 0.16 * Math.sin(a * 4.3 + b * 5.1 + c * 3.7 + ph) + 0.07 * Math.sin(a * 11 - c * 9 + ph); p.setXYZ(i, a * f, b * f, c * f); }
+    const g = new THREE.IcosahedronGeometry(1, 3), p = g.attributes.position, ph = hash(k, sd) * 40;
+    for (let i = 0; i < p.count; i++) { const a = p.getX(i), b = p.getY(i), c = p.getZ(i), f = 1 + 0.13 * Math.sin(a * 3.1 + b * 3.7 + c * 2.9 + ph) + 0.05 * Math.sin(a * 7 - c * 6 + ph) - 0.12 * Math.max(0, b - 0.4); p.setXYZ(i, a * f, b * f, c * f); }   // (a little flattened on top)
     g.scale(sz * (1.05 + 0.4 * hash(k, sd + 1)), sz * (0.62 + 0.25 * hash(k, sd + 2)), sz); g.rotateY(hash(k, sd + 3) * 6.28); g.translate(x, H(x, z) - sz * 0.22 + lift, z); g.computeVertexNormals();
     const n = g.attributes.normal, q = g.attributes.position, col = new Float32Array(p.count * 3), cc = new THREE.Color();
     for (let i = 0; i < p.count; i++) { const px = q.getX(i), py = q.getY(i), pz = q.getZ(i), up = n.getY(i);
       if (basalt) cc.copy(lin(0x2c2927)).lerp(lin(0x4a3a32), smooth(0.4, 0.8, fbm3(px * 1.4, py * 1.4, pz * 1.4)) * 0.6);
-      else { cc.copy(lin(0x8d877b)).lerp(lin(0x6d6a62), smooth(0.35, 0.75, fbm3(px * 1.2, py * 1.2, pz * 1.2))); cc.lerp(lin(0x4e6a2c), smooth(0.35, 0.8, up) * smooth(0.3, 0.7, fbm3(px * 2.1, py * 2.1, pz * 2.1)) * 0.85); }
+      else { cc.copy(lin(0x6e685c)).lerp(lin(0x4f4b44), smooth(0.35, 0.75, fbm3(px * 1.2, py * 1.2, pz * 1.2))).lerp(lin(0x7a6a52), 0.3 * smooth(0.5, 0.8, fbm3(px * 3, py * 3, pz * 3))); cc.lerp(lin(0x3f5724), smooth(0.2, 0.7, up) * smooth(0.25, 0.6, fbm3(px * 2.1, py * 2.1, pz * 2.1)) * 0.95); cc.multiplyScalar(0.8 + 0.2 * smooth(-0.6, 0.6, up)); }
       cc.multiplyScalar(0.85 + 0.25 * vnoise3(px * 6, py * 6, pz * 6)).toArray(col, i * 3); }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3)); rocks.push(g.index ? g.toNonIndexed() : g);
-    if (sz > 0.55) obstacles.add(x, z, sz * 0.8, H(x, z) + sz * 0.9 + lift);
   };
   const addFern = (x, z, sz, k, lean) => {   // a clump of fronds, fanned out, leaning over the edge
     const y = H(x, z) - 0.02, n = 5 + Math.floor(hash(k, sd + 7) * 3);
@@ -362,7 +360,7 @@ function dressMouths(ctx, C, basalt) {
       const u = clamp((s - acc) / (b[3] - a[3])), x = a[0] + (b[0] - a[0]) * u, z = a[1] + (b[1] - a[1]) * u, fl = a[2] + (b[2] - a[2]) * u, dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz), nx = -dz / l, nz = dx / l;
       const open = fl + t.h > H(x, z) - 0.3, fromTop = Math.abs(s - top);
       if (!open) { if (!portal && fromTop > 1) portal = { x, z, fl, nx, nz, dx: dx / l * (top === 0 ? 1 : -1), dz: dz / l * (top === 0 ? 1 : -1) }; continue; }   // (d: on into the hill)
-      if (fromTop < 0.4) continue;   // (the way in stays clear)
+      if (fromTop < 0.4) { if (fromTop < 0.28) for (const side of [-1, 1]) { k++; const off = t.w + 0.45; addRock(x + nx * side * off - (top === 0 ? dx : -dx) / l * 0.35, z + nz * side * off - (top === 0 ? dz : -dz) / l * 0.35, 0.5 + 0.2 * hash(k, sd + 12), k); if (!basalt) addFern(x + nx * side * (off + 0.8), z + nz * side * (off + 0.8), 0.7, k + 80, 0); } continue; }   // (the way in stays clear; stones at its corners)
       for (const side of [-1, 1]) { k++; const off = t.w + 0.25 + 0.3 * hash(k, sd + 4), px = x + nx * side * off, pz = z + nz * side * off;
         addRock(px, pz, 0.32 + 0.4 * hash(k, sd + 5), k);
         if (!basalt && hash(k, sd + 6) < 0.7) { const fo = off + 0.55 + 0.3 * hash(k, sd + 8); addFern(x + nx * side * fo, z + nz * side * fo, 0.55 + 0.35 * hash(k, sd + 10), k, Math.atan2(-nz * side, -nx * side)); } }
@@ -401,19 +399,19 @@ function createLavaTube(ctx) {
   const { scene, camera } = ctx, T = LAVA_TUBE, B = T.box, group = new THREE.Group(); scene.add(group);
   const t0 = performance.now(), { pos, nor, Hat } = polygonise(B, CAVE_LOOK.step), hall = T.halls[0], pool = hall.pool;
   const mouths = T.mouths.map(m => V(m.x, H(m.x, m.z), m.z));
-  const sources = [[pool.x, pool.y + 0.5, pool.z, lin(0xff6a1e), 2.6, 3.4], [pool.x, pool.y + 2.2, pool.z, lin(0xff8a3a), 0.8, 4.5]];
+  const sources = [[pool.x, pool.y + 0.5, pool.z, lin(0xff6a1e), 9.0, 4.2], [pool.x, pool.y + 2.4, pool.z, lin(0xff8a3a), 3.0, 6.0]];
   const bake = (x, y, z, nx, ny, nz, glowOut) => {
     let r = 0, g = 0, b = 0;
     for (const [sx, sy, sz, c, I, R] of sources) { const dx = sx - x, dy = sy - y, dz = sz - z, d = Math.hypot(dx, dy, dz); if (d > R * 3) continue;
       const k = I / (1 + (d / R) * (d / R) * 4) * (0.3 + 0.7 * Math.max(0, (dx * nx + dy * ny + dz * nz) / (d || 1))); r += c.r * k; g += c.g * k; b += c.b * k; }
-    glowOut.push(Math.min(r, 2), Math.min(g, 1.2), Math.min(b, 0.8));
+    glowOut.push(Math.min(r, 6), Math.min(g, 3), Math.min(b, 1.5));
     let ao = 0.03; for (const m of mouths) { const d = Math.hypot(m.x - x, m.y - y, m.z - z); ao = Math.max(ao, Math.pow(clamp(1.15 - d / 6), 2)); }
     if (y > Hat(x, z) - 1.6 && caveOpen(x, z)) ao = Math.max(ao, 0.8);
     return ao;
   };
   const geo = new THREE.BufferGeometry(); {
     const n = pos.length / 3, col = new Float32Array(n * 3), glow = [], ao = new Float32Array(n), c = new THREE.Color();
-    const black = lin(0x1c1a19), grey = lin(0x3a3634), rust = lin(0x6a2e1e), glass = lin(0x121214);
+    const black = lin(0x2c2826), grey = lin(0x55504a), rust = lin(0x7a3a26), glass = lin(0x1c1a1a);
     for (let i = 0; i < n; i++) {
       const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2], ny = nor[i * 3 + 1];
       c.copy(black).lerp(grey, smooth(0.35, 0.75, fbm3(x * 0.5, y * 0.5, z * 0.5))).lerp(rust, 0.7 * smooth(0.55, 0.85, fbm3(x * 1.3 + 4, y * 0.4, z * 1.3)));

@@ -198,8 +198,9 @@ export const EMBER = (() => {
   let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; E.lava.forEach(q => { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); z0 = Math.min(z0, q.z); z1 = Math.max(z1, q.z); }); E.lavaBox = [x0 - 2, x1 + 2, z0 - 2, z1 + 2];
   // the hot spring on its terrace
   { const [x, z] = P(12.6, -1.95); E.spring = { x, z, r: 2.1, y: emberLand(E, x, z) - 0.12 }; I.spring = E.spring; }
-  // a level terrace for a firepit, cut beyond the first switchback's corner at the path's height (world/islandLife.js)
-  { const [x, z] = P(20.9, 0.74); E.pit = { x, z, y: E.path[E.corners[1]][2], r: 2.4 }; }
+  // a level terrace beyond the first switchback's corner at the path's height: a firepit on it (world/islandLife.js), the
+  // lava tube's mouth at its back (LAVA_TUBE)
+  { const [x, z] = P(20.9, 0.74), [fx, fz] = P(21.8, 0.74); E.pit = { x, z, y: E.path[E.corners[1]][2], r: 3.4, fire: { x: fx, z: fz } }; }   // (the fire on its outer side; the lava tube opens at its back)
   return E;
 })();
 /** Ember Rock's ground before the path, the lava and the terraces are cut in (for checks). */
@@ -858,16 +859,16 @@ export const CAVERNS = (() => {
   return caveSystem({ name: 'caverns', halls, tubes, mouths: [{ tube: 'rampA', x: topA[0], z: topA[1] }, { tube: 'rampB', x: topB[0], z: topB[1] }], box: { x0: -28, x1: 0.5, z0: 2.5, z1: 28.5, y0: fA - 0.8 } });
 })();
 /**
- * Ember Rock's lava tube (meshes: assets/rocks/caverns.js, as the caverns): its mouth opens off the uphill edge of the
- * switchback path's second leg at the path's height; the tube runs into the cone, bends along the slope and steps down
- * 4 m to a chamber where a pond of lava glows (its surface: pool.lava; you cannot walk into it). Picked offline for the
- * rock over it (at least 4.5 m). Built on the path's points, so it follows EMBER.
+ * Ember Rock's lava tube (meshes: assets/rocks/caverns.js, as the caverns): its mouth opens at the back of the firepit's
+ * terrace beyond the first switchback; the tube steps steeply down into the cone's side (no leg of the path over it),
+ * bends a little and comes down 3.4 m into a chamber where a pond of lava glows (its surface: pool.lava; you cannot walk into it). Picked offline for the
+ * rock over it (at least 3 m). Built on the path's points, so it follows EMBER.
  */
 export const LAVA_TUBE = (() => {
-  const E = EMBER, I = E.I, [px, pz, py] = E.path[9], r = Math.hypot(px - I.x, pz - I.z), ix = (I.x - px) / r, iz = (I.z - pz) / r, sx = -iz, sz = ix;
-  const M = [px + ix * 1.0, pz + iz * 1.0], at = (a, b) => [M[0] + ix * a + sx * b, M[1] + iz * a + sz * b], floor = py - 4.0, C = at(6.3, 8.2);
-  const pts = [[M[0], M[1], H(M[0], M[1]) - 0.02], [...at(3.5, 0), null], [...at(5.5, 2.6), null], [...at(6.0, 5.0), floor]];
-  const halls = [{ name: 'magma', x: C[0], z: C[1], rx: 4.4, rz: 3.6, floor, h: 4.4, pool: { x: C[0] - ix * 0.9 + sx * 0.9, z: C[1] - iz * 0.9 + sz * 0.9, rx: 1.9, rz: 1.4, y: floor - 0.25, depth: 0.8, lava: true } }];
+  const E = EMBER, I = E.I, Q = E.pit, r = Math.hypot(Q.x - I.x, Q.z - I.z), ix = (I.x - Q.x) / r, iz = (I.z - Q.z) / r, sx = iz, sz = -ix;
+  const M = [Q.x + ix * 2.9, Q.z + iz * 2.9], at = (a, b) => [M[0] + ix * a + sx * b, M[1] + iz * a + sz * b], y = H(M[0], M[1]) - 0.02, floor = y - 3.4, C = at(9.5, 1.8);
+  const pts = [[M[0], M[1], y], [...at(2.4, 0), y - 1.4], [...at(4.5, 0.6), null], [...at(6.5, 1.5), floor]];   // (steeply down at first, under the cone's side)
+  const halls = [{ name: 'magma', x: C[0], z: C[1], rx: 4.4, rz: 3.6, floor, h: 4.4, pool: { x: C[0] + ix * 1.0 - sx * 0.6, z: C[1] + iz * 1.0 - sz * 0.6, rx: 1.9, rz: 1.4, y: floor - 0.25, depth: 0.8, lava: true } }];
   const xs = [...pts.map(p => p[0]), C[0]], zs = [...pts.map(p => p[1]), C[1]];
   return caveSystem({ name: 'lavaTube', halls, tubes: [{ name: 'lavaRamp', w: 1.1, h: 2.9, stairs: 0.2, pts }], mouths: [{ tube: 'lavaRamp', x: M[0], z: M[1] }], box: { x0: Math.min(...xs) - 6, x1: Math.max(...xs) + 6, z0: Math.min(...zs) - 6, z1: Math.max(...zs) + 6, y0: floor - 1.2 }, basalt: true });
 })();

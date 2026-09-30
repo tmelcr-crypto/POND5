@@ -73,7 +73,7 @@ function pitSite(S, key) {
   const floor = !I ? LIGHTHOUSE.top - 0.4 : I.kind === 'marsh' ? MARSH_POOL + 0.2 : SEA_Y + 0.9;
   const level = (x, z, r, span) => { let lo = Infinity, hi = -Infinity; for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; for (const f of [0.5, 1]) { const h = hAt(x + Math.cos(a) * r * f, z + Math.sin(a) * r * f); lo = Math.min(lo, h); hi = Math.max(hi, h); } } return lo > floor && hi - lo < span; };
   const reach = PIT_SIZE.logR + 0.6;
-  if (I && I.kind === 'volcano') { const Q = EMBER.pit, a0 = Math.atan2(Q.z - I.z, Q.x - I.x) * 180 / Math.PI + 60; return { x: Q.x, z: Q.z, logs: [a0, a0 + 120, a0 + 240].map(d => (d % 360 + 360) % 360), pile: null, bare: false }; }   // its own terrace (world/layout.js)
+  if (I && I.kind === 'volcano') { const Q = EMBER.pit.fire, a0 = Math.atan2(Q.z - I.z, Q.x - I.x) * 180 / Math.PI + 60; return { x: Q.x, z: Q.z, logs: [a0, a0 + 120, a0 + 240].map(d => (d % 360 + 360) % 360), pile: null, bare: false }; }   // its own terrace (world/layout.js)
   for (const full of [true, false]) {
     let best = null;
     for (let t = 0; t < 500; t++) {
