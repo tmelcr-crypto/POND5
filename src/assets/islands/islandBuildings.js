@@ -240,7 +240,7 @@ export function createIslandBuildings(ctx) {
       // the loft: the miller's bunk, a table and stool, shelves of jars, a sack or two
       bed(-0.75, f1, -0.95, 0.55, lin(0x8a2a24), 1.8, 0.85, 0.38); solid(-0.75, -0.95, 0.95, 0.47, f1 - 0.3, f1 + 0.6, 0.55);
       table(0.75, f1, -0.75, 0.6, 0.5, -0.3, 0.7); chair(0.95, f1, -0.25, -1.9); solid(0.75, -0.75, 0.34, 0.3, f1 - 0.3, f1 + 0.75, -0.3);
-      K.cyl('plain', 0.07, 0.08, 0.2, 0.7, f1 + 0.74, -0.8, 12, lin(0x7a5a3a)); K.ball('plain', 0.09, 0.85, f1 + 0.78, -0.65, 1.4, 0.7, 1, lin(0xb07a3a));
+      K.cyl('plain', 0.07, 0.08, 0.2, 0.7, f1 + 0.74, -0.8, 12, lin(0x7a5a3a)); P.cup = [0.62, f1 + 0.74, -0.58, 0.4];   // (a cup of coffee on it: assets/cabin/coffeeCups.js) K.ball('plain', 0.09, 0.85, f1 + 0.78, -0.65, 1.4, 0.7, 1, lin(0xb07a3a));
       shelf(-1.25, f1 + 0.9, 0.4, 0.7, Math.PI / 2 + 0.25, 3, (k, y) => { for (let i = 0; i < 4; i++) jar(-1.25 + 0.03 * (i - 1.5), y, 0.4 + (i - 1.5) * 0.16, new THREE.Color().setHSL(0.08 + 0.1 * R(), 0.4, 0.35 + 0.2 * R())); });
       sack(-0.3, f1, 0.95, 0.9, 0.5);
       lantern(-0.2, f1 + 2.0, -0.5, 0.6);
@@ -275,7 +275,7 @@ export function createIslandBuildings(ctx) {
       { const g = new THREE.CircleGeometry(0.8, 24); g.rotateX(-Math.PI / 2); g.translate(0.15, d + 0.005, 0.35); K.put('rug', g, lin(0xd8c8a0), 1.6); }
       table(0.35, d, 0.75, 0.7, 0.5, 0, 0.45); solid(0.35, 0.75, 0.38, 0.28, d - 0.3, d + 0.5);
       for (const [u, v] of [[0.2, 0.7], [0.45, 0.85]]) { const g = new THREE.SphereGeometry(0.06, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2); g.translate(u, d + 0.55, v); K.put('plain', g, lin(0x5a3a1e)); }
-      lantern(0.55, d + 0.63, 0.65);
+      lantern(0.55, d + 0.63, 0.65); P.cup = [0.12, d + 0.49, 0.9, -0.6];
       shelf(-1.5, d + 1.1, 0.6, 0.8, Math.PI / 2, 2, (k, y) => { for (let i = 0; i < 4; i++) { const g = new THREE.SphereGeometry(0.045, 8, 6); g.scale(1, 0.6, 1.3); g.translate(-1.5, y + 0.03, 0.6 + (i - 1.5) * 0.17); K.put('plain', g, new THREE.Color().setHSL(0.06 + 0.05 * R(), 0.4, 0.6 + 0.3 * R())); } });
       { const u = -1.55; for (let i = 0; i <= 6; i++) { K.rod('plain', V(u, d + 0.7 + i * 0.16, -0.6), V(u, d + 0.7 + i * 0.16, 0.2), 0.004, 3, lin(0x8a8060)); K.rod('plain', V(u, d + 0.7, -0.6 + i * 0.13), V(u, d + 1.66, -0.6 + i * 0.13), 0.004, 3, lin(0x8a8060)); } }   // a net on the back wall
       K.rod('plank', V(1.45, d, 1.35), V(1.3, d + 2.0, 1.45), 0.02, 5, wood); { const g = new THREE.ConeGeometry(0.03, 0.18, 6); g.translate(1.3, d + 2.08, 1.45); K.put('metal', g, iron); }
@@ -305,7 +305,7 @@ export function createIslandBuildings(ctx) {
         K.picture(0, 0.5, 0.36, u + 0.2, f + 0.785, v - 0.05, 0); const pp = lists => lists; void pp;
         { const g = new THREE.PlaneGeometry(0.5, 0.36), uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * 0.5, 0.5 + uv.getY(k) * 0.5); g.userData.keepUV = true; g.rotateX(-Math.PI / 2); g.rotateY(0.2); g.translate(u - 0.2, f + 0.782, v); K.put('paper', g); }
         const sx = new THREE.TorusGeometry(0.1, 0.008, 4, 16, Math.PI / 3); sx.rotateX(-Math.PI / 2); sx.translate(u + 0.35, f + 0.8, v - 0.1); K.put('metal', sx, brass);
-        lantern(u - 0.45, f + 0.92, v + 0.12); books(u + 0.1, f + 0.78, v + 0.2, 0.3, 0.1);
+        lantern(u - 0.45, f + 0.92, v + 0.12); P.cup = [u - 0.42, f + 0.8, v - 0.16, 2.2]; books(u + 0.1, f + 0.78, v + 0.2, 0.3, 0.1);
         chair(u, f, v - 0.55, a - Math.PI / 2 + 0.3); }
       // bookshelves along the wall
       for (const a of [2.55, 3.35]) { const r = P.rIn - 0.16, u = Math.cos(a) * r, v = Math.sin(a) * r, ry = a + Math.PI / 2; shelf(u, f + 0.05, v, 0.9, ry, 5, (k, y) => books(u, y, v, 0.84, ry)); solid(u, v, 0.47, 0.14, f - 0.3, f + 2.1, ry); }
@@ -377,7 +377,7 @@ export function createIslandBuildings(ctx) {
         for (const [a, b] of [[-0.45, -0.4], [1.45, -0.4], [-0.45, 0.4], [1.45, 0.4]]) K.box('plank', 0.07, 1.8, 0.07, u + a, f, v + b, 0, dark);
         K.rod('plank', V(u + 1.45, f + 0.4, v - 0.42), V(u + 1.45, f + 1.3, v - 0.42), 0.02, 4, dark); solid(u + 0.5, v, 1.0, 0.45, f - 0.3, f + 1.9); }
       table(0.35, f, 0.2, 1.0, 0.7, 0); chair(0.35, f, -0.45, Math.PI / 2); chair(0.35, f, 0.85, -Math.PI / 2); chair(-0.4, f, 0.2, 0); solid(0.35, 0.2, 0.52, 0.37, f - 0.3, f + 0.8);
-      lantern(0.5, f + 0.9, 0.3); for (const [u, v] of [[0.1, 0.05], [0.6, 0.45]]) K.cyl('plain', 0.11, 0.09, 0.02, u, f + 0.78, v, 16, lin(0xe8e4dc)); K.ball('plain', 0.05, 0.1, f + 0.82, 0.05, 2.4, 0.6, 1, lin(0x8a9aa0));
+      lantern(0.5, f + 0.9, 0.3); P.cup = [0.08, f + 0.78, 0.42, 1.1]; for (const [u, v] of [[0.1, 0.05], [0.6, 0.45]]) K.cyl('plain', 0.11, 0.09, 0.02, u, f + 0.78, v, 16, lin(0xe8e4dc)); K.ball('plain', 0.05, 0.1, f + 0.82, 0.05, 2.4, 0.6, 1, lin(0x8a9aa0));
       shelf(hu1 - 0.2, f + 0.9, hv0 + 0.9, 0.8, Math.PI / 2, 3, (k, y) => { for (let i = 0; i < 4; i++) jar(hu1 - 0.2, y, hv0 + 0.9 + (i - 1.5) * 0.18, new THREE.Color().setHSL(R() < 0.5 ? 0.1 : 0.3, 0.4, 0.3 + 0.25 * R())); }); solid(hu1 - 0.2, hv0 + 0.9, 0.14, 0.42, f - 0.3, f + 2.0);
       { const u = hu0 + 0.06; for (let i = 0; i <= 7; i++) { K.rod('plain', V(u, f + 0.9 + i * 0.14, -0.9), V(u, f + 0.9 + i * 0.14, 0.2), 0.004, 3, lin(0x6a6a50)); K.rod('plain', V(u, f + 0.9, -0.9 + i * 0.15), V(u, f + 1.9, -0.9 + i * 0.15), 0.004, 3, lin(0x6a6a50)); } }
       for (let k = 0; k < 3; k++) K.rod('plank', V(hu1 - 0.15, f, hv1 - 0.3 - k * 0.12), V(hu1 - 0.35, f + 2.1, hv1 - 0.3 - k * 0.12), 0.012, 4, lin(0x6a4a2a));

@@ -1,6 +1,8 @@
 import { V, clamp } from '../core/math.js';
 import { CONFIG } from '../config.js';
-import { BED, HOUSE, CB } from '../world/layout.js';
+import { BED, HOUSE, CB, H, SEA_Y, WORLD_HALF, ISLET, EMBER, MARSH_POOL, islandAt, lakeD, streamAt, houseRectDist, lavaNear } from '../world/layout.js';
+import { obstacles, rockBodies } from '../world/bounds.js';
+import { buildingAt } from '../world/buildingPlans.js';
 import { ICON_SIT, ICON_STAND } from './controls.js';
 
 /**
@@ -13,13 +15,16 @@ import { ICON_SIT, ICON_STAND } from './controls.js';
  *  - otherwise sit: you sit on the edge and the photo album opens (a book: swipe or use the arrows to turn its pages;
  *    placeholder symbols for now). Then: stand, and sleep too as soon as it is allowed.
  * While an animation plays nothing else moves you; sitting or lying, you can only look around.
+ * Falling asleep where you stand (collapse(), when sleepiness runs out: app/body.js): you sink down as the screen fades
+ * to black, the clock moves on as for a night's sleep, and you wake in the cabin's bed; in summer instead lying in the
+ * grass somewhere on the same island (wakeSpot: open, level ground, off water, lava and paths' obstacles), and get up.
  * update(dt) returns true while the bed has the camera; it also counts the in-game hours (the running clock, not jumps
  * of the time slider).
  */
 const ICON_SLEEP = '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/><path d="M14 3h4l-4 4h4"/></svg>';
 const SYMBOLS = ['☀', '☾', '⛵', '⚓', '✿', '★', '♣', '☂', '❄', '♥'];
 
-export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv, afterTimeJump = () => {}, resetInput = () => {}, beds: more = [] }) {
+export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv, afterTimeJump = () => {}, resetInput = () => {}, beds: more = [], tired = () => false }) {
   const SL = CONFIG.sleep, PC = CONFIG.player;
   const yawTo = (dx, dz) => Math.atan2(-dx, -dz), wrapA = a => Math.atan2(Math.sin(a), Math.cos(a)), ease = t => t * t * (3 - 2 * t);
   // the beds: the cabin's, and any more (the observatory's on Ember Rock: its alarm clock asks when to wake you); each
@@ -53,7 +58,7 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
     if (b.classList.contains('go')) { alarmAt = pickA; try { localStorage.setItem('meadow.alarm', String(alarmAt)); } catch (err) { void err; } if (t) t(); }
   });
   let mode = null, anim = null, roll = 0, total = 0, prevH = clock.hours, lastSleep = -Infinity, check = 0, fade = null;
-  const allowed = () => total - lastSleep >= SL.every;
+  const allowed = () => total - lastSleep >= SL.every || tired();   // (sleepy: any time)
 
   /* ---- DOM: two buttons, the black fade, the album ---- */
   const vb = document.getElementById('vbtns');
@@ -179,6 +184,50 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
     }
   }
 
+  /* ---- falling asleep where you stand ---- */
+  function wakeSpot(p) {   // somewhere open and level on the island you are on (the home island, or one of the four), or null
+    const I = islandAt(p.x, p.z), home = !I && Math.abs(p.x) < WORLD_HALF && Math.abs(p.z) < WORLD_HALF && Math.hypot(p.x - ISLET.x, p.z - ISLET.z) > ISLET.reach;
+    if (!I && !home) return null;
+    const cx = I ? I.x : 0, cz = I ? I.z : 0, R = I ? I.r : WORLD_HALF * 0.9, q = new V();
+    for (let k = 0; k < 600; k++) {
+      const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * R, x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r, g = H(x, z);
+      if (g < SEA_Y + 0.45 || Math.abs(H(x + 0.6, z) - H(x - 0.6, z)) > 0.3 || Math.abs(H(x, z + 0.6) - H(x, z - 0.6)) > 0.3 || buildingAt(x, z)) continue;
+      if (home) { const w = streamAt(x, z); if (lakeD(x, z) < 1.4 || houseRectDist(x, z) < 1.2 || (w && w.d < w.w + 1)) continue; }
+      if (I && I.kind === 'marsh' && g < MARSH_POOL + 0.15) continue;
+      if (I && I.kind === 'volcano') { const E = EMBER, aa = Math.atan2(z - I.z, x - I.x), da = Math.abs(Math.atan2(Math.sin(aa - E.cove.a), Math.cos(aa - E.cove.a))), L = lavaNear(E, x, z); if (da < E.cove.half + 0.15 || L.d < L.w + 1.5 || Math.hypot(x - E.spring.x, z - E.spring.z) < E.spring.r + 1) continue; }
+      q.set(x, g + 0.3, z); obstacles.resolve(q, 0.7); if (Math.hypot(q.x - x, q.z - z) > 1e-4) continue;
+      if (rockBodies.near(x, z).some(c => Math.hypot(c.x - x, c.z - z) < Math.max(c.rx, c.rz) + 0.6)) continue;
+      return { x, y: g, z };
+    }
+    return null;
+  }
+  /** Fall asleep now (sleepiness ran out): false if you cannot just now (in a boat, seated, in bed...). */
+  function collapse(summer) {
+    if (mode || anim || fade || alarmThen || !st.playing || !st.walk || st.aboard || st.seat || st.chestOpen) return false;
+    openAlbum(false); setButtons([]); resetInput(); st.vel.set(0, 0, 0);
+    mode = 'sleeping'; lastSleep = total;
+    const spot = summer ? wakeSpot(st.pos) : null;
+    fade = { t: 0, jumped: false, fall: { from: st.pos.clone(), pitch: st.pitch, side: Math.random() < 0.5 ? -1 : 1, spot } };
+    return true;
+  }
+  let onWakeHome = () => {};
+  function wakeUp(F) {   // at the darkest moment: where you wake
+    if (F.spot) {   // lying in the grass, looking up; then you get up
+      const { x, y, z } = F.spot; standY = y + PC.eyeHeight; st.yaw = Math.random() * Math.PI * 2;
+      st.pos.set(x, y + 0.25, z); st.pitch = SL.lookUp; roll = F.side * SL.tilt;
+    } else {   // in the cabin's bed, lying as after a night's sleep
+      if (Math.hypot(st.pos.x - HOUSE.x, st.pos.z - HOUSE.z) > 60) onWakeHome();   // (far from home: the boat is brought back too)
+      useBed(beds[0]); st.pos.copy(P); st.yaw = yawFeet; st.pitch = SL.lookUp; roll = F.side * SL.tilt;
+    }
+  }
+  function getUpSteps() {   // from lying in the grass: sit up, then stand
+    const p0 = st.pos.clone(), r0 = roll, lying = p0.clone(), sit = new V(p0.x, p0.y + 0.55, p0.z), up = new V(p0.x, standY, p0.z);
+    return [
+      step(1.2, k => { st.pos.lerpVectors(lying, sit, k); st.pitch = SL.lookUp + (-0.25 - SL.lookUp) * k; roll = r0 * (1 - k); }),
+      step(PC.sit.rise, k => { st.pos.lerpVectors(sit, up, k); st.pitch = -0.25 + 0.2 * k; }),
+    ];
+  }
+
   function update(dt) {
     const h = clock.hours, d = ((h - prevH) % 24 + 24) % 24; if (d < 3) total += d; prevH = h;   // the running clock only
     st.inBed = mode !== null;
@@ -192,14 +241,21 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
       if (Q.i < Q.steps.length) Q.steps[Q.i].f(ease(Q.t / Q.steps[Q.i].dur));
       else { anim = null; Q.then(); }
     } else if (fade) {   // fade out, black, the clock moves on, fade in; you wake up still lying
-      fade.t += dt; const F = SL.fade, t = fade.t;
+      fade.t += dt; const F = SL.fade, t = fade.t, C = fade.fall;
+      if (C && !fade.jumped) {   // sinking to the ground, the view tipping over as the eyes close
+        const k = ease(Math.min(1, t / F)); st.pos.set(C.from.x, C.from.y - (PC.eyeHeight - 0.35) * k, C.from.z); st.pitch = C.pitch + (-0.5 - C.pitch) * k; roll = C.side * 0.9 * k;
+      }
       black.style.opacity = String(t < F ? t / F : t < F + SL.black ? 1 : Math.max(0, 1 - (t - F - SL.black) / F));
       if (!fade.jumped && t >= F + SL.black * 0.5) {
         fade.jumped = true; let hrs = SL.hours[0] + Math.random() * (SL.hours[1] - SL.hours[0]);
-        if (B.alarm) { hrs = ((alarmAt - clock.hours) % 24 + 24) % 24; if (hrs < 0.5) hrs += 24; fade.alarm = true; }   // until the alarm
+        if (B.alarm && !C) { hrs = ((alarmAt - clock.hours) % 24 + 24) % 24; if (hrs < 0.5) hrs += 24; fade.alarm = true; }   // until the alarm
+        if (C) wakeUp(C);
         setHours(clock.hours + hrs); prevH = clock.hours; total += hrs; afterTimeJump(hrs); scheduleEnv(true);
       }
-      if (t >= 2 * F + SL.black) { if (fade.alarm) ring(); fade = null; black.style.opacity = '0'; mode = 'lying'; }
+      if (t >= 2 * F + SL.black) {
+        if (fade.alarm) ring(); fade = null; black.style.opacity = '0'; mode = 'lying';
+        if (C) { note(C.spot ? 'You fell asleep in the open, and wake in the summer grass' : 'You fell asleep, and wake in the cabin'); if (C.spot) { mode = 'anim'; play(getUpSteps(), free); } }
+      }
     } else if (mode === 'sitting') setButtons(['stand', allowed() && 'sleep', !albumOpen() && 'album'].filter(Boolean));
     else if (mode === 'lying') setButtons(['stand', 'sit']);
     hands(); if (mode === 'sitting' && !anim) st.pos.copy(S); else if (mode === 'lying' && !anim) st.pos.copy(P);
@@ -210,6 +266,7 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
   function hands() {
     for (const b of beds) if (b.clock) { const h = ((clock.hours % 24) + 24) % 24; b.clock.hour.rotation.z = -(h % 12) / 12 * Math.PI * 2; b.clock.minute.rotation.z = -(h % 1) * Math.PI * 2; b.clock.alarm.rotation.z = -(alarmAt % 12) / 12 * Math.PI * 2; }
   }
+  function note(text) { const n = document.getElementById('fireNote'); if (n) { n.textContent = text; n.classList.remove('hide'); clearTimeout(note.t); note.t = setTimeout(() => n.classList.add('hide'), 4200); } }
   let ac = null;
   function ring() {
     const n = document.getElementById('fireNote'); if (n) { n.textContent = `The alarm clock rings: ${fmt(alarmAt)}.`; n.classList.remove('hide'); clearTimeout(ring.t); ring.t = setTimeout(() => n.classList.add('hide'), 3800); }
@@ -217,5 +274,5 @@ export function createSleeping({ camera, st, cabin, clock, setHours, scheduleEnv
     if (B.clock) B.clock.group.rotation.z = 0.08;   // (it shakes)
     setTimeout(() => { if (B.clock) B.clock.group.rotation.z = 0; }, 1300);
   }
-  return { update, /** Another bed to sleep in (the observatory's). */ addBed(b) { beds.push(b); }, get mode() { return mode; }, get hoursAwake() { return total - lastSleep; }, get alarmAt() { return alarmAt; }, _act: a => act(a), _bed: () => B, _alarmUi: alarmUi };
+  return { update, collapse, wakeSpot, set tired(f) { tired = f; }, set onWakeHome(f) { onWakeHome = f; }, /** Another bed to sleep in (the observatory's). */ addBed(b) { beds.push(b); }, get mode() { return mode; }, get hoursAwake() { return total - lastSleep; }, get alarmAt() { return alarmAt; }, _act: a => act(a), _bed: () => B, _alarmUi: alarmUi };
 }

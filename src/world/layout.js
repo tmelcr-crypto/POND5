@@ -169,7 +169,7 @@ export const ISLANDS = [
  * path zigzags up the cone to the observatory's door (five legs, a gentle grade; the slopes between its legs are too
  * steep to cut across). A creek of lava runs from a vent below the summit down a channel between low levees and falls
  * into the sea; the hot spring sits in its own basin on a terrace. On the far side, walled in by cliffs, a black-sand
- * cove you can only reach by boat. All angles from dA, the direction home.
+ * cove you can only reach by boat; a small terrace beside the path for a firepit. All angles from dA, the direction home.
  */
 export const EMBER = (() => {
   const I = ISLANDS[2], dA = Math.atan2(-I.z, -I.x), E = { I, dA, plateau: 4.4, T: I.top - 1.8, base: 1.9, cliffS: 0.93, cove: { a: dA + Math.PI, half: 0.42, rIn: 0.52 } };
@@ -189,6 +189,8 @@ export const EMBER = (() => {
   let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; E.lava.forEach(q => { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); z0 = Math.min(z0, q.z); z1 = Math.max(z1, q.z); }); E.lavaBox = [x0 - 2, x1 + 2, z0 - 2, z1 + 2];
   // the hot spring on its terrace
   { const [x, z] = P(6.3, -1.95); E.spring = { x, z, r: 1.5, y: emberLand(E, x, z) - 0.12 }; I.spring = E.spring; }
+  // a level terrace for a firepit, cut beyond the third switchback's corner at the path's height (world/islandLife.js)
+  { const [x, z] = P(6.0, 0.94); E.pit = { x, z, y: E.path[3][2], r: 2.4 }; }
   return E;
 })();
 function angD(a, b) { return Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))); }
@@ -217,6 +219,9 @@ function emberH(E, x, z) {
     const w = smooth(1.3, 0.72, d), k = w * Math.exp(-d / 0.12); Wt += k; Ys += k * (ay + (by - ay) * t); Wm = Math.max(Wm, w);   // (the nearest leg decides the height)
   }
   if (Wt > 0) h += (Ys / Wt - h) * Wm;
+  // the firepit's terrace
+  const Q = E.pit, dq = Math.hypot(x - Q.x, z - Q.z);
+  if (dq < Q.r + 1.0) h += (Q.y - 0.04 - h) * smooth(Q.r + 1.0, Q.r - 0.2, dq);
   // the spring: its basin, a rim of sinter and a terrace round it
   const S = E.spring, ds = Math.hypot(x - S.x, z - S.z);
   if (ds < S.r + 1.9) { const rim = S.y + 0.14, b = ds < S.r ? S.y - 0.6 * (1 - (ds / S.r) ** 2) : rim; h = ds < S.r + 0.5 ? b : h + (rim - h) * smooth(S.r + 1.9, S.r + 0.5, ds); }
@@ -599,15 +604,11 @@ export function benchDist(x, z) {
 /*
  * Firepits (meshes: assets/cabin/firepits.js; lighting them: app/fires.js): one on the beach by the jetty (bare: only the
  * ring of stones and the fire on the sand), one in a clearing of the north-west woods, one on the south-west hill over
- * the sea. The other two: a ring of stones round the fire, three cut logs to sit on round it (logs: the directions from the fire, degrees), and a small roofed woodpile within 5 m (pile:
+ * the sea; one more on each of the other islands (addFirepit). The ones with logs: a ring of stones round the fire, three cut logs to sit on round it (logs: the directions from the fire, degrees), and a small roofed woodpile within 5 m (pile:
  * its direction and distance), all placed where no tree, rock or path had to move (sites picked offline).
  */
 const PIT = { logR: 1.7, logLen: 1.15, logRad: 0.19, ring: 0.5, pileW: 1.7, pileD: 1.0 };
-export const FIREPITS = [
-  { name: 'beach', x: 30, z: -23, logs: [], pile: null, bare: true },   // just the stones and the fire on the sand
-  { name: 'forest', x: -21.5, z: 15.5, logs: [230, 350, 110], pile: [340, 4.2] },   // a clearing in the north-west woods
-  { name: 'hill', x: -19, z: -23.5, logs: [320, 80, 200], pile: [130, 3.0] },
-].map(f => {
+const makePit = f => {
   const R = Math.PI / 180, y = H(f.x, f.z);
   const logs = f.logs.map(d => {
     const a = d * R, cx = f.x + Math.cos(a) * PIT.logR, cz = f.z + Math.sin(a) * PIT.logR, tx = -Math.sin(a), tz = Math.cos(a), h = PIT.logLen / 2;
@@ -616,8 +617,20 @@ export const FIREPITS = [
   });
   const pa = f.pile ? f.pile[0] * R : 0, pile = f.pile ? { x: f.x + Math.cos(pa) * f.pile[1], z: f.z + Math.sin(pa) * f.pile[1], fx: -Math.cos(pa), fz: -Math.sin(pa), w: PIT.pileW, d: PIT.pileD } : null;
   return { ...f, y, logs, pile, ...PIT };
-});
+};
+export const FIREPITS = [
+  { name: 'beach', x: 27.75, z: -21, logs: [], pile: null, bare: true },   // just the stones and the fire on the sand (its ring >= 0.5 m over mean sea: dry at high tide)
+  { name: 'forest', x: -21.5, z: 15.5, logs: [230, 350, 110], pile: [340, 4.2] },   // a clearing in the north-west woods
+  { name: 'hill', x: -19, z: -23.5, logs: [320, 80, 200], pile: [130, 3.0] },
+].map(makePit);
 FIREPITS.forEach((f, pit) => f.logs.forEach(l => SEATS.push({ x: l.x, z: l.z, fx: l.fx, fz: l.fz, top: l.top, half: PIT.logLen / 2, back: 0, pit })));   // sit on any log (pit: which firepit, for cooking)
+/** One more firepit (the other islands': world/islandLife.js), with its logs to sit on; its footprint's radius back. */
+export function addFirepit(f) {
+  const P = makePit(f), pit = FIREPITS.push(P) - 1;
+  P.logs.forEach(l => SEATS.push({ x: l.x, z: l.z, fx: l.fx, fz: l.fz, top: l.top, half: PIT.logLen / 2, back: 0, pit }));
+  return P;
+}
+export const PIT_SIZE = PIT;
 /** Distance to a firepit's footprint: the fire and its logs (a disc), or its woodpile (< 0 inside). */
 export function firepitDist(x, z) {
   let d = Infinity;

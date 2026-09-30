@@ -232,5 +232,7 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     st.aboard = mode !== null;
     return mode !== null;
   }
-  return { update, state: b, get mode() { return mode; }, get anchored() { return mode === 'anchored'; }, set onSplash(f) { splash = f; } };
+  /** Back at the home jetty's berth, tied up (you fell asleep away from home and woke in the cabin: app/sleeping.js). */
+  function home() { if (mode) return; J = JETTY; Object.assign(b, { x: J.berth.x, z: J.berth.z, h: J.berth.heading, speed: 0, docked: true, aground: false }); rope.visible = false; boat.mooringLines(true, J); pose(); }
+  return { update, home, state: b, get mode() { return mode; }, get anchored() { return mode === 'anchored'; }, set onSplash(f) { splash = f; } };
 }
