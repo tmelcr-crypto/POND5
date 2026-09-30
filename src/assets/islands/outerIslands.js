@@ -8,6 +8,8 @@ import { U } from '../../core/uniforms.js';
 import { builder, farFog } from '../lighthouse/lighthouse.js';
 import { islandLife, soilAt, ihash as hash } from '../../world/islandLife.js';
 import { terrainMaterial } from '../../world/terrain.js';
+import { buildingPlans } from '../../world/buildingPlans.js';
+import { createIslandBuildings } from './islandBuildings.js';
 
 /**
  * The four islands round the home island (their ground, jetties and docking: ISLANDS in world/layout.js), each its own
@@ -29,16 +31,22 @@ export function createOuterIslands(ctx) {
   const std = (o = {}) => farFog(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, ...o }), IL_LOOK.fogK);
   const partMat = std({ roughness: 0.75, side: THREE.DoubleSide }), nearMat = std({ roughness: 0.9, side: THREE.DoubleSide });
   const shallows = { p: [], c: [], a: [] }, water = builder(), windows = builder(), lava = builder(), glowAt = [], glowCol = [];
-  const islands = [];
+  const islands = [], plans = buildingPlans();
+  // near a building its detailed self (assets/islands/islandBuildings.js) takes over: the cheap shell's windows and glow
+  // there are dropped (a sphere round the building: uHide = centre x, z, radius; the shell itself by its draw range)
+  const uHide = { value: new THREE.Vector3(0, 0, -1) };
+  const hideNear = mat => { const prev = mat.onBeforeCompile; mat.onBeforeCompile = (sh, r) => { prev.call(mat, sh, r); sh.uniforms.uHide = uHide;
+    sh.vertexShader = 'uniform vec3 uHide;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n { vec4 hw = modelMatrix * vec4(transformed, 1.0); if (distance(hw.xz, uHide.xy) < uHide.z) gl_Position = vec4(2.0, 2.0, 2.0, 1.0); }'); }; return mat; };
+  const HIDE_R = { windmill: 2.4, hut: 2.2, observatory: 2.75, lodge: 2.9 };
 
   // the ground's layers in the home island's terrain shader, by kind: dirt (paths, mud, ash), rock on the slopes, sand
   const GROUND = { meadow: {}, palm: { sand: 0xe6dcbf, wetSand: 0xa89a78 }, volcano: { dirt: 0x33302d, rock: 0x3b3633, sand: 0x2e2b29, wetSand: 0x1e1c1b, rockSlope: 0.86 }, marsh: { dirt: 0x3b3222, sand: 0x8d7d5c, wetSand: 0x5a4e38 } };
   for (const I of ISLANDS) {
-    const far = builder(), near = builder(), moving = [], hAt = (x, z) => islandH(I, x, z), site = life.sites[ISLANDS.indexOf(I)];
+    const far = builder(), shell = builder(), near = builder(), moving = [], hAt = (x, z) => islandH(I, x, z), site = life.sites[ISLANDS.indexOf(I)];
     const place = (g, x, z, y = hAt(x, z), ry = 0) => { g.rotateY(ry); g.translate(x, y, z); return g; };
     const box = (b, w, h, d, x, y, z, c, ry = 0) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, h / 2, 0); b.add(place(g, x, z, y, ry), c); };
     const cyl = (b, r0, r1, h, x, y, z, c, seg = 10) => { const g = new THREE.CylinderGeometry(r1, r0, h, seg); g.translate(0, h / 2, 0); b.add(place(g, x, z, y), c); };
-    const solid = (x, z, r) => obstacles.add(x, z, r, hAt(x, z) + 3);
+    const solid = (x, z, r) => obstacles.add(x, z, r, hAt(x, z) + 3), plan = plans[ISLANDS.indexOf(I)];
 
     /* ---- the ground: a height grid, coloured by the island's kind ---- */
     {
@@ -97,18 +105,23 @@ export function createOuterIslands(ctx) {
     if (I.kind === 'meadow') {
       // the windmill on the hill: a whitewashed stone tower, a thatched cap, four sails that turn with the wind
       const [x, z, h] = top, faceA = Math.atan2(-z, -x), ry = -faceA + Math.PI / 2;
-      const tower = new THREE.CylinderGeometry(1.55, 2.2, 7, 8, 4); tower.translate(0, 3.5, 0); far.add(place(tower, x, z, h - 0.3), (c, px, py) => c.copy(C(0xe4ddcf)).multiplyScalar(0.9 + 0.08 * Math.sin(py * 7)));
-      const base = new THREE.CylinderGeometry(2.35, 2.45, 0.6, 8); base.translate(0, 0.3, 0); far.add(place(base, x, z, h - 0.3), C(0x8a8174));
-      const cap = new THREE.ConeGeometry(1.95, 2.2, 8); cap.translate(0, 7.8, 0); far.add(place(cap, x, z, h - 0.3), C(0x6e5a3a));
+      const tower = new THREE.CylinderGeometry(1.55, 2.2, 7, 16, 4); tower.translate(0, 3.5, 0); shell.add(place(tower, x, z, h - 0.3), (c, px, py) => c.copy(C(0xe4ddcf)).multiplyScalar(0.9 + 0.08 * Math.sin(py * 7)));
+      const base = new THREE.CylinderGeometry(2.45, 2.5, 0.6, 16); base.translate(0, 0.3, 0); shell.add(place(base, x, z, h - 0.3), C(0x8a8174));
+      const cap = new THREE.ConeGeometry(1.8, 2.2, 16); cap.translate(0, 8.1, 0); shell.add(place(cap, x, z, h - 0.3), C(0x6e5a3a));
       const f = (u, y, v) => { const c = Math.cos(faceA), s = Math.sin(faceA); return [x + c * u - s * v, h - 0.3 + y, z + s * u + c * v]; };
-      { const [dx, dy, dz] = f(2.02, 0, 0); const door = new THREE.BoxGeometry(0.12, 1.9, 1.0); door.translate(0, 0.95 + 0.3, 0); door.rotateY(ry + Math.PI / 2); door.translate(dx, dy, dz); far.add(door, C(0x5a3a24)); }
+      { const [dx, dy, dz] = f(2.02, 0, 0); const door = new THREE.BoxGeometry(0.12, 1.9, 1.0); door.translate(0, 0.95 + 0.3, 0); door.rotateY(ry + Math.PI / 2); door.translate(dx, dy, dz); shell.add(door, C(0x5a3a24)); }
       for (const [u, y, v] of [[1.83, 3.2, 0], [1.6, 5.4, 0.6], [1.7, 4.2, -0.9]]) { const [wx, wy, wz] = f(u, y, v), g = new THREE.BoxGeometry(0.1, 0.6, 0.45); g.rotateY(ry + Math.PI / 2); g.translate(wx, wy, wz); windows.add(g, C(0xffd9a0)); glowAt.push(wx, wy, wz); glowCol.push(1, 0.8, 0.5); }
       // the sails: a hub and four lattice arms with canvas, on the cap's front, turned in update()
       const sails = builder(); { const hub = new THREE.CylinderGeometry(0.22, 0.22, 0.5, 10); hub.rotateX(Math.PI / 2); sails.add(hub, C(0x3a2a1c));
         for (let k = 0; k < 4; k++) { const arm = new THREE.BoxGeometry(0.14, 5.6, 0.1); arm.translate(0, 2.9, 0); arm.rotateZ(k * Math.PI / 2); sails.add(arm, C(0x5a4028));
-          const cloth = new THREE.BoxGeometry(1.0, 4.4, 0.03); cloth.translate(0.62, 3.2, -0.05); cloth.rotateZ(k * Math.PI / 2); sails.add(cloth, (c, px, py) => c.copy(C(0xefe6d2)).multiplyScalar(0.85 + 0.15 * Math.sin((px + py) * 12))); } }
+          const cloth = new THREE.BoxGeometry(1.0, 4.4, 0.03); cloth.translate(0.62, 3.2, -0.05); cloth.rotateZ(k * Math.PI / 2); sails.add(cloth, (c, px, py) => c.copy(C(0xefe6d2)).multiplyScalar(0.85 + 0.15 * Math.sin((px + py) * 12))); }
+        // the windshaft into the cap and the brake wheel on it (seen from the loft)
+        const shaft = new THREE.CylinderGeometry(0.14, 0.14, 2.3, 10); shaft.rotateX(Math.PI / 2); shaft.translate(0, 0, -1.1); sails.add(shaft, C(0x4a3424));
+        const bw = new THREE.TorusGeometry(0.7, 0.07, 6, 24); bw.translate(0, 0, -1.55); sails.add(bw, C(0x7a5a3a));
+        for (let k = 0; k < 4; k++) { const sp = new THREE.BoxGeometry(1.4, 0.07, 0.07); sp.rotateZ(k * Math.PI / 4); sp.translate(0, 0, -1.55); sails.add(sp, C(0x6a4a2e)); }
+        for (let k = 0; k < 28; k++) { const a = k / 28 * Math.PI * 2, cog = new THREE.BoxGeometry(0.05, 0.05, 0.12); cog.translate(Math.cos(a) * 0.72, Math.sin(a) * 0.72, -1.47); sails.add(cog, C(0x3a2a1c)); } }
       const sm = new THREE.Mesh(sails.geometry(), partMat), pivot = new THREE.Group(), [px, py, pz] = f(2.15, 7.2, 0); pivot.position.set(px, py, pz); pivot.rotation.y = Math.PI / 2 - faceA; pivot.add(sm); scene.add(pivot); sm.castShadow = true;   // (the sails face out, over the jetty and home)
-      moving.push({ spin: sm, axis: 'z', speed: 0.9 }); solid(x, z, 2.5);
+      moving.push({ spin: sm, axis: 'z', speed: 0.9 });   // (you walk in: world/buildingPlans.js)
       // the dry-stone walls (the trees, orchard and hedgerows: world/islandLife.js, planted by world/scatter.js and undergrowth.js)
       for (const [sx, sz, w, t] of site.walls) { for (let q = 0; q < 2; q++) { const g = new THREE.DodecahedronGeometry(0.28 + 0.1 * hash(t, q + w), 1); g.scale(1.3, 0.7, 1); g.rotateY(hash(t, w + 5) * 3); g.translate(0, 0.18 + q * 0.33, 0); far.add(place(g, sx, sz), (c, px, py, pz) => c.copy(C(0x8d8578)).multiplyScalar(0.8 + 0.4 * hash(t, q * 3 + w)).lerp(C(0x56662e), 0.55 * smooth(0.3, 0.8, fbm2(px * 4, pz * 4, 2) + (py - hAt(sx, sz) - 0.4)))); } solid(sx, sz, 0.35); }
       // sheep and wildflowers (near only)
@@ -118,14 +131,13 @@ export function createOuterIslands(ctx) {
       // the beach hut on stilts, facing the sea to the west, a hammock, palms all round
       const [x, z] = site.build, h = hAt(x, z), faceA = Math.atan2(I.z - z - 30, I.x - x - 60), ry = -faceA;
       const deck = h + 1.1, wood = C(0x8a6a44), bamboo = C(0xb8a060), thatch = C(0xc9a85e);
-      for (const [u, v] of [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]]) { const px = x + Math.cos(faceA) * u - Math.sin(faceA) * v, pz = z + Math.sin(faceA) * u + Math.cos(faceA) * v; cyl(far, 0.1, 0.09, deck - hAt(px, pz) + 2.3, px, hAt(px, pz) - 0.1, pz, bamboo, 6); }
-      box(far, 3.4, 0.12, 3.4, x, deck - 0.12, z, wood, ry);
-      for (const [u, v, w, d] of [[0, -1.6, 3.2, 0.1], [-1.6, 0, 0.1, 3.2], [0, 1.6, 3.2, 0.1]]) { const px = x + Math.cos(faceA) * u - Math.sin(faceA) * v, pz = z + Math.sin(faceA) * u + Math.cos(faceA) * v; box(far, w, 1.9, d, px, deck, pz, bamboo.clone().multiplyScalar(0.9), ry); }
-      const roof = new THREE.ConeGeometry(3.0, 1.6, 4); roof.rotateY(Math.PI / 4); roof.translate(0, deck + 2.7, 0); far.add(place(roof, x, z, 0, ry), (c, px, py) => c.copy(thatch).multiplyScalar(0.8 + 0.25 * Math.sin(py * 30)));
-      for (let k = 0; k < 6; k++) { const px = x + Math.cos(faceA) * (1.8 + k * 0.28), pz = z + Math.sin(faceA) * (1.8 + k * 0.28); box(far, 0.9, 0.06, 0.3, px, deck - 0.2 - k * 0.2, pz, wood, ry); }   // steps down to the sand
+      for (const [u, v] of [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]]) { const px = x + Math.cos(faceA) * u - Math.sin(faceA) * v, pz = z + Math.sin(faceA) * u + Math.cos(faceA) * v; cyl(shell, 0.1, 0.09, deck - hAt(px, pz) + 2.3, px, hAt(px, pz) - 0.1, pz, bamboo, 6); }
+      box(shell, 3.4, 0.12, 3.4, x, deck - 0.12, z, wood, ry);
+      for (const [u, v, w, d] of [[0, -1.6, 3.2, 0.1], [-1.6, 0, 0.1, 3.2], [0, 1.6, 3.2, 0.1]]) { const px = x + Math.cos(faceA) * u - Math.sin(faceA) * v, pz = z + Math.sin(faceA) * u + Math.cos(faceA) * v; box(shell, w, 1.9, d, px, deck, pz, bamboo.clone().multiplyScalar(0.9), ry); }
+      const roof = new THREE.ConeGeometry(3.0, 1.6, 4); roof.rotateY(Math.PI / 4); roof.translate(0, deck + 2.7, 0); shell.add(place(roof, x, z, 0, ry), (c, px, py) => c.copy(thatch).multiplyScalar(0.8 + 0.25 * Math.sin(py * 30)));
+      for (let k = 0; k < 6; k++) { const px = x + Math.cos(faceA) * (1.8 + k * 0.28), pz = z + Math.sin(faceA) * (1.8 + k * 0.28); box(shell, 0.9, 0.06, 0.3, px, deck - 0.2 - k * 0.2, pz, wood, ry); }   // steps down to the sand
       { const [wx, wy, wz] = [x - Math.cos(faceA) * 1.55, deck + 1.1, z - Math.sin(faceA) * 1.55]; windows.add(new THREE.BoxGeometry(0.7, 0.5, 0.7).translate(wx, wy, wz), C(0xffc98a)); glowAt.push(x, deck + 1.9, z); glowCol.push(1, 0.72, 0.4); }
       for (let k = 0; k < 2; k++) { const tx = x + Math.cos(faceA) * 2.6 + (k ? 1.5 : -1.5) * -Math.sin(faceA), tz = z + Math.sin(faceA) * 2.6 + (k ? 1.5 : -1.5) * Math.cos(faceA); cyl(far, 0.04, 0.05, 1.5, tx, hAt(tx, tz), tz, C(0x4a3424), 6); glowAt.push(tx, hAt(tx, tz) + 1.6, tz); glowCol.push(1, 0.6, 0.25); windows.add(new THREE.ConeGeometry(0.07, 0.2, 6).translate(tx, hAt(tx, tz) + 1.6, tz), C(0xffa050)); }   // tiki torches
-      solid(x, z, 2.2);
       // a hammock between the two palms nearest each other
       { const P = life.trees.palm.filter(t => Math.hypot(t.x - I.x, t.z - I.z) < I.r * 1.2); let best = null;
         for (let a = 0; a < P.length; a++) for (let b = a + 1; b < P.length; b++) { const d = Math.hypot(P[a].x - P[b].x, P[a].z - P[b].z); if (d > 3 && d < 5.5 && (!best || d < best[2])) best = [P[a], P[b], d]; }
@@ -135,12 +147,16 @@ export function createOuterIslands(ctx) {
     if (I.kind === 'volcano') {
       // the observatory on the flat top: a stone drum, a copper dome that turns slowly, the telescope in its slit
       const [x, z, h] = top;
-      cyl(far, 2.6, 2.4, 3.0, x, h - 0.2, z, (c, px, py, pz) => c.copy(C(0x8f877c)).multiplyScalar(0.85 + 0.15 * hash(Math.floor(py * 3), Math.floor(Math.atan2(pz - z, px - x) * 4))), 20);
-      const ring = new THREE.TorusGeometry(2.45, 0.08, 6, 32); ring.rotateX(Math.PI / 2); ring.translate(x, h + 2.85, z); far.add(ring, C(0x3a3230));
-      { const fa = Math.atan2(-z, -x), dx = x + Math.cos(fa) * 2.5, dz = z + Math.sin(fa) * 2.5; const door = new THREE.BoxGeometry(0.12, 1.9, 0.9); door.translate(0, 0.95, 0); door.rotateY(-fa); door.translate(dx, h - 0.2, dz); far.add(door, C(0x4a3024)); windows.add(new THREE.BoxGeometry(0.1, 0.4, 0.4).rotateY(-fa).translate(x + Math.cos(fa + 0.6) * 2.48, h + 1.8, z + Math.sin(fa + 0.6) * 2.48), C(0xffd08a)); glowAt.push(dx, h + 2.2, dz); glowCol.push(1, 0.78, 0.5); }
+      cyl(shell, 2.6, 2.4, 3.0, x, h - 0.2, z, (c, px, py, pz) => c.copy(C(0x8f877c)).multiplyScalar(0.85 + 0.15 * hash(Math.floor(py * 3), Math.floor(Math.atan2(pz - z, px - x) * 4))), 20);
+      const ring = new THREE.TorusGeometry(2.45, 0.08, 6, 32); ring.rotateX(Math.PI / 2); ring.translate(x, h + 2.85, z); shell.add(ring, C(0x3a3230));
+      { const fa = Math.atan2(-z, -x), dx = x + Math.cos(fa) * 2.5, dz = z + Math.sin(fa) * 2.5; const door = new THREE.BoxGeometry(0.12, 1.9, 0.9); door.translate(0, 0.95, 0); door.rotateY(-fa); door.translate(dx, h - 0.2, dz); shell.add(door, C(0x4a3024)); windows.add(new THREE.BoxGeometry(0.1, 0.4, 0.4).rotateY(-fa).translate(x + Math.cos(fa + 0.6) * 2.48, h + 1.8, z + Math.sin(fa + 0.6) * 2.48), C(0xffd08a)); glowAt.push(dx, h + 2.2, dz); glowCol.push(1, 0.78, 0.5); }
       const dome = builder(); { const g = new THREE.SphereGeometry(2.45, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2); dome.add(g, (c, px, py, pz) => { const a = Math.atan2(pz, px); c.copy(Math.abs(a) < 0.18 ? C(0x1a1a1c) : C(0x5f8f84)).multiplyScalar(0.85 + 0.15 * Math.sin(a * 24)); });
-        const scope = new THREE.CylinderGeometry(0.22, 0.3, 3.0, 12); scope.rotateZ(-0.9); scope.translate(1.2, 1.7, 0); dome.add(scope, C(0xd8d4cc)); }
-      const dm = new THREE.Mesh(dome.geometry(), partMat); dm.position.set(x, h + 2.8, z); dm.castShadow = true; scene.add(dm); moving.push({ spin: dm, axis: 'y', speed: 0.05 }); solid(x, z, 2.9);
+        // the telescope on its fork (the pier under it: islandBuildings.js), aimed out of the slit; its eyepiece at eye height
+        const tube = new THREE.CylinderGeometry(0.2, 0.26, 3.2, 16); tube.translate(0, 0.9, 0); tube.rotateZ(-(Math.PI / 2 - 0.62)); tube.translate(0, -1.08, 0); dome.add(tube, C(0xd8d4cc));
+        for (const s of [-1, 1]) { const fk = new THREE.BoxGeometry(0.08, 0.5, 0.06); fk.translate(0, -1.2, s * 0.3); dome.add(fk, C(0x2e2c2a)); }
+        const ep = new THREE.CylinderGeometry(0.04, 0.05, 0.22, 10); ep.rotateZ(-(Math.PI / 2 - 0.62)); ep.translate(-0.62, -1.52, 0); dome.add(ep, C(0x1a1a1c));
+        const ring2 = new THREE.TorusGeometry(2.42, 0.05, 6, 40); ring2.rotateX(Math.PI / 2); ring2.translate(0, 0.02, 0); dome.add(ring2, C(0x3a3230)); }
+      const dm = new THREE.Mesh(dome.geometry(), partMat); dm.position.set(x, h + 2.8, z); dm.castShadow = true; scene.add(dm); moving.push({ spin: dm, axis: 'y', speed: 0.05 });
       // the hot spring: steaming turquoise water in its basin
       const sp = I.spring; { const g = new THREE.CircleGeometry(sp.r + 0.3, 24); g.rotateX(-Math.PI / 2); g.translate(sp.x, sp.y, sp.z); water.add(g, C(0x3fb6b0)); }
       // glowing cracks down the cone; steam vents (near). (Its dead trees and boulders: world/islandLife.js)
@@ -152,16 +168,16 @@ export function createOuterIslands(ctx) {
     }
     if (I.kind === 'marsh') {
       // the fisherman's lodge on stilts by the first jetty, a boardwalk to it, drying racks for nets
-      const d = I.docks[0], [lx0, lz0] = site.build, h = Math.max(hAt(lx0, lz0), MARSH_POOL), faceA = d.ang, ry = -faceA;
-      const floor = h + 1.2, plank = C(0x6e5638), wall = C(0x7c6446);
-      for (const [u, v] of [[-2.4, -1.9], [2.4, -1.9], [-2.4, 1.9], [2.4, 1.9], [0, -1.9], [0, 1.9]]) { const px = lx0 + Math.cos(faceA) * u - Math.sin(faceA) * v, pz = lz0 + Math.sin(faceA) * u + Math.cos(faceA) * v; cyl(far, 0.12, 0.11, floor - hAt(px, pz) + 0.2, px, hAt(px, pz) - 0.2, pz, plank.clone().multiplyScalar(0.7), 6); }
-      box(far, 5.4, 0.15, 4.4, lx0, floor - 0.15, lz0, plank, ry);
-      const house = new THREE.BoxGeometry(4.2, 2.3, 3.4); house.translate(0, 1.15, 0); far.add(place(house, lx0, lz0, floor, ry), (c, px, py) => c.copy(wall).multiplyScalar(0.85 + 0.15 * Math.sin(py * 22)));
-      const roof = new THREE.CylinderGeometry(0.01, 2.6, 1.6, 4, 1); roof.rotateY(Math.PI / 4); roof.scale(1.25, 1, 0.95); roof.translate(0, floor + 3.1, 0); far.add(place(roof, lx0, lz0, 0, ry), C(0x4a3b2e));
-      for (const v of [-0.8, 0.8]) { const g = new THREE.BoxGeometry(0.06, 0.6, 0.7); g.translate(0, floor + 1.3, v); g.rotateY(ry); const [wx, wz] = [lx0 + Math.cos(faceA) * 2.12, lz0 + Math.sin(faceA) * 2.12]; g.translate(wx, 0, wz); windows.add(g, C(0xffd08a)); glowAt.push(wx - Math.sin(faceA) * v, floor + 1.3, wz + Math.cos(faceA) * v); glowCol.push(1, 0.78, 0.48); }
-      { const [a0x, a0z] = d.W(0, 0), steps = 16; for (let k = 0; k <= steps; k++) { const t = k / steps, bx = a0x + (lx0 - a0x) * t * 0.82, bz = a0z + (lz0 - a0z) * t * 0.82, y = Math.max(hAt(bx, bz), MARSH_POOL) + 0.25; box(far, 1.2, 0.06, 0.3, bx, y, bz, plank.clone().multiplyScalar(0.85 + 0.2 * hash(k, 3)), -Math.atan2(lz0 - a0z, lx0 - a0x) + Math.PI / 2); } }   // the boardwalk
+      const d = I.docks[0], lx0 = plan.x, lz0 = plan.z, faceA = plan.a, ry = -faceA, floor = plan.floor, plank = C(0x6e5638), wall = C(0x7c6446);
+      const W = (u, v) => plan.W(u, v);
+      for (const [u, v] of [[-1.9, -2.3], [2.7, -2.3], [-1.9, 2.3], [2.7, 2.3], [0.4, -2.3], [0.4, 2.3]]) { const [px, pz] = W(u, v); cyl(shell, 0.12, 0.11, floor - hAt(px, pz) + 0.2, px, hAt(px, pz) - 0.2, pz, plank.clone().multiplyScalar(0.7), 6); }
+      { const [cx, cz] = W(0.4, 0); box(shell, 4.6, 0.15, 4.6, cx, floor - 0.15, cz, plank, ry); }
+      const house = new THREE.BoxGeometry(3.4, 2.3, 4.2); house.translate(0, 1.15, 0); shell.add(place(house, lx0, lz0, floor, ry), (c, px, py) => c.copy(wall).multiplyScalar(0.85 + 0.15 * Math.sin(py * 22)));
+      const roof = new THREE.CylinderGeometry(0.01, 2.6, 1.3, 4, 1); roof.rotateY(Math.PI / 4); roof.scale(0.95, 1, 1.25); roof.translate(0, floor + 2.3 + 0.65, 0); shell.add(place(roof, lx0, lz0, 0, ry), C(0x4a3b2e));
+      for (const v of [-1.3, 1.3]) { const [wx, wz] = W(1.72, v), g = new THREE.BoxGeometry(0.06, 0.6, 0.7); g.translate(0, floor + 1.3, 0); g.rotateY(ry); g.translate(wx, 0, wz); windows.add(g, C(0xffd08a)); glowAt.push(wx, floor + 1.3, wz); glowCol.push(1, 0.78, 0.48); }
+      plan.boardwalk.forEach(([bx, by, bz], k) => box(shell, 0.28, 0.06, 1.2, bx, by - 0.06, bz, plank.clone().multiplyScalar(0.85 + 0.2 * hash(k, 3)), -plan.boardwalkAng));   // the boardwalk
+      { const n = plan.stair.n; for (let k = 1; k <= n; k++) { const [sx, sz] = W(plan.stair.rect[0] + (k - 0.5) * 0.3, 0); box(shell, 0.3, 0.06, 1.1, sx, floor - k * (floor - plan.stair.y1) / n - 0.06, sz, plank, ry); } }
       for (let r = 0; r < 2; r++) { const [rx, rz] = d.W(-6 - r * 2.2, -3.5); cyl(far, 0.05, 0.05, 1.6, rx - 0.8, hAt(rx - 0.8, rz), rz, plank, 6); cyl(far, 0.05, 0.05, 1.6, rx + 0.8, hAt(rx + 0.8, rz), rz, plank, 6); box(far, 1.7, 0.04, 0.04, rx, hAt(rx, rz) + 1.55, rz, plank); const net = new THREE.PlaneGeometry(1.5, 1.2, 6, 4); const pp = net.attributes.position; for (let i = 0; i < pp.count; i++) pp.setZ(i, 0.06 * Math.sin(pp.getX(i) * 7)); net.translate(rx, hAt(rx, rz) + 0.95, rz); far.add(net, C(0x5a5848)); }
-      solid(lx0, lz0, 3.0);
       // pools, reeds and cattails, herons (its willows: world/islandLife.js)
       { const E = I.r * 0.85, st = 0.6; for (let x = I.x - E; x < I.x + E; x += st) for (let z = I.z - E; z < I.z + E; z += st) { const c = [[0, 0], [st, 0], [st, st], [0, st]].map(([a, b]) => hAt(x + a, z + b)); if (Math.min(...c) < MARSH_POOL - 0.02 && Math.hypot(x - I.x, z - I.z) < I.r * 0.8) { const g = new THREE.PlaneGeometry(st, st); g.rotateX(-Math.PI / 2); g.translate(x + st / 2, MARSH_POOL, z + st / 2); water.add(g, C(0x2f4a3c)); } } }
       I.herons = []; for (let k = 0; k < 3; k++) { const s = spot(k + 70, 0.3, 0.8, (px2, pz2, h2) => h2 < MARSH_POOL + 0.25 && clearOf(px2, pz2, 3)); if (s) { heron(near, s[0], Math.max(s[2], MARSH_POOL - 0.1), s[1], hash(k, 9) * 6.28); } }
@@ -181,8 +197,8 @@ export function createOuterIslands(ctx) {
     const nearGeo = near.geometry(); if (nearGeo.attributes.position.count) { const nm = new THREE.Mesh(nearGeo, nearMat); nm.castShadow = true; nm.receiveShadow = true; scene.add(nm); nearParts.push(nm); }
 
     const gm = new THREE.Mesh(far.groundGeo, farFog(terrainMaterial(ctx, GROUND[I.kind]), IL_LOOK.fogK)); gm.receiveShadow = true; gm.castShadow = true; scene.add(gm);
-    const m = new THREE.Mesh(far.geometry(), partMat); m.castShadow = m.receiveShadow = true; scene.add(m);
-    islands.push({ I, ground: gm, far: m, near: nearParts, moving, at: V3(I.x, 0, I.z) });
+    const fg = far.geometry(), sg = shell.geometry(), nFar = fg.attributes.position.count, m = new THREE.Mesh(mergeTwo(fg, sg), partMat); m.castShadow = m.receiveShadow = true; scene.add(m);
+    islands.push({ I, ground: gm, far: m, nFar, plan, near: nearParts, moving, at: V3(I.x, 0, I.z) });
   }
 
   /* ---- shared: shallows, still water, windows, lava, lamps' glow ---- */
@@ -192,10 +208,10 @@ export function createOuterIslands(ctx) {
   shMat.customProgramCacheKey = () => 'shallows';
   const shal = new THREE.Mesh(sg, shMat); shal.renderOrder = 1; scene.add(shal);
   const waterMesh = new THREE.Mesh(water.geometry(), farFog(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.05, metalness: 0.3, envMapIntensity: 1.0 }), IL_LOOK.fogK)); waterMesh.receiveShadow = true; scene.add(waterMesh);
-  const winMat = new THREE.MeshBasicMaterial({ vertexColors: true }), winMesh = new THREE.Mesh(windows.geometry(), farFog(winMat, IL_LOOK.fogK)); scene.add(winMesh);
+  const winMat = hideNear(new THREE.MeshBasicMaterial({ vertexColors: true })), winMesh = new THREE.Mesh(windows.geometry(), farFog(winMat, IL_LOOK.fogK)); scene.add(winMesh);
   const lavaMat = new THREE.MeshBasicMaterial({ vertexColors: true }), lavaMesh = new THREE.Mesh(lava.geometry(), farFog(lavaMat, IL_LOOK.fogK)); scene.add(lavaMesh);
   const gg2 = new THREE.BufferGeometry(); gg2.setAttribute('position', new THREE.Float32BufferAttribute(glowAt, 3)); gg2.setAttribute('color', new THREE.Float32BufferAttribute(glowCol, 3));
-  const glowMat = new THREE.PointsMaterial({ map: tex.softDot, vertexColors: true, size: 2.2, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+  const glowMat = hideNear(new THREE.PointsMaterial({ map: tex.softDot, vertexColors: true, size: 2.2, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
   const glow = new THREE.Points(gg2, glowMat); glow.frustumCulled = false; scene.add(glow);
   // steam over the vents and the hot spring: puffs rising and fading (near Ember Rock)
   const vents = ISLANDS.flatMap(I => I.vents || []), NS = vents.length * 10, stP = new Float32Array(NS * 3);
@@ -203,9 +219,10 @@ export function createOuterIslands(ctx) {
   const steam = new THREE.Points(stGeo, new THREE.PointsMaterial({ map: tex.softDot, color: 0xe8ecee, size: 1.6, sizeAttenuation: true, transparent: true, opacity: 0.28, depthWrite: false })); steam.frustumCulled = false; scene.add(steam);
   const volcano = islands.find(o => o.I.kind === 'volcano'); if (volcano) volcano.near.push(steam);
 
+  const buildings = createIslandBuildings(ctx);
   const cam = camera.position;
   return {
-    islands,
+    islands, buildings,
     update(dt, t) {
       const night = skyUniforms.uNight.value, lit = smooth(0.3, 0.6, night);
       shal.position.y = U.uSea.value - SEA_Y;   // (the tide)
@@ -213,6 +230,9 @@ export function createOuterIslands(ctx) {
         const d = Math.hypot(cam.x - o.I.x, cam.z - o.I.z), isNear = d < IL_LOOK.near + o.I.r; o.near.forEach(n => { n.visible = isNear; });
         for (const mv of o.moving) mv.spin.rotation[mv.axis] += dt * mv.speed * (mv.axis === 'z' ? 0.4 + 0.9 * Math.min(1.4, U.uWind.value) : 1);
       }
+      buildings.update(dt, 0.4 + 0.9 * Math.min(1.4, U.uWind.value));
+      uHide.value.z = -1;
+      for (const o of islands) { const b = buildings.buildings.find(q => q.P === o.plan); o.far.geometry.setDrawRange(0, b && b.near ? o.nFar : Infinity); if (b && b.near) uHide.value.set(o.plan.x, o.plan.z, HIDE_R[o.plan.kind]); }
       winMat.color.setScalar(0.35 + 1.2 * lit); glowMat.opacity = 0.8 * lit; glow.visible = lit > 0.02;
       lavaMat.color.setRGB(0.12 + 1.6 * lit, 0.06 + 1.0 * lit, 0.05 + 0.5 * lit);   // dull by day, glowing at night
       if (steam.visible) for (let i = 0; i < NS; i++) { const v = vents[Math.floor(i / 10)], k = ((t * 0.25 + hash(i, 1)) % 1); stP[i * 3] = v[0] + Math.sin(t * 0.7 + i) * 0.3 * k; stP[i * 3 + 1] = v[2] + 0.2 + k * 3.2; stP[i * 3 + 2] = v[1] + Math.cos(t * 0.6 + i) * 0.3 * k; }
@@ -256,4 +276,9 @@ function instanced(scene, geo, list, mat, sMin, sMax) {
   list.forEach(([x, h, z, a, b], i) => { const sc = sMin + (sMax - sMin) * b; e.set(0, a * 6.28, 0); q.setFromEuler(e); m4.compose(new THREE.Vector3(x, h - 0.02, z), q, new THREE.Vector3(sc, sc * (0.8 + 0.4 * a), sc)); im.setMatrixAt(i, m4); });
   if (!list.length) im.count = 0;
   im.instanceMatrix.needsUpdate = true; im.castShadow = false; im.receiveShadow = true; scene.add(im); return im;
+}
+function mergeTwo(a, b) {
+  const g = new THREE.BufferGeometry();
+  for (const k of ['position', 'normal', 'color']) { const x = a.attributes[k].array, y = b.attributes[k].array, o = new Float32Array(x.length + y.length); o.set(x); o.set(y, x.length); g.setAttribute(k, new THREE.BufferAttribute(o, 3)); }
+  g.computeBoundingSphere(); return g;
 }
