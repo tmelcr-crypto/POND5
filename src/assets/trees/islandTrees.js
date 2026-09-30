@@ -124,7 +124,7 @@ export function createWillowVariants(ctx, count, seed) {
   const { barkTex, leafTex } = ctx.tex;
   const mats = materials(barkTex, leafTex, 0.5, 'leafVeg', 0.02, 0x8a7e6c);
   const leafGeo = new THREE.PlaneGeometry(1, 1); leafGeo.translate(0, 0.5, 0);
-  const dens = isTouch ? 0.65 : 1, out = [], barkC = new THREE.Color(1, 1, 1), twigC = lin(0xa89a5a);
+  const dens = isTouch ? 0.65 : 1, out = [], barkC = new THREE.Color(1, 1, 1), twigC = new THREE.Color(1.25, 1.45, 0.8);   // (the whips: yellow-green through the bark tint)
   for (let v = 0; v < count; v++) {
     const R = stream(seed + v * 6007), rr = (a, b) => a + (b - a) * R();
     const wood = [], cards = [], arches = [];
@@ -148,14 +148,14 @@ export function createWillowVariants(ctx, count, seed) {
       const [a, b] = arches[Math.floor(R() * arches.length)], sp = a.clone().lerp(b, rr(0.25, 1)), out3 = new V(sp.x, 0, sp.z).normalize();
       const pts = [sp, sp.clone().add(new V(out3.x * 0.22, 0.1, out3.z * 0.22))], stop = rr(0.35, 1.5), sway = new V(rr(-0.06, 0.06), 0, rr(-0.06, 0.06));
       while (pts[pts.length - 1].y > stop && pts.length < 22) { const q = pts[pts.length - 1], k = pts.length; pts.push(q.clone().add(new V(out3.x * 0.07 / k + sway.x, -0.34, out3.z * 0.07 / k + sway.z))); }
-      for (let i = 1; i < pts.length; i++) { const r0 = 0.011 * (1 - i / pts.length) + 0.003; const g = colour(limb(pts[i - 1], pts[i], r0, r0 * 0.85, 3), twigC); g.userData.twig = true; wood.push(g); }
-      const len = pts.length - 1, step = 0.075 / dens;
+      for (let i = 1; i < pts.length; i++) { const r0 = 0.005 * (1 - i / pts.length) + 0.0022; const g = colour(limb(pts[i - 1], pts[i], r0, r0 * 0.85, 3), twigC); g.userData.twig = true; wood.push(g); }
+      const len = pts.length - 1, step = 0.048 / dens;
       for (let u = 0.04; u < len * 0.34; u += step) {
         const k = Math.min(len - 1, Math.floor(u / 0.34)), f = u / 0.34 - k, p = pts[k].clone().lerp(pts[k + 1], f), tan = pts[k + 1].clone().sub(pts[k]).normalize();
         const side = new V().crossVectors(tan, UPV); if (side.lengthSq() < 1e-4) side.set(1, 0, 0); side.normalize().multiplyScalar((Math.round(u / step) % 2 ? 1 : -1) * rr(0.4, 0.9));
-        const ld = tan.clone().multiplyScalar(0.8).add(side).add(out3.clone().multiplyScalar(0.25)).normalize(), sz = rr(0.085, 0.13);
+        const ld = tan.clone().multiplyScalar(0.8).add(side).add(out3.clone().multiplyScalar(0.25)).normalize(), sz = rr(0.1, 0.15);
         const shade = 0.5 + 0.45 * clamp(p.y / 5) + 0.2 * clamp(Math.hypot(p.x, p.z) / 4);
-        cards.push([card(p, ld, sz * 0.26, sz, rr(-0.6, 0.6)), new THREE.Color(rr(0.78, 0.92), rr(1.0, 1.12), rr(0.62, 0.82)).multiplyScalar(shade)]);
+        cards.push([card(p, ld, sz * 0.3, sz, rr(-0.6, 0.6)), new THREE.Color(rr(0.85, 1.0), rr(1.05, 1.18), rr(0.62, 0.82)).multiplyScalar(shade + 0.15)]);
       }
     }
     // a few leafy sprays up on the arches (the crown's top)
