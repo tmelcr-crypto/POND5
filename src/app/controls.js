@@ -185,7 +185,8 @@ export function createControls(app) {
     const cg = caveGround(p.x, p.z, feet); if (cg !== null) return cg;   // down in the caverns (world/layout.js CAVERNS)
     const ix = p.x - HOUSE.x, iz = p.z - HOUSE.z;
     if (Math.abs(ix) < 1.58 && Math.abs(iz) < 1.23) g = Math.max(g, PAD_H + CB.FL);
-    const deck = Math.max(bridgeDeckY(p.x, p.z), jettyDeckY(p.x, p.z), treehouseDeckY(p.x, p.z), towerY(p.x, p.z, feet), buildingFloorY(p.x, p.z, feet)); if (deck - feet <= PC.stepHeight) g = Math.max(g, deck);   // the footbridge, the jetty and the treehouse (not from under them)
+    const deck = Math.max(bridgeDeckY(p.x, p.z), jettyDeckY(p.x, p.z), treehouseDeckY(p.x, p.z), towerY(p.x, p.z, feet)); if (deck - feet <= PC.stepHeight) g = Math.max(g, deck);
+    g = Math.max(g, buildingFloorY(p.x, p.z, feet));   // the islands' buildings: floors, stairs, boardwalk (their own step rule)   // the footbridge, the jetty and the treehouse (not from under them)
     if (U.uWinter.value > 0.5 && lakeD(p.x, p.z) < 1.0) g = Math.max(g, WATER_Y + 0.02);   // the frozen pond (world/seasons.js)
     const standOn = c => {
       // in the collider's own (rotated) frame; radii are padded by 0.2, body is the player's radius
