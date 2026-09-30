@@ -40,6 +40,9 @@ function siteOf(I) {
   // the marsh lodge's boardwalk and the nets' drying racks; the hot spring
   if (I.kind === 'marsh') { const d = I.docks[0], a = d.W(0, 0); S.avoid.push({ seg: [a, [a[0] + (S.build[0] - a[0]) * 0.82, a[1] + (S.build[1] - a[1]) * 0.82]], r: 0.9 }); for (let r = 0; r < 2; r++) { const [rx, rz] = d.W(-6 - r * 2.2, -3.5); S.avoid.push({ x: rx, z: rz, r: 1.3 }); } }
   if (I.kind === 'volcano') S.avoid.push({ x: I.spring.x, z: I.spring.z, r: I.spring.r + 0.9 });
+  // the way in: from each building's door out to where its steps reach the ground (world/buildingPlans.js)
+  { const a = I.kind === 'palm' ? Math.atan2(I.z - S.build[1] - 30, I.x - S.build[0] - 60) : I.kind === 'marsh' ? null : Math.atan2(-S.build[1], -S.build[0]);
+    if (a !== null) S.avoid.push({ seg: [[S.build[0], S.build[1]], [S.build[0] + Math.cos(a) * (S.build[2] + 3.6), S.build[1] + Math.sin(a) * (S.build[2] + 3.6)]], r: 1.3 }); }
   S.blocked = (x, z, m) => !clearOf(x, z, m) || I.docks.some(d => d.dist(x, z) < 0.6 + m) || S.walls.some(([wx, wz]) => Math.hypot(x - wx, z - wz) < 0.55 + Math.min(m, 0.45))
     || S.avoid.some(o => (o.seg ? segDist(x, z, o.seg[0], o.seg[1]) : Math.hypot(x - o.x, z - o.z)) < o.r + m);
   return S;

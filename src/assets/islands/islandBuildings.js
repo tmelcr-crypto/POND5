@@ -170,6 +170,8 @@ export function createIslandBuildings(ctx) {
     const wood = lin(0x8a6a48), dark = lin(0x4a3424), iron = lin(0x2e2c2a), brass = lin(0xb08a3a), stoneC = lin(0x8c877e);
     const solid = (u, v, hu, hv, yLo, yHi, ang = 0) => { const c = Math.cos(ang), s = Math.sin(ang), pt = (a, b) => [u + c * a - s * b, v + s * a + c * b], q = [pt(-hu, -hv), pt(hu, -hv), pt(hu, hv), pt(-hu, hv)];
       for (let i = 0; i < 4; i++) P.walls.push([...q[i], ...q[(i + 1) % 4], yLo, yHi, 0.02]); };
+    const outSteps = () => { const S = P.outStair; if (!S) return; const [u0, u1] = S.rect, run = (u1 - u0) / S.n, dy = (S.y0 - S.y1) / S.n;   // stone steps down from the door, solid to the ground
+      for (let k = 1; k <= S.n; k++) { const y = S.y0 - k * dy; K.box('stone', run + 0.02, y - (P.footMin - 0.4), 1.25, u0 + (k - 0.5) * run, P.footMin - 0.4, 0, 0, stoneC.clone().multiplyScalar(0.85 + 0.2 * R()), 1); } };
     const lantern = (u, y, v, hang = 0) => {   // a small iron lantern (its glass lit by its own material)
       K.box('metal', 0.18, 0.02, 0.18, u, y - 0.14, v, 0, iron); K.box('metal', 0.2, 0.02, 0.2, u, y + 0.12, v, 0, iron);
       const cap = new THREE.ConeGeometry(0.15, 0.12, 4); cap.rotateY(Math.PI / 4); cap.translate(u, y + 0.2, v); K.put('metal', cap, iron);
@@ -198,8 +200,8 @@ export function createIslandBuildings(ctx) {
     if (P.kind === 'windmill') {
       const { f0, f1, base } = P, top = base + P.height, N = 28, door = { k0: -1, k1: 1, y0: f0 - 0.02, y1: f0 + P.door.h }, wins = [{ k0: 7, k1: 8, y0: f0 + 1.2, y1: f0 + 1.85 }, { k0: 20, k1: 21, y0: f1 + 1.0, y1: f1 + 1.65 }, { k0: 13, k1: 14, y0: f1 + 1.0, y1: f1 + 1.65 }, { k0: 3, k1: 4, y0: f1 + 1.9, y1: f1 + 2.5 }];
       const step = K.roundWall('plaster', y => P.Ro(y), y => P.Ri(y), base + 0.3, top, N, [door, ...wins], WHITE, 1.6);
-      K.cyl('stone', 2.45, 2.5, 0.6, 0, base, 0, 28, stoneC, 1.2);                                        // the plinth
-      K.box('stone', 0.7, 0.3, 1.2, P.Ro(f0) + 0.25, f0 - 0.3, 0, 0, stoneC, 1);                          // the door step
+      { const y0 = Math.min(base, P.footMin - 0.4); K.cyl('stone', 2.45, 2.55, f0 - y0, 0, y0, 0, 28, stoneC, 1.2); }   // the plinth, down to the ground all round
+      outSteps();
       { const g = new THREE.TorusGeometry(P.Ro(top) + 0.04, 0.09, 6, 32); g.rotateX(Math.PI / 2); g.translate(0, top, 0); K.put('plank', g, dark); }
       { const g = new THREE.ConeGeometry(P.Ro(top) + 0.25, 2.2, 28, 3, true); g.translate(0, top + 1.1, 0); K.put('thatch', g, WHITE, 1.2); K.cyl('plank', 0.05, 0.12, 0.35, 0, top + 2.1, 0, 8, dark); }
       for (const o of [door, ...wins]) { const a0 = o.k0 * step, a1 = o.k1 * step, am = (a0 + a1) / 2, rO = P.Ro((o.y0 + o.y1) / 2), rI = P.Ri((o.y0 + o.y1) / 2), w = 2 * Math.sin((a1 - a0) / 2) * rO;   // frames, the glass
@@ -286,7 +288,8 @@ export function createIslandBuildings(ctx) {
       const step = K.roundWall('ashlar', y => P.rOut - 0.05 * (y - b) / P.drumH, () => P.rIn, b, top, N, [door, ...wins], WHITE, 1.4);
       { const g = new THREE.TorusGeometry(P.rOut - 0.02, 0.1, 6, 40); g.rotateX(Math.PI / 2); g.translate(0, top - 0.05, 0); K.put('stone', g, stoneC); }
       { const g = new THREE.RingGeometry(P.rIn - 0.02, P.rOut + 0.02, 40); g.rotateX(-Math.PI / 2); g.translate(0, top, 0); K.put('stone', g, stoneC); }
-      K.box('stone', 0.8, 0.35, 1.3, P.rOut + 0.25, f - 0.35, 0, 0, stoneC, 1);
+      { const y0 = Math.min(b, P.footMin - 0.4); K.cyl('stone', P.rOut + 0.08, P.rOut + 0.2, f - 0.02 - y0, 0, y0, 0, 32, stoneC, 1.2); }   // its footing on the cone
+      outSteps();
       lamp.panes = [];
       for (const o of wins) { const a0 = o.k0 * step, a1 = o.k1 * step, am = (a0 + a1) / 2, w = 2 * Math.sin((a1 - a0) / 2) * P.rOut, gl = new THREE.BoxGeometry(0.03, o.y1 - o.y0, w); gl.translate(0, (o.y0 + o.y1) / 2, 0); gl.rotateY(-am); gl.translate(Math.cos(am) * (P.rIn + 0.12), 0, Math.sin(am) * (P.rIn + 0.12)); lamp.panes.push(gl);
         const fr = new THREE.BoxGeometry(0.08, 0.08, w + 0.1); fr.translate(0, o.y1 + 0.04, 0); fr.rotateY(-am); fr.translate(Math.cos(am) * (P.rOut + 0.02), 0, Math.sin(am) * (P.rOut + 0.02)); K.put('plank', fr, dark); }
