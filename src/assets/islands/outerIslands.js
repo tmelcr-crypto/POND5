@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { lin, smooth, clamp } from '../../core/math.js';
 import { fbm2 } from '../../core/noise.js';
-import { ISLANDS, islandH, MARSH_POOL, SEA_Y, EMBER } from '../../world/layout.js';
+import { ISLANDS, islandH, MARSH_POOL, SEA_Y, EMBER, dockBerths, caveOpenCell } from '../../world/layout.js';
 import { obstacles } from '../../world/bounds.js';
 import { isTouch } from '../../core/env.js';
 import { U } from '../../core/uniforms.js';
@@ -37,7 +37,7 @@ export function createOuterIslands(ctx) {
   const uHide = { value: new THREE.Vector3(0, 0, -1) };
   const hideNear = mat => { const prev = mat.onBeforeCompile; mat.onBeforeCompile = (sh, r) => { prev.call(mat, sh, r); sh.uniforms.uHide = uHide;
     sh.vertexShader = 'uniform vec3 uHide;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n { vec4 hw = modelMatrix * vec4(transformed, 1.0); if (distance(hw.xz, uHide.xy) < uHide.z) gl_Position = vec4(2.0, 2.0, 2.0, 1.0); }'); }; return mat; };
-  const HIDE_R = { windmill: 2.4, hut: 2.2, observatory: 2.75, lodge: 2.9 };
+  const HIDE_R = { windmill: 2.4, hut: 2.2, observatory: 4.75, lodge: 2.9 };
 
   // the ground's layers in the home island's terrain shader, by kind: dirt (paths, mud, ash), rock on the slopes, sand
   const GROUND = { meadow: {}, palm: { sand: 0xe6dcbf, wetSand: 0xa89a78 }, volcano: { dirt: 0x33302d, rock: 0x3b3633, sand: 0x2e2b29, wetSand: 0x1e1c1b, rockSlope: 0.86 }, marsh: { dirt: 0x3b3222, sand: 0x8d7d5c, wetSand: 0x5a4e38 } };
@@ -50,7 +50,7 @@ export function createOuterIslands(ctx) {
 
     /* ---- the ground: a height grid, coloured by the island's kind ---- */
     {
-      const E = I.r * 1.45, st = I.kind === 'volcano' ? 0.3 : IL_LOOK.step, n = Math.round(2 * E / st), hs = [];   // (Ember Rock finer: its cliffs, path and lava channel)
+      const E = I.r * 1.45, st = I.kind === 'volcano' ? 0.35 : IL_LOOK.step, n = Math.round(2 * E / st), hs = [];   // (Ember Rock finer: its cliffs, path and lava channel)
       for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) hs.push(hAt(I.x - E + i * st, I.z - E + j * st));
       const at = (i, j) => hs[j * (n + 1) + i], col = new THREE.Color(), pos = [], nor = [], cols = [], uvs = [], soil = [];
       const K = {
@@ -76,6 +76,7 @@ export function createOuterIslands(ctx) {
       };
       for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
         if (Math.max(at(i, j), at(i + 1, j), at(i, j + 1), at(i + 1, j + 1)) < SEA_Y - 3.2) continue;
+        if (I.kind === 'volcano' && caveOpenCell(I.x - E + i * st, I.z - E + j * st, st)) continue;   // (open over the lava tube's mouth: world/layout.js LAVA_TUBE)
         for (const [a, b] of [[0, 0], [0, 1], [1, 1], [0, 0], [1, 1], [1, 0]]) vtx(i + a, j + b);
         // the shallows: a tint over the sea where it is shallow, turquoise over sand, fading out with depth
         const cx = I.x - E + (i + 0.5) * st, cz = I.z - E + (j + 0.5) * st, d = SEA_Y - hAt(cx, cz);
@@ -94,7 +95,7 @@ export function createOuterIslands(ctx) {
       const wood = C(0x7a5534), ry = -d.ang;
       for (let u = 0; u < d.len; u += 0.2) { const w = u >= d.len - d.head.len ? d.head.halfW : d.hw, [x, z] = d.W(u + 0.1, 0), g = new THREE.BoxGeometry(0.185, 0.05, w * 2); g.rotateY(ry); g.translate(x, d.deckY - 0.05, z); far.add(g, wood.clone().multiplyScalar(0.8 + 0.35 * hash(Math.round(u * 5), d.index + I.s))); }
       for (let u = 0.3; u < d.len; u += 2.2) for (const sg of [-1, 1]) { const w = u >= d.len - d.head.len ? d.head.halfW : d.hw, [x, z] = d.W(u, sg * (w - 0.08)), bot = hAt(x, z) - 0.3, g = new THREE.CylinderGeometry(0.1, 0.11, d.deckY - bot, 8); g.translate(x, (d.deckY + bot) / 2 - 0.05, z); far.add(g, wood.clone().multiplyScalar(0.7)); }
-      for (const [bx, bz] of d.bollards) { const g = new THREE.CylinderGeometry(0.09, 0.11, 0.42, 10); g.translate(bx, d.deckY + 0.21, bz); far.add(g, C(0x2e3032)); }
+      for (const [bx, bz] of dockBerths(d).flatMap(q => q.bollards)) { const g = new THREE.CylinderGeometry(0.09, 0.11, 0.42, 10); g.translate(bx, d.deckY + 0.21, bz); far.add(g, C(0x2e3032)); }
       const [lx, lz] = d.W(d.len - 0.25, d.head.halfW - 0.2); cyl(far, 0.05, 0.05, 2.2, lx, d.deckY, lz, C(0x2e3032), 6); box(far, 0.16, 0.24, 0.16, lx, d.deckY + 2.0, lz, C(0x2e3032)); glowAt.push(lx, d.deckY + 2.12, lz); glowCol.push(1, 0.75, 0.42);
       windows.add(new THREE.BoxGeometry(0.12, 0.18, 0.12).translate(lx, d.deckY + 2.12, lz), C(0xffd08a));
     }
@@ -123,7 +124,9 @@ export function createOuterIslands(ctx) {
       const sm = new THREE.Mesh(sails.geometry(), partMat), pivot = new THREE.Group(), [px, py, pz] = f(2.15, 7.2, 0); pivot.position.set(px, py, pz); pivot.rotation.y = Math.PI / 2 - faceA; pivot.add(sm); scene.add(pivot); sm.castShadow = true;   // (the sails face out, over the jetty and home)
       moving.push({ spin: sm, axis: 'z', speed: 0.9 });   // (you walk in: world/buildingPlans.js)
       // the dry-stone walls (the trees, orchard and hedgerows: world/islandLife.js, planted by world/scatter.js and undergrowth.js)
-      for (const [sx, sz, w, t] of site.walls) { for (let q = 0; q < 2; q++) { const g = new THREE.DodecahedronGeometry(0.28 + 0.1 * hash(t, q + w), 1); g.scale(1.3, 0.7, 1); g.rotateY(hash(t, w + 5) * 3); g.translate(0, 0.18 + q * 0.33, 0); far.add(place(g, sx, sz), (c, px, py, pz) => c.copy(C(0x8d8578)).multiplyScalar(0.8 + 0.4 * hash(t, q * 3 + w)).lerp(C(0x56662e), 0.55 * smooth(0.3, 0.8, fbm2(px * 4, pz * 4, 2) + (py - hAt(sx, sz) - 0.4)))); } solid(sx, sz, 0.35); }
+      const byStairs = (sx, sz) => { const [u, v] = plan.L(sx, sz), near = (r, m) => u > r[0] - m && u < r[1] + m && v > r[2] - m && v < r[3] + m;   // (a gap in the wall where the door steps come down)
+        const S = plan.outStairs || [], last = S[S.length - 1]; return S.some(q => near(q.rect, 1.2)) || (plan.outLandings || []).some(q => near(q.rect, 1.2)) || (last && near(last.axis === 'v' ? [last.rect[0], last.rect[1], last.rect[2] - 2.2, last.rect[3] + 2.2] : [last.rect[0], last.rect[1] + 2.2, last.rect[2], last.rect[3]], 0.9)); };
+      for (const [sx, sz, w, t] of site.walls.filter(([sx, sz]) => !byStairs(sx, sz))) { for (let q = 0; q < 2; q++) { const g = new THREE.DodecahedronGeometry(0.28 + 0.1 * hash(t, q + w), 1); g.scale(1.3, 0.7, 1); g.rotateY(hash(t, w + 5) * 3); g.translate(0, 0.18 + q * 0.33, 0); far.add(place(g, sx, sz), (c, px, py, pz) => c.copy(C(0x8d8578)).multiplyScalar(0.8 + 0.4 * hash(t, q * 3 + w)).lerp(C(0x56662e), 0.55 * smooth(0.3, 0.8, fbm2(px * 4, pz * 4, 2) + (py - hAt(sx, sz) - 0.4)))); } solid(sx, sz, 0.35); }
       // sheep and wildflowers (near only)
       for (let k = 0; k < 5; k++) { const s = spot(k + 40, 0.2, 0.7, (px2, pz2) => clearOf(px2, pz2, 2)); if (s) sheep(near, s[0], s[2], s[1], hash(k, 4) * 6.28); }
     }
@@ -145,25 +148,52 @@ export function createOuterIslands(ctx) {
       for (let k = 0; k < 30; k++) { const a = hash(k, 5) * 6.28, rr = I.r * (0.8 + 0.12 * hash(k, 6)), sx = I.x + Math.cos(a) * rr, sz = I.z + Math.sin(a) * rr, h2 = hAt(sx, sz); if (h2 < SEA_Y + 0.05) continue; const g = k % 4 === 0 ? starfish() : new THREE.SphereGeometry(0.035, 6, 4).scale(1, 0.5, 1.3); g.rotateY(hash(k, 7) * 6); g.translate(sx, h2 + 0.02, sz); near.add(g, k % 4 === 0 ? C(0xd8703a) : C(0xf2e6d2).multiplyScalar(0.8 + 0.3 * hash(k, 8))); }
     }
     if (I.kind === 'volcano') {
-      // the observatory on the flat top: a stone drum, a copper dome that turns slowly, the telescope in its slit
-      const [x, z, h] = top;
-      cyl(shell, 2.6, 2.4, 3.0, x, h - 0.2, z, (c, px, py, pz) => c.copy(C(0x8f877c)).multiplyScalar(0.85 + 0.15 * hash(Math.floor(py * 3), Math.floor(Math.atan2(pz - z, px - x) * 4))), 20);
-      const ring = new THREE.TorusGeometry(2.45, 0.08, 6, 32); ring.rotateX(Math.PI / 2); ring.translate(x, h + 2.85, z); shell.add(ring, C(0x3a3230));
-      { const fa = Math.atan2(-z, -x), dx = x + Math.cos(fa) * 2.5, dz = z + Math.sin(fa) * 2.5; const door = new THREE.BoxGeometry(0.12, 1.9, 0.9); door.translate(0, 0.95, 0); door.rotateY(-fa); door.translate(dx, h - 0.2, dz); shell.add(door, C(0x4a3024)); windows.add(new THREE.BoxGeometry(0.1, 0.4, 0.4).rotateY(-fa).translate(x + Math.cos(fa + 0.6) * 2.48, h + 1.8, z + Math.sin(fa + 0.6) * 2.48), C(0xffd08a)); glowAt.push(dx, h + 2.2, dz); glowCol.push(1, 0.78, 0.5); }
-      const dome = builder(); { const g = new THREE.SphereGeometry(2.45, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2); dome.add(g, (c, px, py, pz) => { const a = Math.atan2(pz, px); c.copy(Math.abs(a) < 0.18 ? C(0x1a1a1c) : C(0x5f8f84)).multiplyScalar(0.85 + 0.15 * Math.sin(a * 24)); });
-        const ring2 = new THREE.TorusGeometry(2.42, 0.05, 6, 40); ring2.rotateX(Math.PI / 2); ring2.translate(0, 0.02, 0); dome.add(ring2, C(0x3a3230)); }
-      // the telescope on its fork over the pier (islandBuildings.js), aimed out of the slit: its tube turns in altitude on a
-      // pivot inside the dome, the dome in azimuth (app/telescope.js moves both)
-      const scope = builder(); { const tube = new THREE.CylinderGeometry(0.2, 0.26, 3.2, 20); tube.translate(0, 0.9, 0); scope.add(tube, (c, px, py) => c.copy(C(0xd8d4cc)).multiplyScalar(py > 2.35 || (py > 0.8 && py < 0.95) ? 0.55 : 1));
-        const ep = new THREE.CylinderGeometry(0.04, 0.05, 0.25, 12); ep.rotateZ(Math.PI / 2); ep.translate(0.05, -0.55, 0); scope.add(ep, C(0x1a1a1c));
-        const finder = new THREE.CylinderGeometry(0.05, 0.05, 0.7, 10); finder.translate(0.24, 1.3, 0.1); scope.add(finder, C(0x2e2c2a));
-        const lens = new THREE.CircleGeometry(0.19, 20); lens.rotateX(-Math.PI / 2); lens.translate(0, 2.505, 0); scope.add(lens, C(0x1d2a3a)); }
-      const fork = builder(); for (const s2 of [-1, 1]) { const fk = new THREE.BoxGeometry(0.08, 0.55, 0.06); fk.translate(0, -1.3, s2 * 0.3); fork.add(fk, C(0x2e2c2a)); } { const ax = new THREE.CylinderGeometry(0.05, 0.05, 0.7, 10); ax.rotateX(Math.PI / 2); ax.translate(0, -1.08, 0); fork.add(ax, C(0x2e2c2a)); }
-      const dm = new THREE.Mesh(dome.geometry(), partMat); dm.position.set(x, h + 2.8, z); dm.castShadow = true; scene.add(dm);
-      const fm = new THREE.Mesh(fork.geometry(), partMat); dm.add(fm);
-      const tubePivot = new THREE.Group(); tubePivot.position.set(0, -1.08, 0); const tm = new THREE.Mesh(scope.geometry(), partMat); tm.castShadow = true; tubePivot.add(tm); dm.add(tubePivot);
+      // the observatory on the flat top (its plan: world/buildingPlans.js): a stone drum, a copper dome with an open slit,
+      // turned by app/telescope.js with the telescope inside on its fork
+      const x = plan.x, z = plan.z, top = plan.base + plan.drumH, Ro = plan.rOut, Rd = Ro - 0.15;
+      cyl(shell, Ro + 0.02, Ro - 0.08, plan.drumH, x, plan.base, z, (c, px, py, pz) => c.copy(C(0x8f877c)).multiplyScalar(0.85 + 0.15 * hash(Math.floor(py * 3), Math.floor(Math.atan2(pz - z, px - x) * 7))), 40);
+      { const ring = new THREE.TorusGeometry(Ro - 0.05, 0.12, 6, 48); ring.rotateX(Math.PI / 2); ring.translate(x, top - 0.06, z); shell.add(ring, C(0x3a3230)); }
+      { const fa = plan.a, dx = x + Math.cos(fa) * (Ro - 0.06), dz = z + Math.sin(fa) * (Ro - 0.06); const door = new THREE.BoxGeometry(0.14, plan.door.h, plan.door.w); door.translate(0, plan.door.h / 2, 0); door.rotateY(-fa); door.translate(dx, plan.floor, dz); shell.add(door, C(0x4a3024));
+        for (const a2 of [fa + 1.5, fa - 1.5, fa + Math.PI - 0.5]) windows.add(new THREE.BoxGeometry(0.1, 0.7, 0.55).rotateY(-a2).translate(x + Math.cos(a2) * (Ro - 0.02), plan.floor + 1.55, z + Math.sin(a2) * (Ro - 0.02)), C(0xffd08a));
+        glowAt.push(dx, plan.floor + 2.5, dz); glowCol.push(1, 0.78, 0.5); }
+      // the dome: a hemisphere of copper gores with the slit cut out along +x (from low on its side over the top), ribs
+      // along the slit's edges, a rail round its foot
+      const SLIT = 0.62, dome = builder();
+      { const g = new THREE.SphereGeometry(Rd, 72, 22, 0, Math.PI * 2, 0, Math.PI / 2).toNonIndexed(), p = g.attributes.position, keep = [];
+        for (let i = 0; i < p.count; i += 3) { let cx2 = 0, cy2 = 0, cz2 = 0; for (let k = 0; k < 3; k++) { cx2 += p.getX(i + k) / 3; cy2 += p.getY(i + k) / 3; cz2 += p.getZ(i + k) / 3; }
+          if (Math.abs(cz2) < SLIT && cx2 > -0.9 && cy2 > Rd * 0.16) continue; for (let k = 0; k < 3; k++) keep.push(p.getX(i + k), p.getY(i + k), p.getZ(i + k)); }
+        const d2 = new THREE.BufferGeometry(); d2.setAttribute('position', new THREE.Float32BufferAttribute(keep, 3)); d2.computeVertexNormals();
+        dome.add(d2, (c, px, py, pz) => { const a = Math.atan2(pz, px); c.copy(C(0x5f8f84)).multiplyScalar(0.82 + 0.18 * Math.abs(Math.sin(a * 12))).lerp(C(0x7a5a3a), 0.25 * smooth(0.9, 0.2, py / Rd)); }); }
+      for (const sz of [-SLIT, SLIT]) { const pts = []; for (let k = 0; k <= 24; k++) { const t = k / 24, ang = 0.16 + t * (Math.PI / 2 + 0.25 - 0.16), rr2 = Math.sqrt(Rd * Rd - sz * sz); pts.push(new THREE.Vector3(Math.cos(ang) * rr2, Math.sin(ang) * rr2, sz)); }
+        dome.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.07, 6, false), C(0x3a3230)); }
+      { const cap = new THREE.CylinderGeometry(0.08, 0.08, 2 * SLIT + 0.1, 8); cap.rotateX(Math.PI / 2); cap.translate(Math.sqrt(Rd * Rd - 0.1) * Math.cos(0.16), Rd * Math.sin(0.16), 0); dome.add(cap, C(0x3a3230)); }
+      for (let k = 1; k < 12; k++) { const a = k / 12 * Math.PI * 2; if (Math.abs(Math.sin(a)) * Rd < SLIT + 0.3 && Math.cos(a) > 0) continue; const pts = []; for (let j = 0; j <= 12; j++) { const e = j / 12 * (Math.PI / 2 - 0.25); pts.push(new THREE.Vector3(Math.cos(a) * Math.cos(e) * (Rd + 0.02), Math.sin(e) * (Rd + 0.02), Math.sin(a) * Math.cos(e) * (Rd + 0.02))); } dome.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.035, 4, false), C(0x4a6a60)); }
+      { const ring2 = new THREE.TorusGeometry(Rd - 0.02, 0.07, 6, 56); ring2.rotateX(Math.PI / 2); ring2.translate(0, 0.02, 0); dome.add(ring2, C(0x3a3230)); }
+      // the telescope: a long refractor on a fork over the pier, its eyepiece on a brass star diagonal at the back end, to
+      // the side you stand (lit by a small red ring so you can find it at night); the fork turns with the dome, the tube
+      // in altitude about its axle (app/telescope.js)
+      const pivotY = plan.pivot - top, plateY = plan.pier.top - top, scope = builder(), fork = builder();
+      { const tube = new THREE.CylinderGeometry(0.24, 0.24, 3.05, 28); tube.translate(0, 0.775, 0); scope.add(tube, C(0xe8e2d4));
+        for (const y of [-0.75, 0.0, 0.75, 2.28]) { const band = new THREE.CylinderGeometry(0.255, 0.255, 0.08, 28); band.translate(0, y, 0); scope.add(band, C(0xb08a3a)); }
+        const dew = new THREE.CylinderGeometry(0.29, 0.27, 0.55, 28, 1, true); dew.translate(0, 2.58, 0); scope.add(dew, C(0x24221f));
+        const lens = new THREE.CircleGeometry(0.235, 28); lens.rotateX(-Math.PI / 2); lens.translate(0, 2.36, 0); scope.add(lens, C(0x2a4a66));
+        const cell = new THREE.CylinderGeometry(0.2, 0.24, 0.1, 24); cell.translate(0, -0.8, 0); scope.add(cell, C(0xb08a3a));
+        const diag = new THREE.BoxGeometry(0.13, 0.13, 0.13); diag.translate(-0.02, -0.9, 0); scope.add(diag, C(0xc09a4a));
+        const barrel = new THREE.CylinderGeometry(0.05, 0.055, 0.2, 16); barrel.rotateZ(Math.PI / 2); barrel.translate(-0.17, -0.9, 0); scope.add(barrel, C(0xc09a4a));
+        const ep = new THREE.CylinderGeometry(0.062, 0.058, 0.13, 16); ep.rotateZ(Math.PI / 2); ep.translate(-0.33, -0.9, 0); scope.add(ep, C(0x141414));
+        const cup = new THREE.TorusGeometry(0.058, 0.018, 8, 20); cup.rotateY(Math.PI / 2); cup.translate(-0.4, -0.9, 0); scope.add(cup, C(0x0c0c0c));
+        const finder = new THREE.CylinderGeometry(0.05, 0.05, 0.75, 12); finder.translate(0, 1.2, 0.34); scope.add(finder, C(0x2e2c2a));
+        for (const y of [0.95, 1.45]) { const st2 = new THREE.BoxGeometry(0.04, 0.04, 0.1); st2.translate(0, y, 0.28); scope.add(st2, C(0x2e2c2a)); } }
+      { const plate = new THREE.CylinderGeometry(plan.pier.r + 0.08, plan.pier.r + 0.08, 0.06, 28); plate.translate(0, plateY + 0.03, 0); fork.add(plate, C(0x2e2c2a));
+        for (const s2 of [-1, 1]) { const arm = new THREE.BoxGeometry(0.1, pivotY - plateY + 0.12, 0.08); arm.translate(0, (pivotY + plateY) / 2 + 0.03, s2 * 0.34); fork.add(arm, C(0x2e2c2a)); }
+        const base = new THREE.BoxGeometry(0.3, 0.1, 0.76); base.translate(0, plateY + 0.1, 0); fork.add(base, C(0x2e2c2a));
+        const ax = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 12); ax.rotateX(Math.PI / 2); ax.translate(0, pivotY, 0); fork.add(ax, C(0xb08a3a)); }
+      const dm = new THREE.Mesh(dome.geometry(), partMat); dm.position.set(x, top, z); dm.castShadow = true; scene.add(dm);
+      const fm = new THREE.Mesh(fork.geometry(), partMat); fm.castShadow = true; dm.add(fm);
+      const tubePivot = new THREE.Group(); tubePivot.position.set(0, pivotY, 0); const tm = new THREE.Mesh(scope.geometry(), partMat); tm.castShadow = true; tubePivot.add(tm); dm.add(tubePivot);
+      { const red = new THREE.Mesh(new THREE.TorusGeometry(0.064, 0.008, 6, 24), new THREE.MeshBasicMaterial({ color: 0xff3a2a })); red.rotation.y = Math.PI / 2; red.position.set(-0.41, -0.9, 0); tubePivot.add(red); }
       tubePivot.rotation.z = -(Math.PI / 2 - 0.62);
-      I.observatory = { dome: dm, tubePivot, eyepiece: new THREE.Vector3(0.05, -0.55, 0) };   // (the eyepiece in the tube's frame)
+      I.observatory = { dome: dm, tubePivot, eyepiece: new THREE.Vector3(-0.42, -0.9, 0) };   // (the eyepiece's cup in the tube's frame)
       // the hot spring: steaming turquoise water in its basin
       const sp = I.spring; { const g = new THREE.CircleGeometry(sp.r + 0.3, 24); g.rotateX(-Math.PI / 2); g.translate(sp.x, sp.y, sp.z); water.add(g, C(0x3fb6b0)); }
       // the lava creek (its channel and levees: EMBER in world/layout.js): a ribbon on its surface from the vent to where it
@@ -176,8 +206,8 @@ export function createOuterIslands(ctx) {
         const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aS', new THREE.Float32BufferAttribute(st2, 1)); g.setAttribute('aX', new THREE.Float32BufferAttribute(ac, 1)); g.computeVertexNormals();
         I.lavaGeo = g;
         for (let i = 0; i <= end; i += 3) { const q = Lv[i]; glowAt.push(q.x, q.y + 0.35, q.z); glowCol.push(1, 0.42, 0.12); }
-        const V0 = EMBER.vent; for (let k = 0; k < 11; k++) { const a = k / 11 * 6.28, g2 = new THREE.DodecahedronGeometry(0.28 + 0.12 * hash(k, 3), 1); g2.scale(1.2, 0.6, 1); const px2 = V0.x + Math.cos(a) * 0.95, pz2 = V0.z + Math.sin(a) * 0.95; g2.translate(px2, hAt(px2, pz2) + 0.12, pz2); far.add(g2, C(0x2a2624).multiplyScalar(0.8 + 0.4 * hash(k, 4))); }
-        { const pool = new THREE.CircleGeometry(0.75, 20); pool.rotateX(-Math.PI / 2); pool.translate(V0.x, V0.y + 0.03, V0.z); pool.setAttribute('aS', new THREE.Float32BufferAttribute(new Array(pool.attributes.position.count).fill(0.5), 1)); pool.setAttribute('aX', new THREE.Float32BufferAttribute(new Array(pool.attributes.position.count).fill(0), 1)); I.ventGeo = pool; }
+        const V0 = EMBER.vent; for (let k = 0; k < 14; k++) { const a = k / 14 * 6.28, g2 = new THREE.DodecahedronGeometry(0.36 + 0.16 * hash(k, 3), 1); g2.scale(1.2, 0.6, 1); const px2 = V0.x + Math.cos(a) * 1.35, pz2 = V0.z + Math.sin(a) * 1.35; g2.translate(px2, hAt(px2, pz2) + 0.12, pz2); far.add(g2, C(0x2a2624).multiplyScalar(0.8 + 0.4 * hash(k, 4))); }
+        { const pool = new THREE.CircleGeometry(1.1, 24); pool.rotateX(-Math.PI / 2); pool.translate(V0.x, V0.y + 0.03, V0.z); pool.setAttribute('aS', new THREE.Float32BufferAttribute(new Array(pool.attributes.position.count).fill(0.5), 1)); pool.setAttribute('aX', new THREE.Float32BufferAttribute(new Array(pool.attributes.position.count).fill(0), 1)); I.ventGeo = pool; }
         I.vents = [[V0.x, V0.z, V0.y], [Lv[end].x, Lv[end].z, SEA_Y], [sp.x, sp.z, sp.y]]; }
       // the cove's black sand: a bleached log washed in, glassy obsidian among the pebbles
       { const ca = EMBER.cove.a; for (let k = 0; k < 2; k++) { const r0 = I.r * (0.62 + 0.05 * k), a0 = ca + (k ? 0.18 : -0.12), lx = I.x + Math.cos(a0) * r0, lz = I.z + Math.sin(a0) * r0, log = new THREE.CylinderGeometry(0.12, 0.16, 2.2 - k * 0.6, 8); log.rotateZ(Math.PI / 2); log.rotateY(a0 + 1.2 + k); log.translate(lx, hAt(lx, lz) + 0.1, lz); far.add(log, C(0xb8ad98)); }

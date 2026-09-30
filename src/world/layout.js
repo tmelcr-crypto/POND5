@@ -160,49 +160,63 @@ export const LIGHTHOUSE = (() => {
 export const ISLANDS = [
   { name: 'Millholm', kind: 'meadow', x: -8, z: -106, r: 15, top: 3.4, s: 0.7, docks: [null] },
   { name: 'Palm Cay', kind: 'palm', x: -108, z: 22, r: 9, top: 0.8, s: 2.1, docks: [null, 2.2] },
-  { name: 'Ember Rock', kind: 'volcano', x: 20, z: 108, r: 13, top: 8.5, s: 4.3, docks: [null] },
+  { name: 'Ember Rock', kind: 'volcano', x: 20, z: 108, r: 26, top: 17, s: 4.3, docks: [null] },
   { name: 'Heron Marsh', kind: 'marsh', x: -86, z: -78, r: 22, top: 0.5, s: 5.9, docks: [null, -0.3] },
 ].map(I => ({ ...I, reach: I.r * 1.6 + 12 }));
 /**
- * Ember Rock (ISLANDS[2]) in detail: a black cone with a flat summit for the observatory, basalt cliffs all round (you
- * cannot climb or drop down them: emberWalls), low only at the jetty's landing on the side facing home; from there a
+ * Ember Rock (ISLANDS[2]) in detail: a black cone with a flat summit for the observatory, a rocky shore sloping gently
+ * into the sea all round but for two sheer headlands either side of the cove (you cannot climb or drop down them:
+ * emberWalls), low at the jetty's landing on the side facing home; from there a
  * path zigzags up the cone to the observatory's door (five legs, a gentle grade; the slopes between its legs are too
  * steep to cut across). A creek of lava runs from a vent below the summit down a channel between low levees and falls
  * into the sea; the hot spring sits in its own basin on a terrace. On the far side, walled in by cliffs, a black-sand
  * cove you can only reach by boat; a small terrace beside the path for a firepit. All angles from dA, the direction home.
  */
 export const EMBER = (() => {
-  const I = ISLANDS[2], dA = Math.atan2(-I.z, -I.x), E = { I, dA, plateau: 4.4, T: I.top - 1.8, base: 1.9, cliffS: 0.93, cove: { a: dA + Math.PI, half: 0.42, rIn: 0.52 } };
+  const I = ISLANDS[2], dA = Math.atan2(-I.z, -I.x), E = { I, dA, plateau: 8.8, T: I.top - 1.8, base: 1.9, cliffS: 0.93, shore: 0.55, cove: { a: dA + Math.PI, half: 0.42, rIn: 0.52 } };
   const P = (r, a) => [I.x + Math.cos(dA + a) * r, I.z + Math.sin(dA + a) * r];
   E.top = SEA_Y + E.base + E.T;
   // the landing and the path: waypoints (r m out, angle from dA), y rising evenly along it from the landing to the summit
-  const W = [[0.86 * islandR(I, dA) , 0], [10.0, 0.58], [8.2, -0.52], [6.5, 0.46], [4.9, -0.3], [3.3, 0]].map(([r, a]) => P(r, a));
-  let L = 0; const lens = [0]; for (let i = 1; i < W.length; i++) { L += Math.hypot(W[i][0] - W[i - 1][0], W[i][1] - W[i - 1][1]); lens.push(L); }
-  const y0 = SEA_Y + 1.3; E.path = W.map(([x, z], i) => [x, z, y0 + (E.top - y0) * lens[i] / L]); E.pathLen = L;
+  // (a graded path: along each leg the angle changes evenly and every point sits at the radius where the cone is at the
+  // path's height there, an even rise from the landing to the summit; solved by iteration. E.corners: the switchbacks)
+  const A = [0, 0.58, -0.52, 0.46, -0.3, 0], r0 = 0.86 * islandR(I, dA), rEnd = 6.6, y0 = SEA_Y + 1.3, ang = [], corners = [0];
+  A.forEach((a, i) => { if (!i) { ang.push(a); return; } const n = Math.max(2, Math.ceil(Math.abs(a - A[i - 1]) * 16 / 2.5)); for (let k = 1; k <= n; k++) ang.push(A[i - 1] + (a - A[i - 1]) * k / n); corners.push(ang.length - 1); });
+  let R = ang.map((a, i) => r0 + (rEnd - r0) * i / (ang.length - 1)), L = 0, lens = [];
+  for (let it = 0; it < 12; it++) {
+    const W = ang.map((a, i) => P(R[i], a)); L = 0; lens = [0]; for (let i = 1; i < W.length; i++) { L += Math.hypot(W[i][0] - W[i - 1][0], W[i][1] - W[i - 1][1]); lens.push(L); }
+    R = R.map((r, i) => { if (i === 0 || i === ang.length - 1) return r; const want = y0 + (E.top - y0) * lens[i] / L; let lo = E.plateau - 0.5, hi = 0.86 * islandR(I, dA + ang[i]);
+      for (let k = 0; k < 28; k++) { const m = (lo + hi) / 2, [x, z] = P(m, ang[i]); if (emberLand(E, x, z) > want) lo = m; else hi = m; } return (lo + hi) / 2; });
+  }
+  E.path = ang.map((a, i) => [...P(R[i], a), y0 + (E.top - y0) * lens[i] / L]); E.pathLen = L; E.corners = corners;
   // the lava creek: from the vent down the cone's side (a meander), over the cliff into the sea
-  const pts = []; for (let k = 0; k <= 11; k++) pts.push(new THREE.Vector3(...(([x, z]) => [x, 0, z])(P(4.9 + k * 0.85, 2.2 + 0.2 * Math.sin(k * 1.1) + 0.03 * k))));
+  const pts = []; for (let k = 0; k <= 11; k++) pts.push(new THREE.Vector3(...(([x, z]) => [x, 0, z])(P(9.8 + k * 1.7, 2.2 + 0.2 * Math.sin(k * 1.1) + 0.03 * k))));
   const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal'), n = Math.ceil(curve.getLength() / 0.25);
   E.lava = curve.getSpacedPoints(n).map((p, i) => ({ x: p.x, z: p.z, s: i * curve.getLength() / n }));
-  E.lava.forEach(q => { q.w = 0.32 + 0.38 * Math.min(1, q.s / 6); q.y = emberLand(E, q.x, q.z) - 0.28; });
+  E.lava.forEach(q => { q.w = 0.45 + 0.55 * Math.min(1, q.s / 12); q.y = emberLand(E, q.x, q.z) - 0.28; });
   for (let i = 1; i < E.lava.length; i++) E.lava[i].y = Math.min(E.lava[i].y, E.lava[i - 1].y - 0.02);   // always downhill
   E.vent = E.lava[0];
   let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; E.lava.forEach(q => { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); z0 = Math.min(z0, q.z); z1 = Math.max(z1, q.z); }); E.lavaBox = [x0 - 2, x1 + 2, z0 - 2, z1 + 2];
   // the hot spring on its terrace
-  { const [x, z] = P(6.3, -1.95); E.spring = { x, z, r: 1.5, y: emberLand(E, x, z) - 0.12 }; I.spring = E.spring; }
-  // a level terrace for a firepit, cut beyond the third switchback's corner at the path's height (world/islandLife.js)
-  { const [x, z] = P(6.0, 0.94); E.pit = { x, z, y: E.path[3][2], r: 2.4 }; }
+  { const [x, z] = P(12.6, -1.95); E.spring = { x, z, r: 2.1, y: emberLand(E, x, z) - 0.12 }; I.spring = E.spring; }
+  // a level terrace beyond the first switchback's corner at the path's height: a firepit on it (world/islandLife.js), the
+  // lava tube's mouth at its back (LAVA_TUBE)
+  { const [x, z] = P(20.9, 0.74), [fx, fz] = P(21.8, 0.74); E.pit = { x, z, y: E.path[E.corners[1]][2], r: 3.4, fire: { x: fx, z: fz } }; }   // (the fire on its outer side; the lava tube opens at its back)
   return E;
 })();
+/** Ember Rock's ground before the path, the lava and the terraces are cut in (for checks). */
+export function emberLandAt(x, z) { return emberLand(EMBER, x, z); }
 function angD(a, b) { return Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))); }
 /** Ember Rock without its carving: the cone on its plateau, the coast (low at the landing), the cliffs, the cove. */
 function emberLand(E, x, z) {
   const I = E.I, dx = x - I.x, dz = z - I.z, r = Math.hypot(dx, dz), a = Math.atan2(dz, dx), R = islandR(I, a), s = r / R;
-  const land = angD(a, E.dA) < 0.5 ? smooth(0.42, 0.24, angD(a, E.dA)) * smooth(0.55, 0.84, s) : 0;
+  const land = angD(a, E.dA) < 0.5 ? smooth(0.42, 0.24, angD(a, E.dA)) * smooth(0.74, 0.88, s) : 0;
   const base = SEA_Y + E.base + 0.45 * fbm2(a * 2.2 + 3, 1.7, 2) * smooth(0.7, 0.9, s), foot = base + (SEA_Y + 1.3 - base) * land;
   const cone = r < E.plateau ? E.T : E.T * Math.pow(Math.max(0, 1 - (r - E.plateau) / (0.88 * R - E.plateau)), 1.2);
   let h = foot + cone * (1 - 0.35 * land * smooth(0.6, 0.85, s)) + (r > E.plateau ? 0.28 * fbm2(x * 0.45, z * 0.45, 3) * smooth(E.plateau, E.plateau + 1.5, r) : 0);
   const cs = E.cliffS + 0.02 * Math.sin(a * 5 + 1);
-  if (s > cs) h = Math.max(h - (s - cs) * R * 5, SEA_Y - 1.7 - (s - cs) * R * 0.35);
+  // the shore: a rocky slope down into the sea (E.shore: its steepness), sheer only at the headlands flanking the cove
+  const head = smooth(0.2, 0.05, angD(a, E.cove.a) - E.cove.half - 0.12), steep = E.shore + (5 - E.shore) * head;
+  if (s > cs) h = Math.max(h - (s - cs) * R * steep, SEA_Y - 1.7 - (s - cs) * R * 0.35 * (1 - head) - (s - cs) * R * 1.5 * head);
   // the cove: a pocket of black sand behind the cliffs, open to the sea
   const C = E.cove, k = smooth(C.half, C.half - 0.14, angD(a, C.a)) * smooth(C.rIn * R - 0.35, C.rIn * R + 0.35, r);
   if (k > 0) h = h + (SEA_Y + 0.7 - Math.pow(Math.max(0, s - C.rIn) / (1 - C.rIn), 1.6) * 2.6 + 0.08 * fbm2(x * 0.8, z * 0.8, 2) - h) * k;
@@ -248,6 +262,8 @@ export function emberWalls(p, prev, feet) {
   const d = Math.hypot(p.x - prev.x, p.z - prev.z); if (d < 1e-5) return;
   const g = q => Math.max(islandH(I, q.x, q.z), ...I.docks.map(k => k.deckAt(q.x, q.z)));
   if (feet > g(prev) + 0.6) return;   // (in the observatory, on its steps)
+  if (I.docks.some(k => k.deckAt(prev.x, prev.z) > -Infinity || k.deckAt(p.x, p.z) > -Infinity)) return;   // (stepping on or off the jetty)
+  if (caveGround(prev.x, prev.z, feet) !== null || caveGround(p.x, p.z, feet) !== null) return;   // (in the lava tube: its own walls keep you)
   const g0 = g(prev), g1 = g(p);
   if (g0 > SEA_Y - 0.2 && Math.abs(g1 - g0) / d > 1.4 && g1 > SEA_Y - 0.6) back();
   else if (g0 > SEA_Y + 0.8 && g1 < SEA_Y + 0.2) back();   // off a cliff into the sea
@@ -287,6 +303,23 @@ ISLANDS.forEach(I => { I.docks = I.docks.map((a, k) => makeDock(I, a === null ? 
 /** The island (of the four) whose reach holds (x, z), or null. */
 export function islandAt(x, z) { for (const I of ISLANDS) if (Math.abs(x - I.x) < I.reach && Math.abs(z - I.z) < I.reach) return I; return null; }
 export const ISLAND_DOCKS = ISLANDS.flatMap(I => I.docks);
+/**
+ * Where a boat can tie up at a jetty (app/boating.js): alongside either side of its head, or across its end. Each berth:
+ * the boat's centre (x, z) and heading, the two bollards its lines go to [aft, fore], and where you step up onto the deck
+ * (land). The jetties' meshes put a bollard at each (assets/water/jetty.js, lighthouse.js, islands/outerIslands.js).
+ */
+export function dockBerths(d) {
+  if (d._berths) return d._berths;
+  const L = LIGHTHOUSE.jetty, home = d === JETTY, lh = d === L;
+  const o = home ? [JETTY.x0, JETTY.z] : lh ? [L.x0, L.z] : [d.rx, d.rz], ang = home ? 0 : lh ? Math.PI : d.ang;
+  const end = home ? JETTY.x1 - JETTY.x0 : lh ? L.x0 - L.x1 : d.len, hw = d.head.halfW, c = Math.cos(ang), s = Math.sin(ang);
+  const W = (u, v) => [o[0] + c * u - s * v, o[1] + s * u + c * v];
+  const side = sv => { const [x, z] = W(end - 1.4, sv * (hw + 1.15)); return { x, z, heading: ang, bollards: [W(end - 2.5, sv * (hw - 0.13)), W(end - 0.3, sv * (hw - 0.13))], land: W(end - 1.1, sv * (hw - 0.45)) }; };
+  const [ex, ez] = W(end + 1.15, 0);
+  d._berths = [side(-1), side(1), { x: ex, z: ez, heading: ang + Math.PI / 2, bollards: [W(end - 0.13, -1.0), W(end - 0.13, 1.0)], land: W(end - 0.45, 0), end: true }];
+  if (home) { d._berths[1].bollards[1] = W(end - 1.65, hw - 0.13); d._berths[2].bollards[1] = W(end - 0.13, 0.55); }   // (clear of the lamp post and the crate on the home jetty's head)
+  return d._berths;
+}
 
 /** The rock's height (its plateau, cliffs and cleft) at (x, z); the sea floor well away from it. */
 export function lighthouseH(x, z) {
@@ -806,6 +839,13 @@ export function treehouseRails(p, prev, radius, feet) {
  * caveSDF is the air (< 0) for the mesh; caveFloor where you walk; caveWalls keeps you inside and lets you in and out at
  * the ramps' top ends only; underground() says you are below the ground (the sea, rain and the sky's sounds are away).
  */
+function caveSystem(C) {   // arc lengths along each tube; unset floors by length between the set ones
+  for (const t of C.tubes) {
+    let a = 0; t.pts.forEach((p, i) => { if (i) a += Math.hypot(p[0] - t.pts[i - 1][0], p[1] - t.pts[i - 1][1]); p[3] = a; }); t.len = a;
+    t.pts.forEach((p, i) => { if (p[2] !== null) return; let j = i - 1, k = i + 1; while (t.pts[k][2] === null) k++; const u = (p[3] - t.pts[j][3]) / (t.pts[k][3] - t.pts[j][3]); p[2] = t.pts[j][2] + (t.pts[k][2] - t.pts[j][2]) * u; });
+  }
+  return C;
+}
 export const CAVERNS = (() => {
   const fA = -4.0, fB = -3.6, topA = [-4.5, 14.0], topB = [-16.8, 4.4];
   const halls = [
@@ -817,12 +857,24 @@ export const CAVERNS = (() => {
     { name: 'rampA', w: 1.05, h: 2.9, stairs: 0.2, pts: [[topA[0], topA[1], H(...topA) - 0.02], [-4.2, 18.4, null], [-5.6, 21.6, fA]] },
     { name: 'rampB', w: 1.05, h: 2.9, stairs: 0.2, pts: [[-20.8, 11.2, fB], [-18.7, 8.2, null], [topB[0], topB[1], H(...topB) - 0.02]] },
   ];
-  for (const t of tubes) {   // arc lengths; unset floors by length between the set ones
-    let a = 0; t.pts.forEach((p, i) => { if (i) a += Math.hypot(p[0] - t.pts[i - 1][0], p[1] - t.pts[i - 1][1]); p[3] = a; }); t.len = a;
-    t.pts.forEach((p, i) => { if (p[2] !== null) return; let j = i - 1, k = i + 1; while (t.pts[k][2] === null) k++; const u = (p[3] - t.pts[j][3]) / (t.pts[k][3] - t.pts[j][3]); p[2] = t.pts[j][2] + (t.pts[k][2] - t.pts[j][2]) * u; });
-  }
-  return { halls, tubes, mouths: [{ tube: 'rampA', x: topA[0], z: topA[1] }, { tube: 'rampB', x: topB[0], z: topB[1] }], box: { x0: -28, x1: 0.5, z0: 2.5, z1: 28.5, y0: fA - 0.8 } };
+  return caveSystem({ name: 'caverns', halls, tubes, mouths: [{ tube: 'rampA', x: topA[0], z: topA[1] }, { tube: 'rampB', x: topB[0], z: topB[1] }], box: { x0: -28, x1: 0.5, z0: 2.5, z1: 28.5, y0: fA - 0.8 } });
 })();
+/**
+ * Ember Rock's lava tube (meshes: assets/rocks/caverns.js, as the caverns): its mouth opens at the back of the firepit's
+ * terrace beyond the first switchback; the tube steps steeply down into the cone's side (no leg of the path over it),
+ * bends a little and comes down 3.4 m into a chamber where a pond of lava glows (its surface: pool.lava; you cannot walk into it). Picked offline for the
+ * rock over it (at least 3 m). Built on the path's points, so it follows EMBER.
+ */
+export const LAVA_TUBE = (() => {
+  const E = EMBER, I = E.I, Q = E.pit, r = Math.hypot(Q.x - I.x, Q.z - I.z), ix = (I.x - Q.x) / r, iz = (I.z - Q.z) / r, sx = iz, sz = -ix;
+  const M = [Q.x + ix * 2.9, Q.z + iz * 2.9], at = (a, b) => [M[0] + ix * a + sx * b, M[1] + iz * a + sz * b], y = H(M[0], M[1]) - 0.02, floor = y - 3.4, C = at(9.5, 1.8);
+  const pts = [[M[0], M[1], y], [...at(2.4, 0), y - 1.4], [...at(4.5, 0.6), null], [...at(6.5, 1.5), floor]];   // (steeply down at first, under the cone's side)
+  const halls = [{ name: 'magma', x: C[0], z: C[1], rx: 4.4, rz: 3.6, floor, h: 4.4, pool: { x: C[0] + ix * 1.0 - sx * 0.6, z: C[1] + iz * 1.0 - sz * 0.6, rx: 1.9, rz: 1.4, y: floor - 0.25, depth: 0.8, lava: true } }];
+  const xs = [...pts.map(p => p[0]), C[0]], zs = [...pts.map(p => p[1]), C[1]];
+  return caveSystem({ name: 'lavaTube', halls, tubes: [{ name: 'lavaRamp', w: 1.1, h: 2.9, stairs: 0.2, pts }], mouths: [{ tube: 'lavaRamp', x: M[0], z: M[1] }], box: { x0: Math.min(...xs) - 6, x1: Math.max(...xs) + 6, z0: Math.min(...zs) - 6, z1: Math.max(...zs) + 6, y0: floor - 1.2 }, basalt: true });
+})();
+/** Every cave system: the caverns under the home island's south slope, Ember Rock's lava tube. */
+export const CAVE_SYSTEMS = [CAVERNS, LAVA_TUBE];
 /** The old name for the story's cave (its mouth: app/treasure.js draws it on the map, the star is over it). */
 export const CAVE = { x: CAVERNS.mouths[0].x, z: CAVERNS.mouths[0].z };
 /** A tube's nearest point to (x, z): { d lateral distance, s arc length, floor there (stepped for stairs) }. */
@@ -836,18 +888,19 @@ function tubeAt(t, x, z) {
   if (t.stairs) { const hi = Math.max(t.pts[0][2], t.pts[t.pts.length - 1][2]); best.floor = hi - Math.ceil((hi - best.floor) / t.stairs - 1e-6) * t.stairs; best.smooth = best.floor; }
   return best;
 }
-const inBox = (x, z) => { const B = CAVERNS.box; return x > B.x0 && x < B.x1 && z > B.z0 && z < B.z1; };
+const inBoxOf = (C, x, z) => { const B = C.box; return x > B.x0 && x < B.x1 && z > B.z0 && z < B.z1; };
+const systemAt = (x, z) => { for (const C of CAVE_SYSTEMS) if (inBoxOf(C, x, z)) return C; return null; };
 /** Signed distance (roughly, m) to the caves' air at (x, y, z): < 0 inside. Without the rock's noise (the mesh adds it). */
 export function caveSDF(x, y, z) {
-  if (!inBox(x, z)) return 5;
+  const C = systemAt(x, z); if (!C) return 5;
   let d = 20;
-  for (const c of CAVERNS.halls) {
+  for (const c of C.halls) {
     const q = Math.hypot((x - c.x) / c.rx, (z - c.z) / c.rz), lat = (q - 1) * Math.min(c.rx, c.rz);
     const pq = c.pool ? Math.hypot((x - c.pool.x) / c.pool.rx, (z - c.pool.z) / c.pool.rz) : 9;   // the pool's basin, deep enough to hold its mirror image
-    const fy = c.floor + 0.12 * Math.sin(x * 1.3) * Math.sin(z * 1.1) - 2.0 * (1 - smooth(0.7, 1.15, pq)), ceil = c.floor + c.h * Math.pow(Math.max(0, 1 - q * q), 0.45);
+    const fy = c.floor + 0.12 * Math.sin(x * 1.3) * Math.sin(z * 1.1) - (c.pool && c.pool.depth || 2.0) * (1 - smooth(0.7, 1.15, pq)), ceil = c.floor + c.h * Math.pow(Math.max(0, 1 - q * q), 0.45);
     d = smin(d, Math.max(lat, fy - y, y - ceil), 0.9);
   }
-  for (const t of CAVERNS.tubes) {
+  for (const t of C.tubes) {
     const a = tubeAt(t, x, z); if (a.d > t.w + 1.5) continue;
     const open = t.stairs && a.floor + t.h > H(x, z) - 0.3, ceil = open ? 50 : a.floor + t.h * Math.sqrt(Math.max(0, 1 - (a.d / t.w) ** 2));   // (open to the sky: walls only)
     d = smin(d, Math.max(a.d - t.w, a.floor - y, y - ceil), 0.6);
@@ -857,28 +910,28 @@ export function caveSDF(x, y, z) {
 function smin(a, b, k) { const h = clamp(0.5 + 0.5 * (b - a) / k, 0, 1); return b + (a - b) * h - k * h * (1 - h); }
 /** Where you walk in the caves at (x, z), or null outside them (the walkable part: clear of the walls and the pool). */
 export function caveFloor(x, z) {
-  if (!inBox(x, z)) return null;
+  const C = systemAt(x, z); if (!C) return null;
   let f = null;
-  for (const c of CAVERNS.halls) {
+  for (const c of C.halls) {
     if (Math.hypot((x - c.x) / c.rx, (z - c.z) / c.rz) > 0.84) continue;
     if (c.pool && Math.hypot((x - c.pool.x) / c.pool.rx, (z - c.pool.z) / c.pool.rz) < 1.08) return null;
     const fy = c.floor + 0.12 * Math.sin(x * 1.3) * Math.sin(z * 1.1); f = f === null ? fy : Math.max(f, fy);
   }
-  for (const t of CAVERNS.tubes) { const a = tubeAt(t, x, z); if (a.d < t.w - 0.4 && !(t.stairs && a.end && a.floor > H(x, z) - 0.6)) f = f === null ? a.floor : Math.max(f, a.floor); }   // (not past a ramp's top step: that is the meadow)
+  for (const t of C.tubes) { const a = tubeAt(t, x, z); if (a.d < t.w - 0.4 && !(t.stairs && a.end && a.floor > H(x, z) - 0.6)) f = f === null ? a.floor : Math.max(f, a.floor); }   // (not past a ramp's top step: that is the meadow)
   return f;
 }
 /** Distance to where the caves open to the sky (the ramps' trenches; < 0 inside): no grass, rocks or sticks there. */
 export function caveDist(x, z) {
-  if (!inBox(x, z)) return 9;
+  const C = systemAt(x, z); if (!C) return 9;
   let d = Infinity;
-  for (const t of CAVERNS.tubes) if (t.stairs) { const a = tubeAt(t, x, z); if (a.floor + t.h > H(x, z) - 0.35) d = Math.min(d, a.d - t.w - 0.2); }   // (where the trench is open)
+  for (const t of C.tubes) if (t.stairs) { const a = tubeAt(t, x, z); if (a.floor + t.h > H(x, z) - 0.35) d = Math.min(d, a.d - t.w - 0.2); }   // (where the trench is open)
   return d;
 }
 /** Whether the terrain cell (x0, z0) .. (x0 + st, z0 + st) lies wholly over an open trench (the terrain mesh leaves it out;
  *  cells at the edge stay, a lip of turf over the trench's wall). */
 export function caveOpenCell(x0, z0, st) {
-  if (!inBox(x0, z0)) return false;
-  for (const t of CAVERNS.tubes) if (t.stairs) {
+  const C = systemAt(x0, z0); if (!C) return false;
+  for (const t of C.tubes) if (t.stairs) {
     let all = true; for (const [x, z] of [[x0, z0], [x0 + st, z0], [x0, z0 + st], [x0 + st, z0 + st]]) { const a = tubeAt(t, x, z); if (!(a.d < t.w - 0.03 && !a.end && a.floor + t.h > H(x, z) - 0.3)) { all = false; break; } }
     if (all) return true;
   }
@@ -886,8 +939,8 @@ export function caveOpenCell(x0, z0, st) {
 }
 /** Whether a trench is open to the sky over (x, z). */
 export function caveOpen(x, z) {
-  if (!inBox(x, z)) return false;
-  for (const t of CAVERNS.tubes) if (t.stairs) { const a = tubeAt(t, x, z); if (a.d < t.w + 0.2 && !a.end && a.floor + t.h > H(x, z) - 0.3) return true; }
+  const C = systemAt(x, z); if (!C) return false;
+  for (const t of C.tubes) if (t.stairs) { const a = tubeAt(t, x, z); if (a.d < t.w + 0.2 && !a.end && a.floor + t.h > H(x, z) - 0.3) return true; }
   return false;
 }
 /** Below the ground in the caves (feet at `feet`). */
@@ -899,7 +952,7 @@ export function caveGround(x, z, feet) { const f = caveFloor(x, z); if (f === nu
  * ramps' top ends only (where the steps meet the ground), and off the open trenches' edges from outside.
  */
 export function caveWalls(p, prev, feet) {
-  if (!inBox(p.x, p.z) && !inBox(prev.x, prev.z)) return;
+  if (!systemAt(p.x, p.z) && !systemAt(prev.x, prev.z)) return;
   const was = caveGround(prev.x, prev.z, feet) !== null && Math.abs(caveFloor(prev.x, prev.z) - feet) < 0.6;
   const f = caveFloor(p.x, p.z), inNow = f !== null && (feet < H(p.x, p.z) - 0.25 || caveOpen(p.x, p.z));
   if (was) { if (f === null ? H(p.x, p.z) - feet > 0.35 || feet - H(p.x, p.z) > 0.6 : Math.abs(f - feet) > 0.5) { p.x = prev.x; p.z = prev.z; } return; }
@@ -978,14 +1031,19 @@ export const KEEPSAKES = (() => {
 export function keepsakeDist(x, z) { let d = Infinity; for (const k of KEEPSAKES) d = Math.min(d, Math.hypot(x - k.x, z - k.z)); return d; }
 
 /**
- * Rough water round the lighthouse rock: 1 within ROUGH.full m of it, fading to 0 at ROUGH.edge (the sea patch in
+ * Rough water round the lighthouse rock and Ember Rock: 1 within a spot's `full` m of it, fading to 0 at `edge` (a sea patch in
  * assets/water/pond.js carries the swell there; app/boating.js rides it and feels a stronger wind). SWELL: the three
  * long waves rolling in from the open sea to the east, as [direction x, direction z, wavelength m, share]; swellAt
  * gives the height and slope, the same sum as the patch's vertex shader.
  */
-export const ROUGH = { full: 16, edge: 44, amp: 0.42, wind: 0.6 };
+export const ROUGH = {
+  amp: 0.42, wind: 0.6,
+  // the patches of rough water: round the lighthouse rock, and round Ember Rock (surf: a ring round the rock's foot, or
+  // where the water is shallow)
+  spots: [{ x: LIGHTHOUSE.x, z: LIGHTHOUSE.z, full: 16, edge: 44, surf: [9.0, 11.2, 11.8, 15.0] }, { x: ISLANDS[2].x, z: ISLANDS[2].z, full: ISLANDS[2].r + 8, edge: ISLANDS[2].r + 32, surf: null }],
+};
 export const SWELL = [[-0.97, 0.24, 11, 0.55], [-0.86, -0.51, 7.2, 0.3], [-0.6, 0.8, 4.6, 0.15]];
-export function roughAt(x, z) { return 1 - smooth(ROUGH.full, ROUGH.edge, Math.hypot(x - LIGHTHOUSE.x, z - LIGHTHOUSE.z)); }
+export function roughAt(x, z) { let k = 0; for (const S of ROUGH.spots) k = Math.max(k, 1 - smooth(S.full, S.edge, Math.hypot(x - S.x, z - S.z))); return k; }
 /** The swell's height and slope { h, dx, dz } at (x, z), time t (s), wind setting w (0 .. 1.6). */
 export function swellAt(x, z, t, w) {
   const A = ROUGH.amp * roughAt(x, z) * (0.7 + 0.3 * Math.min(1, w)); let h = 0, dx = 0, dz = 0;

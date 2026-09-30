@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { U } from '../../core/uniforms.js';
 import { WATER_Y, LAKE, H, lakeD, streamDist, LIGHTHOUSE, ROUGH, SWELL } from '../../world/layout.js';
 
-const PATCH_R = 46;   // m round the lighthouse rock: the rough sea patch (the open sea is cut away inside it)
 
 /**
  * Pond surface: MeshStandardMaterial with procedural wave normals, depth tint, shoreline foam. In winter (U.uWinter) it
@@ -70,11 +69,14 @@ export function createPond(ctx) {
  * (height in .r): sandy turquoise in the shallows, dark teal offshore (the shore foam comes from waterLife.js). Distance fog
  * fades it into the sky's horizon colour.
  */
-export function createOcean(ctx, ground, seaY) {
+export function createOcean(ctx, ground, seaY, islandGrounds = []) {
   const { scene } = ctx;
   const g = new THREE.PlaneGeometry(480, 480, 1, 1); g.rotateX(-Math.PI / 2);   // follows the camera; past the far plane (CONFIG.camera.far) everywhere
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.06, metalness: 0, envMapIntensity: 1.1 });
-  /** The sea's shader (both the open sea and the rough patch round the lighthouse; patch: its swell and surf). */
+  // the rough patches (ROUGH.spots in world/layout.js): each a fine polar grid out to a little past its edge; the open sea
+  // is cut away inside them
+  const spots = ROUGH.spots.map(S => ({ ...S, R: S.edge + 2, G: S.surf ? null : islandGrounds.find(q => Math.abs(q.region.x - S.x) < 1e-3 && Math.abs(q.region.z - S.z) < 1e-3) }));
+  /** The sea's shader (the open sea, or a rough patch: its swell and surf). */
   const seaCompile = (s, patch) => {
     s.uniforms.uTime = U.uTime; s.uniforms.uWind = U.uWind; s.uniforms.uWinter = U.uWinter; s.uniforms.uGround = { value: ground.tex };
     s.uniforms.uGroundST = { value: new THREE.Vector2(ground.scale, ground.offset) }; s.uniforms.uSea = U.uSea;
@@ -102,12 +104,13 @@ export function createOcean(ctx, ground, seaY) {
         vec2 wg = seaGrad(vWP.xz, uTime);
         normal = normalize((viewMatrix * vec4(normalize(vec3(-wg.x, 1.0, -wg.y)), 0.0)).xyz);`);
   
-    s.uniforms.uLH = { value: new THREE.Vector2(LIGHTHOUSE.x, LIGHTHOUSE.z) };
-    s.fragmentShader = 'uniform vec2 uLH;\n' + s.fragmentShader;
-    if (!patch) { s.fragmentShader = s.fragmentShader.replace('#include <color_fragment>', 'if (length(vWP.xz - uLH) < ' + (PATCH_R - 0.15).toFixed(2) + ') discard;\n#include <color_fragment>'); return; }
+    if (!patch) { s.fragmentShader = s.fragmentShader.replace('#include <color_fragment>', spots.map(S => `if (length(vWP.xz - vec2(${S.x.toFixed(2)}, ${S.z.toFixed(2)})) < ${(S.R - 0.15).toFixed(2)}) discard;`).join('\n') + '\n#include <color_fragment>'); return; }
+    const S = patch; s.uniforms.uLH = { value: new THREE.Vector2(S.x, S.z) };
+    if (S.G) { s.uniforms.uIG = { value: S.G.tex }; s.uniforms.uIGST = { value: S.G.st }; }
+    s.fragmentShader = 'uniform vec2 uLH;\n' + (S.G ? 'uniform sampler2D uIG; uniform vec3 uIGST;\n' : '') + s.fragmentShader;
     // the rough patch: the swell moves the vertices (layout.js swellAt, the same sum), steeper ripples, whitecaps on the
     // crests and surf breaking round the rock's foot
-    s.uniforms.uRough = { value: new THREE.Vector4(ROUGH.full, ROUGH.edge, ROUGH.amp, 0) };
+    s.uniforms.uRough = { value: new THREE.Vector4(S.full, S.edge, ROUGH.amp, 0) };
     s.uniforms.uSwell = { value: SWELL.map(([x, z, L, sh]) => new THREE.Vector4(x, z, Math.PI * 2 / L, sh)) };
     s.vertexShader = 'uniform float uTime; uniform float uWind; uniform vec2 uLH; uniform vec4 uRough; uniform vec4 uSwell[3]; varying vec3 vSw; varying float vRough;\n' + s.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
       vec3 wp0 = (modelMatrix * vec4(position, 1.0)).xyz;
@@ -126,7 +129,8 @@ export function createOcean(ctx, ground, seaY) {
         { vec2 fp = vWP.xz;
           float n1 = roughNoise(fp * vec2(2.3, 0.9) + vec2(uTime * 0.35, -uTime * 0.2)) * 0.65 + roughNoise(fp * 5.1 - uTime * 0.5) * 0.35;   // streaky, drifting
           float cap = smoothstep(0.62, 0.98, vSw.x / max(0.05, uRough.z * 0.8)) * vRough * smoothstep(0.45, 0.8, n1);     // whitecaps on the crests
-          float rr = length(fp - uLH), surf = (1.0 - smoothstep(11.8, 15.0, rr)) * smoothstep(9.0, 11.2, rr);            // round the rock's foot
+          float rr = length(fp - uLH), surf = ${S.surf ? `(1.0 - smoothstep(${S.surf[2].toFixed(1)}, ${S.surf[3].toFixed(1)}, rr)) * smoothstep(${S.surf[0].toFixed(1)}, ${S.surf[1].toFixed(1)}, rr);            // round the rock's foot`
+            : S.G ? `smoothstep(-0.1, 0.15, uSea - texture2D(uIG, (fp + uIGST.yz) * uIGST.x).r) * (1.0 - smoothstep(0.3, 2.2, uSea - texture2D(uIG, (fp + uIGST.yz) * uIGST.x).r));   // where it runs shallow` : '0.0;'}
           float pulse = 0.5 + 0.5 * sin(uTime * 1.3 - rr * 1.7 + 3.0 * sin(atan(vWP.z - uLH.y, vWP.x - uLH.x) * 3.0));
           float f = clamp(cap + surf * smoothstep(0.35, 0.75, n1 * (0.6 + 0.6 * pulse)), 0.0, 1.0);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.85, 0.9, 0.9), f * 0.8); }
@@ -134,13 +138,15 @@ export function createOcean(ctx, ground, seaY) {
   };
   m.onBeforeCompile = s => seaCompile(s, false);
   const sea = new THREE.Mesh(g, m); sea.position.y = seaY; sea.receiveShadow = true; sea.frustumCulled = false; scene.add(sea);
-  // the rough patch round the lighthouse rock: a fine polar grid (finer near the rock) that the swell moves; the open
-  // sea is cut away under it
-  const pg = new THREE.BufferGeometry(), pp = [], idx = [], NR = 40, NA = 112;
-  for (let i = 0; i <= NR; i++) { const r = PATCH_R * Math.pow(i / NR, 1.35); for (let j = 0; j < NA; j++) { const a = j / NA * Math.PI * 2; pp.push(Math.cos(a) * r, 0, Math.sin(a) * r); } }
-  for (let i = 0; i < NR; i++) for (let j = 0; j < NA; j++) { const a = i * NA + j, b = i * NA + (j + 1) % NA, c = a + NA, d = b + NA; idx.push(a, b, c, b, d, c); }
-  pg.setAttribute('position', new THREE.Float32BufferAttribute(pp, 3)); pg.setAttribute('normal', new THREE.Float32BufferAttribute(pp.map((v, k) => (k % 3 === 1 ? 1 : 0)), 3)); pg.setIndex(idx);
-  const pm = m.clone(); pm.onBeforeCompile = s => seaCompile(s, true); pm.customProgramCacheKey = () => 'seaPatch';
-  const patch = new THREE.Mesh(pg, pm); patch.position.set(LIGHTHOUSE.x, seaY, LIGHTHOUSE.z); patch.receiveShadow = true; patch.frustumCulled = false; scene.add(patch);
-  return { sea, patch, update(cam) { sea.position.set(cam.x, U.uSea.value, cam.z); patch.position.y = U.uSea.value; } };   // (the tide: world/tide.js)
+  // the rough patches: a fine polar grid each (finer near the middle) that the swell moves
+  const patches = spots.map((S, k) => {
+    const pg = new THREE.BufferGeometry(), pp = [], idx = [], NR = k ? 52 : 40, NA = k ? 176 : 112;
+    for (let i = 0; i <= NR; i++) { const r = S.R * Math.pow(i / NR, 1.35); for (let j = 0; j < NA; j++) { const a = j / NA * Math.PI * 2; pp.push(Math.cos(a) * r, 0, Math.sin(a) * r); } }
+    for (let i = 0; i < NR; i++) for (let j = 0; j < NA; j++) { const a = i * NA + j, b = i * NA + (j + 1) % NA, c = a + NA, d = b + NA; idx.push(a, b, c, b, d, c); }
+    pg.setAttribute('position', new THREE.Float32BufferAttribute(pp, 3)); pg.setAttribute('normal', new THREE.Float32BufferAttribute(pp.map((v, q) => (q % 3 === 1 ? 1 : 0)), 3)); pg.setIndex(idx);
+    const pm = m.clone(); pm.onBeforeCompile = s => seaCompile(s, S); pm.customProgramCacheKey = () => 'seaPatch' + k;
+    const mesh = new THREE.Mesh(pg, pm); mesh.position.set(S.x, seaY, S.z); mesh.receiveShadow = true; mesh.frustumCulled = false; scene.add(mesh); return mesh;
+  });
+  const patch = patches[0];
+  return { sea, patch, patches, update(cam) { sea.position.set(cam.x, U.uSea.value, cam.z); for (const q of patches) q.position.y = U.uSea.value; } };   // (the tide: world/tide.js)
 }

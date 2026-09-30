@@ -238,9 +238,10 @@ export function createRoseBush(ctx) {
   to the wheel) or from the shore when it has run aground (you jump in). The left joystick or W / S sets the speed, and left / right turns the wheel, which only turns the boat while
   it moves and springs back when released. The top speed is 2 m/s in a calm (reached in 4 s) plus what the wind and the
   angle to it add, up to 4.5 m/s; the boom and mainsail swing out away from the wind and across in a turn, and the boat heels. Beyond
-  `maxOffshore` from the shore the boat turns itself back. Near the
-  berth the button docks it (it brings itself in and ties up), then leaves it onto the jetty; elsewhere you can leave
-  only where land is within a jump.
+  `maxOffshore` from the shore the boat turns itself back. Near a berth the button docks it (it brings itself in and
+  ties up), then leaves it onto the jetty; every jetty has three berths (either side of its head, and across its end:
+  `dockBerths` in `world/layout.js`), each with its bollards, and the boat takes the nearest, bow whichever way it
+  already points. Elsewhere you can leave only where land is within a jump.
 - **Wind** (`world/wind.js`, `CONFIG.wind`): the wind holds a random strength (leaning strong) and direction for 30-60
   in-game minutes, then shifts to the next over 10 minutes. Grass, trees, clouds and the boat all follow it. The panel's
   Wind slider follows it too, and dragging it overrides the strength; the wind carries on changing from there.
@@ -365,9 +366,10 @@ export function createRoseBush(ctx) {
   down. The deck is walkable (`treehouseDeckY`) and its railings and the hut's walls keep you on it
   (`treehouseRails`); through the gap you can step off and drop to the ground. Three merged meshes; snow on the roof
   and deck in winter.
-- **Caverns** (`CAVERNS`, `caveSDF`, `caveFloor`, `caveWalls`, `underground` in `world/layout.js`;
-  `assets/rocks/caverns.js`): limestone caves under the south slope, after Luray Caverns. Two entrances are cut into the
-  meadow flush with the ground (the terrain mesh is opened over them): stone steps lead ~5 m down into the great hall
+- **Caverns** (`CAVERNS`, `caveSDF`, `caveFloor`, `caveWalls`, `underground` in `world/layout.js`, which handle every
+  cave system in `CAVE_SYSTEMS`: these and Ember Rock's lava tube; `assets/rocks/caverns.js`): limestone caves under the
+  south slope, after Luray Caverns. Two entrances are cut into the meadow (the terrain mesh is opened over them), their
+  edges hidden by mossy boulders half sunk along the rims, bigger stones framing where the steps go under, and ferns: stone steps lead ~5 m down into the great hall
   (domed, cream walls with rusty flowstone streaks, stalactites and soda straws, stalagmites, columns, banded
   draperies, flowstone, and a still pool that mirrors the stalactites over it, like Dream Lake), a winding tunnel lit by
   glowing crystals, and the crystal chamber (a great cluster, the old ochre paintings, the geode keepsake); bats circle
@@ -510,23 +512,30 @@ export function createRoseBush(ctx) {
   the home island, each its own place with its own jetties (the dock button works at any; the boat's range is 110 m out):
   **Millholm** (north): a meadow hill, a whitewashed stone windmill whose sails turn with the wind, birches, dry-stone
   walls, sheep, wildflowers. **Palm Cay** (west, small): white sand in turquoise shallows, palms, a thatched hut on stilts
-  with tiki torches, a hammock, shells and starfish; two jetties. **Ember Rock** (south): a black volcanic cone, glowing
-  cracks at night, steam vents, a hot spring, dead snags; an observatory on the top whose dome turns slowly.
+  with tiki torches, a hammock, shells and starfish; two jetties. **Ember Rock** (south, 26 m across the island's radius,
+  16 m high): a black volcanic cone, glowing cracks at night, steam vents, a hot spring, dead snags, rough water round
+  it; an observatory on the top.
   **Heron Marsh** (north-west, the largest): low wetland with still pools, reeds and cattails, willows, herons; a
   fisherman's lodge on stilts with a boardwalk and net racks; two jetties. Each island's jetties and building are one
   mesh (the sails and the dome apart), its ground another; windows, shallows and still water are shared meshes; the
   sheep, herons and reeds show within 55 m.
-- **Ember Rock in detail** (`EMBER`, `emberH`, `emberWalls` in `world/layout.js`): a black cone with a flat summit for the
-  observatory, ringed by basalt cliffs you cannot climb or drop down (no step steeper than 1.4), low only at the jetty's
-  landing. From the landing a path zigzags up the cone in five legs at a 25% grade to the observatory's door (the slopes
-  between the legs are too steep to cut across). A lava creek runs from a vent below the summit down a channel between
+- **Ember Rock in detail** (`EMBER`, `emberH`, `emberWalls` in `world/layout.js`): a black cone with a flat summit (8.8 m
+  across the radius) for the observatory, a rocky shore sloping gently into the sea all round but for two sheer headlands
+  either side of the cove (no step steeper than 1.4). From the jetty's landing a graded path zigzags up the cone in five
+  legs at an even 27% to the observatory's door: along each leg every point sits where the cone is at the path's height
+  (solved at load), so it follows the ground instead of cutting into it. Beyond the first bend a terrace holds a firepit
+  and, at its back, the mouth of a **lava tube** (`LAVA_TUBE`): steps lead 3.4 m down through basalt into a chamber where
+  a pond of lava glows under a drifting, cracking crust and lights the walls orange (you cannot walk into it). Its mouth
+  is framed with basalt boulders (as the home caverns' are with mossy limestone and ferns). A lava creek runs from a vent below the summit down a channel between
   low levees and falls over the cliff into the sea (a flowing shader: molten orange under a drifting crust, brighter at
   night; steam at the vent and where it meets the sea); you cannot walk into it. The hot spring sits in its own basin on
   a terrace. On the far side, walled in by cliffs, a black-sand cove with a washed-up log and obsidian pebbles, reached
-  only by boat (sail in and step ashore). Basalt boulders line the cliff tops and sea stacks stand off them.
-- **The telescope** (`app/telescope.js`, the sky in `app/starCatalog.js`): in the observatory, by the wall, stands a brass
-  panel with two dials numbered 0 to 9 (its icon, or P, opens it). Confirm a setting and the dome rumbles round and the
-  tube swings to that part of the sky; then at the eyepiece (its icon, or P) you look through. Each of the 100 settings
+  only by boat (sail in and step ashore). Basalt boulders line the shore and sea stacks stand off it. The sea round it is
+  rough like the lighthouse's (`ROUGH.spots`: a swell that rocks the boat, whitecaps, surf where it runs shallow).
+- **The telescope** (`app/telescope.js`, the sky in `app/starCatalog.js`): in the observatory stands a free-standing
+  brass console with two dials numbered 0 to 9 (its icon, or P, opens it). Confirm a setting and the dome turns its slit
+  and the long refractor swings to that part of the sky; then at the eyepiece (a brass star diagonal at the tube's back
+  end, at eye height, ringed in dim red light; its icon, or P) you look through. Each of the 100 settings
   shows one of the 88 constellations, drawn and named as on a star chart, or one of eleven other sights (the Moon, Saturn,
   Jupiter, the Andromeda Galaxy, the Pleiades, the Orion and Ring and Crab nebulae, a comet, Omega Centauri, Albireo),
   and 9-2 shows a flying saucer, modelled in full (riveted hull, a chasing ring of lights, a glass canopy with its pilot,
@@ -540,9 +549,11 @@ export function createRoseBush(ctx) {
   under the hopper, grain sacks, the flour bin; a steep stair to the loft (the miller's bunk, a table, shelves of jars),
   open to the cap, where the main shaft and its great spur wheel and the windshaft's brake wheel turn with the sails.
   **The beach hut**: on stilts, steps up to a porch with a bench, a bamboo room under the thatch: a bed, a rug, a table
-  with coconut cups, shells on a shelf, a net, a spear, a sea chest, a straw hat. **The observatory**: steps up the cone
-  to the stone drum; inside, the telescope on its pier turning with the dome (its eyepiece at your eye), a desk with star
-  charts and a sextant, bookshelves, a globe, a chalkboard of orbits, a cot. **The lodge**: steps from the boardwalk up to
+  with coconut cups, shells on a shelf, a net, a spear, a sea chest, a straw hat. **The observatory**: a stone drum 8 m
+  across inside under a copper dome with an open slit; the telescope on its pier in the middle, its fork turning with the
+  dome; round the walls, leaving the floor free, a desk with star charts and a sextant, bookshelves and a reading chair,
+  a chalkboard, a star chart, a globe, a sea chest, the bed with its alarm clock. Door steps that have to come down a
+  long way zigzag (a flight out, a landing, a flight turning along the slope): the windmill's. **The lodge**: steps from the boardwalk up to
   a railed porch; an iron stove, bunk beds, a table and chairs, jars, a net, rods, a barrel, boots, a map of the marsh.
   You go in by the doors only; `app/controls.js` stands you on their floors and stairs (`buildingFloorY`) and keeps you
   out of walls and furniture (`buildingWalls`). Each has a lantern you can light like the cabin's lamps (at night: the

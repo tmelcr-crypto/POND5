@@ -171,8 +171,13 @@ export function createIslandBuildings(ctx) {
     const wood = lin(0x8a6a48), dark = lin(0x4a3424), iron = lin(0x2e2c2a), brass = lin(0xb08a3a), stoneC = lin(0x8c877e);
     const solid = (u, v, hu, hv, yLo, yHi, ang = 0) => { const c = Math.cos(ang), s = Math.sin(ang), pt = (a, b) => [u + c * a - s * b, v + s * a + c * b], q = [pt(-hu, -hv), pt(hu, -hv), pt(hu, hv), pt(-hu, hv)];
       for (let i = 0; i < 4; i++) P.walls.push([...q[i], ...q[(i + 1) % 4], yLo, yHi, 0.02]); };
-    const outSteps = () => { const S = P.outStair; if (!S) return; const [u0, u1] = S.rect, run = (u1 - u0) / S.n, dy = (S.y0 - S.y1) / S.n;   // stone steps down from the door, solid to the ground
-      for (let k = 1; k <= S.n; k++) { const y = S.y0 - k * dy, uc = u0 + (k - 0.5) * run, gy = Math.min(...[-0.62, 0, 0.62].map(v => islandH(P.I, ...P.W(uc, v)))) - 0.3; K.box('stone', run + 0.02, y - gy, 1.25, uc, gy, 0, 0, stoneC.clone().multiplyScalar(0.85 + 0.2 * R()), 1); } };
+    const outSteps = () => {   // stone steps down from the door (zigzag flights, landings between), solid to the ground
+      const gy = pts => Math.min(...pts.map(([u, v]) => islandH(P.I, ...P.W(u, v)))) - 0.3;
+      for (const S of P.outStairs || []) { const alongV = S.axis === 'v', [a0, a1] = alongV ? [S.rect[2], S.rect[3]] : [S.rect[0], S.rect[1]], run = (a1 - a0) / S.n, mid = alongV ? (S.rect[0] + S.rect[1]) / 2 : (S.rect[2] + S.rect[3]) / 2, w = (alongV ? S.rect[1] - S.rect[0] : S.rect[3] - S.rect[2]) + 0.01;
+        for (let k = 1; k <= S.n; k++) { const c = a0 + (k - 0.5) * run, yy = S.y0 + k * (S.y1 - S.y0) / S.n;   // (tread k from the rect's low edge: app/controls.js buildingFloorY)
+          const [u, v] = alongV ? [mid, c] : [c, mid], g0 = gy(alongV ? [[mid - w / 2, c], [mid, c], [mid + w / 2, c]] : [[c, mid - w / 2], [c, mid], [c, mid + w / 2]]);
+          K.box('stone', alongV ? w : run + 0.02, yy - g0, alongV ? run + 0.02 : w, u, g0, v, 0, stoneC.clone().multiplyScalar(0.85 + 0.2 * R()), 1); } }
+      for (const L of P.outLandings || []) { const [u0, u1, v0, v1] = L.rect, g0 = gy([[u0, v0], [u1, v0], [u0, v1], [u1, v1], [(u0 + u1) / 2, (v0 + v1) / 2]]); K.box('stone', u1 - u0 + 0.02, L.y - g0, v1 - v0 + 0.02, (u0 + u1) / 2, g0, (v0 + v1) / 2, 0, stoneC.clone().multiplyScalar(0.8 + 0.15 * R()), 1); } };
     const lantern = (u, y, v, hang = 0) => {   // a small iron lantern (its glass lit by its own material)
       K.box('metal', 0.18, 0.02, 0.18, u, y - 0.14, v, 0, iron); K.box('metal', 0.2, 0.02, 0.2, u, y + 0.12, v, 0, iron);
       const cap = new THREE.ConeGeometry(0.15, 0.12, 4); cap.rotateY(Math.PI / 4); cap.translate(u, y + 0.2, v); K.put('metal', cap, iron);
@@ -285,43 +290,59 @@ export function createIslandBuildings(ctx) {
     }
 
     if (P.kind === 'observatory') {
-      const f = P.floor, b = P.base, top = b + P.drumH, N = 32, door = { k0: -1, k1: 1, y0: f - 0.01, y1: f + P.door.h }, wins = [{ k0: 8, k1: 9, y0: f + 1.2, y1: f + 1.8 }, { k0: -9, k1: -8, y0: f + 1.2, y1: f + 1.8 }, { k0: 15, k1: 17, y0: f + 1.25, y1: f + 1.75 }];
+      // an 8 m round room: the door facing home, three windows, the telescope's pier in the middle (its fork and tube turn
+      // with the dome: outerIslands.js; its dial panel: app/telescope.js), furniture round the walls leaving the floor free
+      const f = P.floor, b = P.base, top = b + P.drumH, N = 48, door = { k0: -1, k1: 1, y0: f - 0.01, y1: f + P.door.h }, win = (k0, k1) => ({ k0, k1, y0: f + 1.2, y1: f + 1.9 }), wins = [win(11, 13), win(25, 27), win(-13, -11)];
+      const W = (a, r) => [Math.cos(a) * r, Math.sin(a) * r], wallR = P.rIn - 0.02;
       const step = K.roundWall('ashlar', y => P.rOut - 0.05 * (y - b) / P.drumH, () => P.rIn, b, top, N, [door, ...wins], WHITE, 1.4);
-      { const g = new THREE.TorusGeometry(P.rOut - 0.02, 0.1, 6, 40); g.rotateX(Math.PI / 2); g.translate(0, top - 0.05, 0); K.put('stone', g, stoneC); }
-      { const g = new THREE.RingGeometry(P.rIn - 0.02, P.rOut + 0.02, 40); g.rotateX(-Math.PI / 2); g.translate(0, top, 0); K.put('stone', g, stoneC); }
-      { const y0 = Math.min(b, P.footMin - 0.4); K.cyl('stone', P.rOut + 0.08, P.rOut + 0.2, f - 0.02 - y0, 0, y0, 0, 32, stoneC, 1.2); }   // its footing on the cone
+      { const g = new THREE.TorusGeometry(P.rOut - 0.02, 0.12, 6, 56); g.rotateX(Math.PI / 2); g.translate(0, top - 0.06, 0); K.put('stone', g, stoneC); }
+      { const g = new THREE.RingGeometry(P.rIn - 0.02, P.rOut + 0.02, 56); g.rotateX(-Math.PI / 2); g.translate(0, top, 0); K.put('stone', g, stoneC); }
+      { const y0 = Math.min(b, P.footMin - 0.4); K.cyl('stone', P.rOut + 0.08, P.rOut + 0.22, f - 0.02 - y0, 0, y0, 0, 48, stoneC, 1.2); }   // its footing on the summit
       outSteps();
       lamp.panes = [];
-      for (const o of wins) { const a0 = o.k0 * step, a1 = o.k1 * step, am = (a0 + a1) / 2, w = 2 * Math.sin((a1 - a0) / 2) * P.rOut, gl = new THREE.BoxGeometry(0.03, o.y1 - o.y0, w); gl.translate(0, (o.y0 + o.y1) / 2, 0); gl.rotateY(-am); gl.translate(Math.cos(am) * (P.rIn + 0.12), 0, Math.sin(am) * (P.rIn + 0.12)); lamp.panes.push(gl);
-        const fr = new THREE.BoxGeometry(0.08, 0.08, w + 0.1); fr.translate(0, o.y1 + 0.04, 0); fr.rotateY(-am); fr.translate(Math.cos(am) * (P.rOut + 0.02), 0, Math.sin(am) * (P.rOut + 0.02)); K.put('plank', fr, dark); }
-      { const g = new THREE.BoxGeometry(0.08, P.door.h - 0.05, 0.94); g.translate(0.04, P.door.h / 2, 0.47); g.rotateY(1.8); g.translate(P.rIn + 0.02, f, -0.47); K.put('board', g, lin(0x6a4a30)); for (let i = 0; i < 12; i++) { const s = new THREE.SphereGeometry(0.018, 6, 4); s.translate(0.09, 0.2 + (i % 6) * 0.35, 0.12 + Math.floor(i / 6) * 0.7); s.rotateY(1.8); s.translate(P.rIn + 0.02, f, -0.47); K.put('metal', s, iron); } }
-      { const g = new THREE.CircleGeometry(P.rIn + 0.02, 32); g.rotateX(-Math.PI / 2); g.translate(0, f, 0); K.put('plank', g, WHITE, 1.2); }
-      { const g = new THREE.CircleGeometry(1.05, 28); g.rotateX(-Math.PI / 2); g.translate(0, f + 0.005, 0); K.put('rug', g, lin(0xb8b8d8), 2.1); }
-      // the pier the telescope stands on (the telescope turns with the dome: outerIslands.js)
-      K.cyl('stone', 0.28, 0.36, 1.55, 0, f, 0, 16, stoneC, 1); K.cyl('metal', 0.22, 0.28, 0.12, 0, f + 1.55, 0, 16, brass);
-      // the desk with star charts, a sextant and a lamp; the chair
-      { const a = Math.PI / 2, r = 1.72, u = Math.cos(a) * r, v = Math.sin(a) * r, ry = a + Math.PI / 2;
-        table(u, f, v, 1.2, 0.6, ry, 0.76); solid(u, v, 0.62, 0.32, f - 0.3, f + 0.8, ry);
-        K.picture(0, 0.5, 0.36, u + 0.2, f + 0.785, v - 0.05, 0); const pp = lists => lists; void pp;
-        { const g = new THREE.PlaneGeometry(0.5, 0.36), uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * 0.5, 0.5 + uv.getY(k) * 0.5); g.userData.keepUV = true; g.rotateX(-Math.PI / 2); g.rotateY(0.2); g.translate(u - 0.2, f + 0.782, v); K.put('paper', g); }
-        const sx = new THREE.TorusGeometry(0.1, 0.008, 4, 16, Math.PI / 3); sx.rotateX(-Math.PI / 2); sx.translate(u + 0.35, f + 0.8, v - 0.1); K.put('metal', sx, brass);
-        lantern(u - 0.45, f + 0.92, v + 0.12); P.cup = [u - 0.42, f + 0.8, v - 0.16, 2.2]; books(u + 0.1, f + 0.78, v + 0.2, 0.3, 0.1);
-        chair(u, f, v - 0.55, a - Math.PI / 2 + 0.3); }
-      // bookshelves along the wall
-      for (const a of [2.55, 3.35]) { const r = P.rIn - 0.16, u = Math.cos(a) * r, v = Math.sin(a) * r, ry = a + Math.PI / 2; shelf(u, f + 0.05, v, 0.9, ry, 5, (k, y) => books(u, y, v, 0.84, ry)); solid(u, v, 0.47, 0.14, f - 0.3, f + 2.1, ry); }
-      // a globe on its stand, the chalkboard, the star chart, a cot
-      { const a = -1.15, r = 1.55, u = Math.cos(a) * r, v = Math.sin(a) * r; K.cyl('plank', 0.03, 0.05, 0.75, u, f, v, 8, wood); K.cyl('plank', 0.2, 0.22, 0.04, u, f, v, 16, wood);
-        const gl = new THREE.SphereGeometry(0.24, 20, 14); gl.translate(u, f + 0.98, v); K.put('plain', gl, (c, x, y, z) => c.copy(Math.sin((x - u) * 11) + Math.cos((z - v) * 9 + (y - f) * 7) > 0.6 ? lin(0x7a8a4a) : lin(0x3a6a9a)));
-        const ring = new THREE.TorusGeometry(0.27, 0.012, 4, 24, Math.PI * 1.3); ring.rotateY(0.4); ring.translate(u, f + 0.98, v); K.put('metal', ring, brass); P.posts.push([u, v, 0.28, f - 0.3, f + 1.2]); }
-      { const a = Math.PI, r = P.rIn - 0.02; K.picture(2, 1.2, 0.9, Math.cos(a) * r, f + 1.6, Math.sin(a) * r + 0.0, a + Math.PI); }
-      { const a = -Math.PI / 2 - 0.5, r = P.rIn - 0.02; K.picture(0, 0.7, 0.7, Math.cos(a) * r, f + 1.55, Math.sin(a) * r, a + Math.PI); }
-      { const a = -2.3, r = 1.55, u = Math.cos(a) * r, v = Math.sin(a) * r, ry = a + Math.PI / 2, L = 1.8, Wd = 0.8, h = 0.38; bed(u, f, v, ry, lin(0x3a4a6a), L, Wd, h); solid(u, v, 0.95, 0.42, f - 0.3, f + 0.6, ry);
-        // the bed you sleep in (app/sleeping.js, as the cabin's): its edge on the room's side, the pillow, the feet's way;
-        // by its head a nightstand with the alarm clock that wakes you when you ask (its hands turn, the red one is the alarm)
-        const du = Math.cos(ry), dv = Math.sin(ry), nu = -dv * Math.sign(-u * -dv + -v * du), nv = du * Math.sign(-u * -dv + -v * du), top = f + h + 0.12;
+      for (const o of wins) { const a0 = o.k0 * step, a1 = o.k1 * step, am = (a0 + a1) / 2, w = 2 * Math.sin((a1 - a0) / 2) * P.rOut, gl = new THREE.BoxGeometry(0.03, o.y1 - o.y0, w); gl.translate(0, (o.y0 + o.y1) / 2, 0); gl.rotateY(-am); gl.translate(Math.cos(am) * (P.rIn + 0.18), 0, Math.sin(am) * (P.rIn + 0.18)); lamp.panes.push(gl);
+        for (const [dy, hh] of [[o.y1, 0.1], [o.y0 - 0.08, 0.08]]) { const fr = new THREE.BoxGeometry(0.1, hh, w + 0.12); fr.translate(0, dy + hh / 2, 0); fr.rotateY(-am); fr.translate(Math.cos(am) * (P.rOut + 0.02), 0, Math.sin(am) * (P.rOut + 0.02)); K.put('plank', fr, dark); }
+        { const sill = new THREE.BoxGeometry(0.42, 0.05, w); sill.translate(0, o.y0 - 0.02, 0); sill.rotateY(-am); sill.translate(Math.cos(am) * (P.rIn + 0.12), 0, Math.sin(am) * (P.rIn + 0.12)); K.put('plank', sill, wood); } }
+      // the door, open inward, iron-studded; its frame
+      { const g = new THREE.BoxGeometry(0.08, P.door.h - 0.05, 1.1); g.translate(0.04, P.door.h / 2, 0.55); g.rotateY(1.8); g.translate(P.rIn + 0.02, f, -0.56); K.put('board', g, lin(0x6a4a30));
+        for (let i = 0; i < 14; i++) { const s2 = new THREE.SphereGeometry(0.018, 6, 4); s2.translate(0.09, 0.2 + (i % 7) * 0.3, 0.15 + Math.floor(i / 7) * 0.8); s2.rotateY(1.8); s2.translate(P.rIn + 0.02, f, -0.56); K.put('metal', s2, iron); } }
+      for (const sgn of [-1, 1]) { const [u, v] = W(sgn * (door.k1 * step + 0.02), P.rOut + 0.03); K.box('plank', 0.14, P.door.h + 0.1, 0.12, u, f, v, sgn * door.k1 * step, dark); }
+      { const g = new THREE.CircleGeometry(P.rIn + 0.02, 48); g.rotateX(-Math.PI / 2); g.translate(0, f, 0); K.put('plank', g, WHITE, 1.2); }
+      { const g = new THREE.RingGeometry(0.6, 1.75, 40); g.rotateX(-Math.PI / 2); g.translate(0, f + 0.005, 0); K.put('rug', g, lin(0xb8b8d8), 2.1); }
+      // the telescope's pier: dressed stone, a brass band, the turntable plate the fork sits on (the fork and tube: outerIslands.js)
+      K.cyl('stone', P.pier.r - 0.04, P.pier.r + 0.06, P.pier.top - f - 0.1, 0, f, 0, 20, stoneC, 1);
+      K.cyl('metal', P.pier.r + 0.02, P.pier.r + 0.02, 0.1, 0, P.pier.top - 0.1, 0, 24, brass); K.cyl('metal', P.pier.r * 0.7, P.pier.r * 0.7, 0.04, 0, f + 0.55, 0, 20, brass);
+      // the desk under the east window: star charts, a sextant, a lamp, a cup of coffee; its chair
+      { const a = 1.57, r = P.rIn - 0.4, [u, v] = W(a, r), ry = a + Math.PI / 2;
+        table(u, f, v, 1.5, 0.65, ry, 0.76); solid(u, v, 0.77, 0.34, f - 0.3, f + 0.8, ry);
+        const [pu, pv] = W(a, r + 0.05); K.picture(0, 0.5, 0.36, pu + 0.25, f + 0.785, pv, 0);
+        { const g = new THREE.PlaneGeometry(0.5, 0.36), uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * 0.5, 0.5 + uv.getY(k) * 0.5); g.userData.keepUV = true; g.rotateX(-Math.PI / 2); g.rotateY(0.2); g.translate(u - 0.25, f + 0.782, v); K.put('paper', g); }
+        const sx = new THREE.TorusGeometry(0.1, 0.008, 4, 16, Math.PI / 3); sx.rotateX(-Math.PI / 2); sx.translate(u + 0.45, f + 0.8, v - 0.1); K.put('metal', sx, brass);
+        lantern(u - 0.55, f + 0.92, v + 0.12); books(u + 0.15, f + 0.78, v + 0.22, 0.4, 0.1);
+        P.cup = [u - 0.5, f + 0.8, v - 0.18, 2.2];   // (a cup of coffee: assets/cabin/coffeeCups.js)
+        const [cu, cv] = W(a, r - 0.62); chair(cu, f, cv, a + 0.15); }   // (facing the desk)
+      // bookshelves along the north-west wall, a reading chair by them with its lamp
+      for (const a of [2.3, 2.72]) { const r = P.rIn - 0.16, [u, v] = W(a, r), ry = a + Math.PI / 2; shelf(u, f + 0.05, v, 1.1, ry, 5, (k, y) => books(u, y, v, 1.04, ry)); solid(u, v, 0.57, 0.14, f - 0.3, f + 2.1, ry); }
+      { const a = 2.52, r = 2.75, [u, v] = W(a, r), face = a + Math.PI, c = Math.cos(face), s2 = Math.sin(face), at = (p, q) => [u + c * p - s2 * q, v + s2 * p + c * q];
+        const cloth = lin(0x6a3a3a); K.box('cloth', 0.7, 0.42, 0.7, u, f, v, -face, cloth); { const [bu, bv] = at(-0.3, 0); K.box('cloth', 0.14, 0.95, 0.7, bu, f + 0.1, bv, -face, cloth.clone().multiplyScalar(0.9)); }
+        for (const q of [-0.32, 0.32]) { const [au, av] = at(0, q); K.box('cloth', 0.7, 0.62, 0.12, au, f + 0.1, av, -face, cloth.clone().multiplyScalar(0.85)); }
+        solid(u, v, 0.38, 0.4, f - 0.3, f + 0.8, -face); const [tu, tv] = at(0.1, 0.72); K.cyl('plank', 0.22, 0.22, 0.03, tu, f + 0.56, tv, 16, wood); K.cyl('plank', 0.03, 0.05, 0.56, tu, f, tv, 8, dark); lantern(tu, f + 0.72, tv); P.posts.push([tu, tv, 0.26, f - 0.3, f + 0.8]); }
+      // the chalkboard between the shelves and the west window; the star chart on the south wall
+      { const a = 3.0; K.picture(2, 1.2, 0.9, ...(([u, v]) => [u, f + 1.6, v])(W(a, wallR)), a + Math.PI); }
+      { const a = -1.02; K.picture(0, 0.8, 0.8, ...(([u, v]) => [u, f + 1.6, v])(W(a, wallR)), a + Math.PI); }
+      // a globe on its stand
+      { const [u, v] = W(-0.7, 2.5); K.cyl('plank', 0.03, 0.05, 0.75, u, f, v, 8, wood); K.cyl('plank', 0.2, 0.22, 0.04, u, f, v, 16, wood);
+        const gl = new THREE.SphereGeometry(0.26, 24, 16); gl.translate(u, f + 1.0, v); K.put('plain', gl, (c, x, y, z) => c.copy(Math.sin((x - u) * 11) + Math.cos((z - v) * 9 + (y - f) * 7) > 0.6 ? lin(0x7a8a4a) : lin(0x3a6a9a)));
+        const ring = new THREE.TorusGeometry(0.29, 0.012, 4, 24, Math.PI * 1.3); ring.rotateY(0.4); ring.translate(u, f + 1.0, v); K.put('metal', ring, brass); P.posts.push([u, v, 0.3, f - 0.3, f + 1.3]); }
+      // a sea chest by the bed's foot
+      { const a = -2.85, [u, v] = W(a, P.rIn - 0.4), ry = a + Math.PI / 2; K.box('board', 0.9, 0.45, 0.5, u, f, v, -ry, lin(0x6a4a2e), 0.8); K.box('metal', 0.92, 0.04, 0.52, u, f + 0.3, v, -ry, iron); K.box('board', 0.92, 0.1, 0.52, u, f + 0.45, v, -ry, lin(0x5a3a22), 0.8); solid(u, v, 0.47, 0.27, f - 0.3, f + 0.6, ry); }
+      // the bed you sleep in (app/sleeping.js, as the cabin's) along the south-west wall: its edge on the room's side, the
+      // pillow, the feet's way; by its head a nightstand with the alarm clock that wakes you when you ask
+      { const a = -2.2, [u, v] = W(a, P.rIn - 0.62), ry = a + Math.PI / 2, L = 1.9, Wd = 0.9, h = 0.4; bed(u, f, v, ry, lin(0x3a4a6a), L, Wd, h); solid(u, v, 1.0, 0.47, f - 0.3, f + 0.6, ry);
+        const du = Math.cos(ry), dv = Math.sin(ry), nu = -dv * Math.sign(-u * -dv + -v * du), nv = du * Math.sign(-u * -dv + -v * du), top2 = f + h + 0.12;
         const Wl = (lu, lv) => P.W(lu, lv), [cx, cz] = Wl(u, v), [ex, ez] = Wl(u + nu * (Wd / 2 - 0.14), v + nv * (Wd / 2 - 0.14)), [px, pz] = Wl(u - du * (L / 2 - 0.36), v - dv * (L / 2 - 0.36));
         const wn = [Math.cos(P.a) * nu - Math.sin(P.a) * nv, Math.sin(P.a) * nu + Math.cos(P.a) * nv], wf = [Math.cos(P.a) * du - Math.sin(P.a) * dv, Math.sin(P.a) * du + Math.cos(P.a) * dv];
-        P.bed = { cx, cz, top, floor: f, edge: { x: ex, z: ez, fx: wn[0], fz: wn[1], top }, pillow: { x: px, z: pz, y: top + 0.14 }, feet: { x: wf[0], z: wf[1] }, alarm: true, inside: q => buildingAt(q.x, q.z) === P };
+        P.bed = { cx, cz, top: top2, floor: f, edge: { x: ex, z: ez, fx: wn[0], fz: wn[1], top: top2 }, pillow: { x: px, z: pz, y: top2 + 0.14 }, feet: { x: wf[0], z: wf[1] }, alarm: true, inside: q => buildingAt(q.x, q.z) === P };
         const su = u - du * (L / 2 - 0.2) + nu * 0.72, sv = v - dv * (L / 2 - 0.2) + nv * 0.72;
         K.box('plank', 0.42, 0.52, 0.38, su, f, sv, -ry, wood); K.box('plank', 0.46, 0.03, 0.42, su, f + 0.52, sv, -ry, dark); K.box('plank', 0.3, 0.12, 0.02, su + nu * 0.2, f + 0.3, sv + nv * 0.2, -ry, dark);
         solid(su, sv, 0.23, 0.21, f - 0.3, f + 0.6, ry); books(su - du * 0.08, f + 0.55, sv - dv * 0.08, 0.14, ry);
@@ -335,7 +356,8 @@ export function createIslandBuildings(ctx) {
         cm(new THREE.SphereGeometry(0.012, 8, 6), 0xc8c8c0, 0, 0.19, 0); cm(new THREE.BoxGeometry(0.008, 0.035, 0.008), 0x9a9a92, 0, 0.175, 0.005);
         const hand = (len, wdt, c, z) => { const g2 = new THREE.BoxGeometry(wdt, len, 0.003); g2.translate(0, len / 2 - 0.006, 0); const m2 = cm(g2, c, 0, 0.1, z, 'paint'); return m2; };
         P.clock = { group: clk, hour: hand(0.036, 0.007, 0x111111, 0.03), minute: hand(0.052, 0.005, 0x111111, 0.031), alarm: hand(0.045, 0.003, 0xc81e1e, 0.029) }; }
-      lantern(-1.2, f + 2.3, 0.6, 0.35);
+      // lanterns on the wall
+      for (const a of [0.55, -0.55, 3.55]) { const [u, v] = W(a, P.rIn - 0.2); lantern(u, f + 2.25, v); }
     }
 
     if (P.kind === 'lodge') {

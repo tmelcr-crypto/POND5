@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { lin, smooth, clamp } from '../../core/math.js';
 import { fbm3, vnoise3 } from '../../core/noise.js';
 import { canvasTex } from '../../core/canvasTexture.js';
-import { CAVERNS, caveSDF, caveFloor, caveOpen, underground, H } from '../../world/layout.js';
+import { CAVERNS, LAVA_TUBE, caveSDF, caveFloor, caveOpen, underground, H } from '../../world/layout.js';
+import { U } from '../../core/uniforms.js';
+import { fernTexture, fernGeometry } from './rockOutcrop.js';
 import { voice } from '../fauna/animalKit.js';
 import { starTexture } from '../story/friendship.js';
 import { isTouch } from '../../core/env.js';
@@ -64,17 +66,15 @@ function caveLit(mat) {
   return mat;
 }
 
-export function createCaverns(ctx, { ambience } = {}) {
-  const { scene, camera } = ctx, CL = CAVE_LOOK, B = CAVERNS.box, S = CL.step, group = new THREE.Group(); scene.add(group);
-
-  /* ---- the rock: the field on a grid, polygonised by marching tetrahedra ---- */
-  const t0 = performance.now();
+/** The rock of a cave system inside its box B: the field sampled on a grid of step S and polygonised by marching
+ *  tetrahedra, triangles above the ground left out (the terrain is there). Positions and normals, and the ground's
+ *  height from the grid (Hat). */
+function polygonise(B, S) {
   const Hmax = (() => { let m = -Infinity; for (let x = B.x0; x <= B.x1; x += 1) for (let z = B.z0; z <= B.z1; z += 1) m = Math.max(m, H(x, z)); return m; })();
   const X0 = B.x0, Y0 = B.y0 - 2.4, Z0 = B.z0, NX = Math.ceil((B.x1 - B.x0) / S) + 1, NY = Math.ceil((Hmax + 0.8 - Y0) / S) + 1, NZ = Math.ceil((B.z1 - B.z0) / S) + 1;
   const F = new Float32Array(NX * NY * NZ), id = (i, j, k) => (k * NY + j) * NX + i, HG = new Float32Array(NX * NZ);
   for (let k = 0; k < NZ; k++) for (let i = 0; i < NX; i++) HG[k * NX + i] = H(X0 + i * S, Z0 + k * S);
-  for (let k = 0; k < NZ; k++) for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) F[id(i, j, k)] = field(X0 + i * S, Y0 + j * S, Z0 + k * S, HG[k * NX + i]);
-  const built = performance.now() - t0;
+  for (let k = 0; k < NZ; k++) for (let j = 0; j < NY; j++) { const y = Y0 + j * S; for (let i = 0; i < NX; i++) { const h = HG[k * NX + i]; F[id(i, j, k)] = y > h + 2 ? 5 : field(X0 + i * S, y, Z0 + k * S, h); } }
   const Hat = (x, z) => { const fi = clamp((x - X0) / S, 0, NX - 1.001), fk = clamp((z - Z0) / S, 0, NZ - 1.001), i = Math.floor(fi), k = Math.floor(fk), u = fi - i, v = fk - k;
     return (HG[k * NX + i] * (1 - u) + HG[k * NX + i + 1] * u) * (1 - v) + (HG[(k + 1) * NX + i] * (1 - u) + HG[(k + 1) * NX + i + 1] * u) * v; };
   const grad = (i, j, k) => [F[id(Math.min(NX - 1, i + 1), j, k)] - F[id(Math.max(0, i - 1), j, k)], F[id(i, Math.min(NY - 1, j + 1), k)] - F[id(i, Math.max(0, j - 1), k)], F[id(i, j, Math.min(NZ - 1, k + 1))] - F[id(i, j, Math.max(0, k - 1))]];
@@ -103,6 +103,16 @@ export function createCaverns(ctx, { ambience } = {}) {
       else { const [a, b] = ins, [c, d] = out, p1 = edge(a, c), p2 = edge(a, d), p3 = edge(b, d), p4 = edge(b, c); tri(p1, p2, p3); tri(p1, p3, p4); }
     }
   }
+  return { pos, nor, Hat };
+}
+
+export function createCaverns(ctx, { ambience } = {}) {
+  const { scene, camera } = ctx, CL = CAVE_LOOK, B = CAVERNS.box, S = CL.step, group = new THREE.Group(); scene.add(group);
+
+  /* ---- the rock: the field on a grid, polygonised by marching tetrahedra ---- */
+  const t0 = performance.now();
+  const { pos, nor, Hat } = polygonise(B, S);
+  const built = performance.now() - t0;
 
   /* ---- lighting, baked per vertex: the lamps, the crystals; openness to the sky ---- */
   const crystalsAt = [];   // [x, y, z, colour index, size]: clusters along the tunnel and in the crystal chamber
@@ -289,10 +299,13 @@ export function createCaverns(ctx, { ambience } = {}) {
   /* ---- showing it, drips and squeaks ---- */
   const cam = camera.position, mouthXZ = CAVERNS.mouths.map(m => V(m.x, 0, m.z));
   const inside = () => underground(cam.x, cam.z, cam.y - 1.55);
+  const lava = createLavaTube(ctx);   // Ember Rock's lava tube (world/layout.js LAVA_TUBE)
+  const dressing = [dressMouths(ctx, CAVERNS, false), dressMouths(ctx, LAVA_TUBE, true)];   // rocks and ferns hiding the trenches' edges
   let next = 2, squeak = 5; const drip = V(0, 0, 0);
   return {
-    group, rock, forms, crystals, halos, bats, inside, stats: { fieldMs: Math.round(built), totalMs: Math.round(performance.now() - t0), rockTris: pos.length / 9 },
+    group, rock, forms, crystals, halos, bats, inside, lava, dressing, stats: { fieldMs: Math.round(built), totalMs: Math.round(performance.now() - t0), rockTris: pos.length / 9 },
     update(dt, t) {
+      lava.update(t);
       const ins = inside();
       group.visible = ins || mouthXZ.some(m => Math.hypot(m.x - cam.x, m.z - cam.z) < CL.near) || (cam.x > B.x0 && cam.x < B.x1 && cam.z > B.z0 && cam.z < B.z1 && cam.y < H(cam.x, cam.z) + 0.5);
       if (!group.visible) return;
@@ -311,6 +324,137 @@ export function createCaverns(ctx, { ambience } = {}) {
         squeak = 4 + Math.random() * 7; batPos(batPlan[Math.floor(Math.random() * NB)], t, drip);
         const v = voice(ambience, camera, drip, 14, 0.35); if (v) { for (let k = 0; k < 3; k++) v.tone(6200 + Math.random() * 1500, 4800, 0.03, 0.12, k * 0.07, 'sine'); }
       }
+    },
+  };
+}
+
+/**
+ * Where a cave's ramp is cut into the ground, its edges hidden the way a real cave mouth is: boulders half sunk along the
+ * rims of the open trench, bigger ones framing the portal where the ramp goes under the ground (and one over it), and
+ * ferns leaning over the edges between them (limestone and ferns at home, black basalt on Ember Rock). The entrance's
+ * corridor stays clear; none is solid (the one over the portal is over the tunnel). One mesh for the rocks, one for the ferns. No random numbers (hashes).
+ */
+function dressMouths(ctx, C, basalt) {
+  const { scene } = ctx, rocks = [], ferns = [], sd = C.box.x0 * 7.1 + C.box.z0 * 3.3;
+  const addRock = (x, z, sz, k, lift = 0, sink = true) => {
+    const g = new THREE.IcosahedronGeometry(1, 3), p = g.attributes.position, ph = hash(k, sd) * 40;
+    for (let i = 0; i < p.count; i++) { const a = p.getX(i), b = p.getY(i), c = p.getZ(i), f = 1 + 0.13 * Math.sin(a * 3.1 + b * 3.7 + c * 2.9 + ph) + 0.05 * Math.sin(a * 7 - c * 6 + ph) - 0.12 * Math.max(0, b - 0.4); p.setXYZ(i, a * f, b * f, c * f); }   // (a little flattened on top)
+    g.scale(sz * (1.05 + 0.4 * hash(k, sd + 1)), sz * (0.62 + 0.25 * hash(k, sd + 2)), sz); g.rotateY(hash(k, sd + 3) * 6.28); let gy = H(x, z); if (sink) for (let q = 0; q < 8; q++) gy = Math.min(gy, H(x + Math.cos(q * 0.785) * sz, z + Math.sin(q * 0.785) * sz)); g.translate(x, gy - sz * 0.22 + lift, z); g.computeVertexNormals();   // (sunk to the lowest ground under it: none hangs over a slope)
+    const n = g.attributes.normal, q = g.attributes.position, col = new Float32Array(p.count * 3), cc = new THREE.Color();
+    for (let i = 0; i < p.count; i++) { const px = q.getX(i), py = q.getY(i), pz = q.getZ(i), up = n.getY(i);
+      if (basalt) cc.copy(lin(0x1c1a19)).lerp(lin(0x3a2c26), smooth(0.4, 0.8, fbm3(px * 1.4, py * 1.4, pz * 1.4)) * 0.6);
+      else { cc.copy(lin(0x6e685c)).lerp(lin(0x4f4b44), smooth(0.35, 0.75, fbm3(px * 1.2, py * 1.2, pz * 1.2))).lerp(lin(0x7a6a52), 0.3 * smooth(0.5, 0.8, fbm3(px * 3, py * 3, pz * 3))); cc.lerp(lin(0x3f5724), smooth(0.2, 0.7, up) * smooth(0.25, 0.6, fbm3(px * 2.1, py * 2.1, pz * 2.1)) * 0.95); cc.multiplyScalar(0.8 + 0.2 * smooth(-0.6, 0.6, up)); }
+      cc.multiplyScalar(0.85 + 0.25 * vnoise3(px * 6, py * 6, pz * 6)).toArray(col, i * 3); }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3)); rocks.push(g.index ? g.toNonIndexed() : g);
+  };
+  const addFern = (x, z, sz, k, lean) => {   // a clump of fronds, fanned out, leaning over the edge
+    const y = H(x, z) - 0.02, n = 5 + Math.floor(hash(k, sd + 7) * 3);
+    for (let i = 0; i < n; i++) { const a = i / n * 6.28 + hash(k, i) * 0.6, tilt = 0.55 + 0.35 * hash(i, k), s = sz * (0.7 + 0.4 * hash(k, i + 9));
+      const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(tilt + (Math.cos(a - lean) > 0.3 ? 0.35 : 0), a, 0, 'YXZ')), new THREE.Vector3(s * 0.55, s, s)); ferns.push(m); } };
+  let k = 0;
+  for (const t of C.tubes) if (t.stairs) {
+    const top = t.pts[0][2] > t.pts[t.pts.length - 1][2] ? 0 : t.len;   // the mouth's end
+    let portal = null;
+    for (let s = 0; s <= t.len; s += 0.55) {
+      let acc = 0, a = null, b = null; for (let j = 1; j < t.pts.length; j++) { const L = t.pts[j][3] - t.pts[j - 1][3]; if (s <= acc + L || j === t.pts.length - 1) { a = t.pts[j - 1]; b = t.pts[j]; break; } acc += L; }
+      const u = clamp((s - acc) / (b[3] - a[3])), x = a[0] + (b[0] - a[0]) * u, z = a[1] + (b[1] - a[1]) * u, fl = a[2] + (b[2] - a[2]) * u, dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz), nx = -dz / l, nz = dx / l;
+      const open = fl + t.h > H(x, z) - 0.3, fromTop = Math.abs(s - top);
+      if (!open) { if (!portal && fromTop > 1) portal = { x, z, fl, nx, nz, dx: dx / l * (top === 0 ? 1 : -1), dz: dz / l * (top === 0 ? 1 : -1) }; continue; }   // (d: on into the hill)
+      if (fromTop < 0.4) { if (fromTop < 0.28) for (const side of [-1, 1]) { k++; const off = t.w + 0.45; addRock(x + nx * side * off - (top === 0 ? dx : -dx) / l * 0.35, z + nz * side * off - (top === 0 ? dz : -dz) / l * 0.35, 0.5 + 0.2 * hash(k, sd + 12), k); if (!basalt) addFern(x + nx * side * (off + 0.8), z + nz * side * (off + 0.8), 0.7, k + 80, 0); } continue; }   // (the way in stays clear; stones at its corners)
+      for (const side of [-1, 1]) { k++; const off = t.w + 0.25 + 0.3 * hash(k, sd + 4), px = x + nx * side * off, pz = z + nz * side * off;
+        addRock(px, pz, 0.32 + 0.4 * hash(k, sd + 5), k);
+        if (!basalt && hash(k, sd + 6) < 0.7) { const fo = off + 0.55 + 0.3 * hash(k, sd + 8); addFern(x + nx * side * fo, z + nz * side * fo, 0.55 + 0.35 * hash(k, sd + 10), k, Math.atan2(-nz * side, -nx * side)); } }
+    }
+    if (portal) {   // big stones either side of where it goes under, one over it, ferns round them
+      const P = portal;
+      const big = basalt ? 1.35 : 1;   // (on a steep slope the cut is bigger: bigger stones)
+      for (const side of [-1, 1]) { k++; addRock(P.x + P.nx * side * (t.w + 0.55) - P.dx * 0.3, P.z + P.nz * side * (t.w + 0.55) - P.dz * 0.3, (0.9 + 0.3 * hash(k, sd + 11)) * big, k); if (!basalt) addFern(P.x + P.nx * side * (t.w + 1.5), P.z + P.nz * side * (t.w + 1.5), 0.8, k + 50, 0); }
+      k++; addRock(P.x + P.dx * (basalt ? 0.3 : 0.6), P.z + P.dz * (basalt ? 0.3 : 0.6), basalt ? 1.15 : 1.25, k, basalt ? -0.45 : 0.15, false);   // (over the roofed part: the opening shows under it)   // (the lintel: on the ground at its middle, over the opening)
+      if (!basalt) for (let i = 0; i < 3; i++) addFern(P.x + P.dx * (1.4 + 0.3 * i) + P.nx * (i - 1) * 0.9, P.z + P.dz * (1.4 + 0.3 * i) + P.nz * (i - 1) * 0.9, 0.7, k + 60 + i, Math.atan2(-P.dz, -P.dx));
+    }
+  }
+  const out = { rocks: rocks.length, ferns: ferns.length };
+  if (rocks.length) { const g = mergeRocks(rocks), m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: basalt ? 0.7 : 0.88, metalness: 0 })); m.castShadow = true; m.receiveShadow = true; scene.add(m); out.rockMesh = m; }
+  if (ferns.length) {
+    let fs = 7 + Math.round(Math.abs(sd)); const rng = () => { fs = (fs * 16807) % 2147483647; return (fs - 1) / 2147483646; };
+    const tex = fernTexture(rng), mat = new THREE.MeshStandardMaterial({ map: tex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.75, envMapIntensity: 0.6 });
+    const im = new THREE.InstancedMesh(fernGeometry(), mat, ferns.length); ferns.forEach((m, i) => im.setMatrixAt(i, m)); im.castShadow = true; im.receiveShadow = true;
+    im.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: tex, alphaTest: 0.45 }); scene.add(im); out.fernMesh = im;
+  }
+  return out;
+}
+function mergeRocks(list) {
+  let n = 0; for (const g of list) n += g.attributes.position.count;
+  const P = new Float32Array(n * 3), N = new Float32Array(n * 3), Cc = new Float32Array(n * 3); let o = 0;
+  for (const g of list) { P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); Cc.set(g.attributes.color.array, o * 3); o += g.attributes.position.count; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.BufferAttribute(N, 3)); g.setAttribute('color', new THREE.BufferAttribute(Cc, 3)); g.computeBoundingSphere(); return g;
+}
+
+/**
+ * Ember Rock's lava tube (LAVA_TUBE in world/layout.js): the same kind of rock mesh as the caverns, in basalt: black and
+ * dark grey, rusty red where it oxidised, glassy on the floor; lit by the lava pond in the chamber (baked, orange), the
+ * daylight reaching in at the mouth. The pond's surface: a crust that drifts and cracks over glowing melt (its own
+ * shader), a soft halo over it, a few lava drips hanging from the roof. Drawn near its mouth or inside.
+ */
+function createLavaTube(ctx) {
+  const { scene, camera } = ctx, T = LAVA_TUBE, B = T.box, group = new THREE.Group(); scene.add(group);
+  const t0 = performance.now(), { pos, nor, Hat } = polygonise(B, CAVE_LOOK.step), hall = T.halls[0], pool = hall.pool;
+  const mouths = T.mouths.map(m => V(m.x, H(m.x, m.z), m.z));
+  const sources = [[pool.x, pool.y + 0.5, pool.z, lin(0xff6a1e), 9.0, 4.2], [pool.x, pool.y + 2.4, pool.z, lin(0xff8a3a), 3.0, 6.0]];
+  const bake = (x, y, z, nx, ny, nz, glowOut) => {
+    let r = 0, g = 0, b = 0;
+    for (const [sx, sy, sz, c, I, R] of sources) { const dx = sx - x, dy = sy - y, dz = sz - z, d = Math.hypot(dx, dy, dz); if (d > R * 3) continue;
+      const k = I / (1 + (d / R) * (d / R) * 4) * (0.3 + 0.7 * Math.max(0, (dx * nx + dy * ny + dz * nz) / (d || 1))); r += c.r * k; g += c.g * k; b += c.b * k; }
+    glowOut.push(Math.min(r, 6), Math.min(g, 3), Math.min(b, 1.5));
+    let ao = 0.03; for (const m of mouths) { const d = Math.hypot(m.x - x, m.y - y, m.z - z); ao = Math.max(ao, Math.pow(clamp(1.15 - d / 6), 2)); }
+    if (y > Hat(x, z) - 1.6 && caveOpen(x, z)) ao = Math.max(ao, 0.8);
+    return ao;
+  };
+  const geo = new THREE.BufferGeometry(); {
+    const n = pos.length / 3, col = new Float32Array(n * 3), glow = [], ao = new Float32Array(n), c = new THREE.Color();
+    const black = lin(0x2c2826), grey = lin(0x55504a), rust = lin(0x7a3a26), glass = lin(0x1c1a1a);
+    for (let i = 0; i < n; i++) {
+      const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2], ny = nor[i * 3 + 1];
+      c.copy(black).lerp(grey, smooth(0.35, 0.75, fbm3(x * 0.5, y * 0.5, z * 0.5))).lerp(rust, 0.7 * smooth(0.55, 0.85, fbm3(x * 1.3 + 4, y * 0.4, z * 1.3)));
+      if (ny > 0.55) c.lerp(glass, 0.6);                                                                          // the floor: glassy, ropey
+      if (Math.abs(ny) < 0.4) c.lerp(grey, 0.25 * (0.5 + 0.5 * Math.sin(y * 9 + fbm3(x, 0, z) * 4)));           // bands on the walls (the old flow lines)
+      c.toArray(col, i * 3); ao[i] = bake(x, y, z, nor[i * 3], ny, nor[i * 3 + 2], glow);
+    }
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('glow', new THREE.Float32BufferAttribute(glow, 3)); geo.setAttribute('ao', new THREE.BufferAttribute(ao, 1)); geo.computeBoundingSphere();
+  }
+  const rock = new THREE.Mesh(geo, caveLit(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.05, envMapIntensity: 0.4, side: THREE.DoubleSide }))); rock.receiveShadow = true; group.add(rock);
+  // the pond: crust and melt
+  const pondU = { uTime: U.uTime };
+  const pondMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  pondMat.onBeforeCompile = sh => { sh.uniforms.uTime = pondU.uTime;
+    sh.vertexShader = 'varying vec2 vP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vP = position.xz;');
+    sh.fragmentShader = 'uniform float uTime; varying vec2 vP;\n float lh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n float ln(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(lh(i), lh(i + vec2(1, 0)), f.x), mix(lh(i + vec2(0, 1)), lh(i + vec2(1, 1)), f.x), f.y); }\n' + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', `
+      vec2 q = vP * 2.2 + vec2(uTime * 0.05, uTime * 0.03);
+      float n = ln(q) * 0.55 + ln(q * 2.3 - uTime * 0.08) * 0.3 + ln(q * 5.1 + uTime * 0.1) * 0.15;
+      float crack = smoothstep(0.42, 0.5, n) * (1.0 - smoothstep(0.5, 0.6, n)) + smoothstep(0.62, 0.8, n);   // bright seams between drifting plates
+      float pulse = 0.85 + 0.15 * sin(uTime * 1.3 + n * 6.0);
+      vec3 crust = vec3(0.09, 0.05, 0.04), melt = vec3(1.0, 0.42, 0.08), hot = vec3(1.0, 0.85, 0.45);
+      vec3 cc = mix(crust, melt * pulse, clamp(crack, 0.0, 1.0)); cc = mix(cc, hot, smoothstep(0.8, 0.95, n));
+      vec4 diffuseColor = vec4(cc, 1.0);`); };
+  pondMat.customProgramCacheKey = () => 'lavaPond';
+  { const g = new THREE.CircleGeometry(1, 48); g.rotateX(-Math.PI / 2); g.scale(pool.rx * 1.1, 1, pool.rz * 1.1); g.translate(pool.x, pool.y, pool.z); group.add(new THREE.Mesh(g, pondMat)); }
+  // a soft glow over it; lava drips from the roof above it
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: ctx.tex.softDot, color: 0xff7a2a, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending }));
+  halo.position.set(pool.x, pool.y + 0.6, pool.z); halo.scale.set(4.2, 2.6, 1); group.add(halo);
+  { const dp = [], dc = [];
+    for (let i = 0; i < 26; i++) { const a = hash(i, 91) * Math.PI * 2, rr = Math.sqrt(hash(i, 92)) * 0.9, x = hall.x + Math.cos(a) * rr * hall.rx, z = hall.z + Math.sin(a) * rr * hall.rz;
+      let cy = null; for (let y = hall.floor + 0.8; y < hall.floor + hall.h + 1.2; y += 0.06) if (field(x, y, z) > 0) { cy = y; break; } if (cy === null) continue;
+      const len = 0.08 + 0.35 * hash(i, 93), g = new THREE.ConeGeometry(0.03 + 0.04 * hash(i, 94), len, 6); g.rotateX(Math.PI); g.translate(x, cy - len / 2 + 0.05, z);
+      const p = g.toNonIndexed().attributes.position, near = Math.hypot(x - pool.x, z - pool.z) < 2.5;
+      for (let v = 0; v < p.count; v++) { dp.push(p.getX(v), p.getY(v), p.getZ(v)); const t = clamp((cy - p.getY(v)) / len); const c = near ? lin(0x2a1a14).lerp(lin(0xff5a1a), t * t) : lin(0x221e1c).lerp(lin(0x4a3a34), t); dc.push(c.r, c.g, c.b); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(dp, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(dc, 3)); group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true }))); }
+  const cam = camera.position, mouthXZ = T.mouths.map(m => V(m.x, 0, m.z));
+  return {
+    group, rock, stats: { ms: Math.round(performance.now() - t0), rockTris: pos.length / 9 },
+    update(t) {
+      group.visible = mouthXZ.some(m => Math.hypot(m.x - cam.x, m.z - cam.z) < CAVE_LOOK.near) || (cam.x > B.x0 && cam.x < B.x1 && cam.z > B.z0 && cam.z < B.z1 && cam.y < H(cam.x, cam.z) + 0.5);
+      if (group.visible) halo.material.opacity = 0.38 + 0.08 * Math.sin(t * 1.7);
     },
   };
 }

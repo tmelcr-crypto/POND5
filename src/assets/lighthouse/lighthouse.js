@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { lin, smooth } from '../../core/math.js';
 import { fbm2 } from '../../core/noise.js';
-import { LIGHTHOUSE, lighthouseH, SEA_Y } from '../../world/layout.js';
+import { LIGHTHOUSE, lighthouseH, SEA_Y, dockBerths } from '../../world/layout.js';
 import { obstacles } from '../../world/bounds.js';
 import { islandLife, soilAt } from '../../world/islandLife.js';
 import { terrainMaterial } from '../../world/terrain.js';
@@ -131,7 +131,7 @@ export function createLighthouse(ctx) {
       g.translate(px, (J.deckY + bot) / 2 - 0.05, pz); steps.add(g, wood.clone().multiplyScalar(0.7));
     }
     for (const sgn of [-1, 1]) { const g = new THREE.BoxGeometry(J.x0 - J.x1, 0.12, 0.1); g.translate((J.x0 + J.x1) / 2, J.deckY - 0.1, J.z + sgn * (J.halfW - 0.05)); steps.add(g, wood.clone().multiplyScalar(0.65)); }
-    for (const [bx, bz] of J.bollards) { const g = new THREE.CylinderGeometry(0.09, 0.11, 0.42, 12); g.translate(bx, J.deckY + 0.21, bz); steps.add(g, lin(LK.iron)); const t = new THREE.CylinderGeometry(0.13, 0.13, 0.05, 12); t.translate(bx, J.deckY + 0.42, bz); steps.add(t, lin(LK.iron)); }
+    for (const [bx, bz] of dockBerths(J).flatMap(q => q.bollards).filter(([x, z], i, all) => all.findIndex(([x2, z2]) => Math.hypot(x2 - x, z2 - z) < 0.3) === i)) { const g = new THREE.CylinderGeometry(0.09, 0.11, 0.42, 12); g.translate(bx, J.deckY + 0.21, bz); steps.add(g, lin(LK.iron)); const t = new THREE.CylinderGeometry(0.13, 0.13, 0.05, 12); t.translate(bx, J.deckY + 0.42, bz); steps.add(t, lin(LK.iron)); }
   }
 
   /* ---- the tower: plinth, a banded shaft (doors cut through), the gallery, lantern frame, roof ---- */
