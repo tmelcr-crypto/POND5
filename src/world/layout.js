@@ -239,7 +239,7 @@ export function lavaNear(E, x, z) {
 export function emberWalls(p, prev, feet) {
   const E = EMBER, I = E.I; if (Math.abs(p.x - I.x) > I.reach || Math.abs(p.z - I.z) > I.reach) return;
   const back = () => { p.x = prev.x; p.z = prev.z; };
-  const B = E.lavaBox; if (p.x > B[0] && p.x < B[1] && p.z > B[2] && p.z < B[3]) { const q = lavaNear(E, p.x, p.z); if (q.d < q.w + 0.12 && feet < q.y + 0.6) { back(); return; } }
+  const B = E.lavaBox; if (p.x > B[0] && p.x < B[1] && p.z > B[2] && p.z < B[3]) { const q = lavaNear(E, p.x, p.z); if (q.d < q.w + 0.12 && feet < q.y + 0.6 && q.d < lavaNear(E, prev.x, prev.z).d) { back(); return; } }   // (never nearer: out of it is always fine)
   const d = Math.hypot(p.x - prev.x, p.z - prev.z); if (d < 1e-5) return;
   const g = q => Math.max(islandH(I, q.x, q.z), ...I.docks.map(k => k.deckAt(q.x, q.z)));
   if (feet > g(prev) + 0.6) return;   // (in the observatory, on its steps)
