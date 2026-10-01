@@ -79,9 +79,11 @@ export function createDailyTasks({ camera, st, clock, hours, seasons, inventory,
     return r;
   };
 
-  let check = 0;
+  let check = 0, off = false;   // off: the story is running (app/story.js), the daily tasks rest
   return {
+    set suppressed(v) { off = v; },
     update(dt) {
+      if (off) return;
       begin();
       const T = today.t, p = camera.position;
       // steps: the ground you cover walking (0.75 m a step)
@@ -105,6 +107,7 @@ export function createDailyTasks({ camera, st, clock, hours, seasons, inventory,
     page: {
       id: 'calendar', chip: '▦ Calendar', title: 'Calendar',
       html() {
+        if (off) return '<p class="sub">While the story runs, its own tasks take the place of these (the Story page).</p>';
         begin();
         const days = Object.keys(S.days).map(Number).sort((a, b) => a - b), rows = [];
         days.forEach(d => { const r = S.days[d]; if (!rows.length || rows[rows.length - 1].s !== r.s) rows.push({ s: r.s, list: [] }); rows[rows.length - 1].list.push(d); });

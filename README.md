@@ -61,6 +61,7 @@ A workflow is included in `.github/workflows/pages.yml`. Push to `main`, then en
 | `T` | The icon beside it | Take / put back the hand lantern, draw water at the well, sow or harvest a garden plot, climb the treehouse ladder |
 | `V` | Curtain icon | Open / close the curtains of the window you look at |
 | `B` | Boat button | Board, anchor, weigh anchor, leave the boat |
+| `B` | Seaplane button | Climb in, tie up, refuel, pour in the fuel can, climb out; `W` `S` throttle on the water, climb / descend in the air, `A` `D` turn |
 | `H` | Fish button | Cast, reel in; tap to strike |
 | hold `Z` | Hold the fast-forward button | Time-lapse while sitting or in bed |
 | `` ` `` | Stats button (top right) | Debug overlay: FPS, draw calls, triangles |
@@ -584,6 +585,35 @@ export function createRoseBush(ctx) {
   wind. `finalizeScene` puts it on every lit material except the cabin interior. It dims only the sun's direct light
   (diffuse and specular) with one texture lookup per fragment, never the sky / ambient light or the cabin's lamps and
   fire; its strength (35% at midday) follows the sun down to nothing at sunset.
+- **The seaplane** (`assets/water/seaplane.js`, flying: `app/flying.js`, `CONFIG.plane`): a cream-and-red floatplane moored
+  off the north side of the home jetty's head (its wing over deep water past the head's end, clear of the lamp post; the
+  wing's underside 3.4 m over the water, ~0.5 m over your head on a jetty). The same button as the boat (B on desktop) climbs in from a jetty, ties up, refuels
+  and climbs out. On the water the stick is the throttle and the rudder; full throttle held runs it up to 13 m/s and it
+  lifts off. In the air W / S climb and descend, A / D bank and turn, the speed looks after itself. It can never hit
+  anything: every 0.1 s it surveys the ground under and ahead (31 height samples in rings out to 22 m, at 0, 0.8, 1.6, 2.6
+  and 3.8 s along its course) for the lowest safe height, 20 m over land (and over water shallower than 0.35 m), 1 m less
+  per metre away from it; it climbs to keep 3 m above that, turns away from a slope too steep to climb, and is never let
+  below the floor right under it. It touches down only on open water, flaring gently. 175 m from home it turns back by
+  itself. The fuel meter (with height and speed) shows while aboard: a full tank is 300 s of flying (taxiing is free); with
+  less than 8% it will not take off, run dry it glides down onto the water; any jetty's berth fills it (either side of
+  every jetty head; the boat keeps off the plane's berth and the plane off the boat's). The tank starts dry: the fuel can
+  (below) unlocks it for good. Measured: +1 draw call (the plane is ~6 draws while in view).
+- **The fuel can's chest** (`app/fuelQuest.js`, the chest `CHESTS[1]` against the cabin's east wall): six rows of three
+  brass dials, one row per code letter (`story/content.js` `CODES`): inside the windmill, the beach hut, the observatory
+  and the marsh lodge, by the lighthouse door and on the islet. Only all six right lift the lid; the fuel can inside goes
+  into the seaplane's tank. The code letters are always out in free play.
+- **Story mode: The Letters** (`app/story.js`, words in `story/content.js`, places in `story/sites.js`): "Begin the story" on
+  the start screen. You wake one winter night in the cabin with no memory and find letters you wrote to yourself before
+  the forgetting, hidden along the ways you used to walk (60 letters at 60 places on every island and rock: post-and-
+  envelope props, `assets/story/letterPosts.js`, two instanced draws; read them with the envelope icon, `app/letters.js`,
+  kept on the journal's Letters page). 200 story days in 20 chapters, one per season (the world's season follows the
+  story's calendar): each day one to three tasks shown top left and on the journal's Story page (find a letter, light a
+  fire, catch, cook, harvest, sail or fly somewhere, sleep in the observatory, look through the telescope, ...); when all
+  are done the next sleep starts the next day. Twenty flashbacks come back on chosen days (placeholder pictures drawn on a
+  canvas: each has a `picture` description and an `image` field for the real one). The fuel can's chest is the winter of
+  the second year. The last chapters mend the lighthouse radio (four parts from the islands' houses), call your son Tomas
+  on it, and end on the home jetty as his blue seaplane flies in, lands and taxis up. The panel's Story day box jumps to
+  any day for checking. The ordinary daily tasks rest while the story runs.
 - **Build order:** the world is built after every diorama asset and reseeds the random stream with
   `CONFIG.world.seed`, so the plot looks exactly as before and the world can be re-rolled on its own.
 - **Tuning:** every number lives in `src/config.js`.

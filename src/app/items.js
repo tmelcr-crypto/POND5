@@ -343,7 +343,9 @@ export function createItems({ scene, camera, st, clock, inventory, ambience, wat
   const keeps = [];
   function addKeepsakes(ks) { ks.kinds.forEach((kind, i) => { addSource('ks_' + kind, kind, [ks.points[i]], () => ks.hide(i), () => ks.show(i), null, false); sources[sources.length - 1].once = true; keeps.push(kind); }); }
   /** The cups of coffee in the houses (assets/cabin/coffeeCups.js): one source each, back a day after you take one. */
+  /** One story thing to pick up once (app/story.js: the radio's parts): its mesh hides when taken and never comes back. */
+  function addThing(id, kind, at, mesh) { addSource(id, kind, [at], () => { mesh.visible = false; }, () => { mesh.visible = true; }, () => ({ geo: mesh.geometry, mat: mesh.material, m: mesh.matrixWorld.clone() }), false); sources[sources.length - 1].once = true; }
   function addCups(c) { c.cups.forEach((cup, i) => addSource('coffee' + i, 'coffee', [cup.at], () => { cup.mesh.visible = false; }, () => { cup.mesh.visible = true; }, () => ({ geo: c.geo, mat: c.mat, m: cup.mesh.matrixWorld.clone() }))); }
   const found = () => keeps.filter(k => taken['ks_' + k + ':0'] !== undefined);
-  return { addKeepsakes, addCups, keepsakes: () => ({ all: keeps.slice(), found: found() }), update, pickUpdate, use, sfx, drop, model: kind => model(kind), season: s => { season = s; }, get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
+  return { addKeepsakes, addCups, addThing, keepsakes: () => ({ all: keeps.slice(), found: found() }), update, pickUpdate, use, sfx, drop, model: kind => model(kind), season: s => { season = s; }, get aimed() { return aimed; }, get counts() { return { sources: sources.map(s => [s.id, s.points.length]), thrown: thrown.length, taken: Object.keys(taken).length }; } };
 }

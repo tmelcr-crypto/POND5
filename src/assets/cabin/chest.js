@@ -64,6 +64,10 @@ export function createChests(ctx) {
     for (const bx of [-L * 0.3, L * 0.3]) { iron.push(box(0.04, Hh, D + 0.008, bx, Hh / 2, 0)); iron.push(box(0.04, 0.008, D + 0.008, bx, 0.004, 0)); }   // bands round the box
     iron.push(box(0.1, 0.12, 0.012, 0, Hh - 0.07, D / 2 + 0.004));                                                               // lock plate
     iron.forEach(g => body.push(tint(g, IRON)));
+    if (C.lock) {   // a combination lock: an iron plate on the front with C.lock rows of three brass dials (app/fuelQuest.js)
+      body.push(tint(box(0.5, 0.27, 0.012, 0, Hh * 0.47, D / 2 + 0.008), IRON));
+      for (let r = 0; r < C.lock; r++) for (let k = 0; k < 3; k++) { const g = new THREE.CylinderGeometry(0.018, 0.018, 0.018, 10).toNonIndexed(); g.rotateX(Math.PI / 2); g.translate((r % 2 ? 0.12 : -0.12) + (k - 1) * 0.045, Hh * 0.47 + 0.08 - Math.floor(r / 2) * 0.08, D / 2 + 0.02); if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); body.push(tint(g, [1.5, 1.05, 0.45])); }
+    }
     const rope = [];
     for (const sx of [-1, 1]) { const t = new THREE.TorusGeometry(0.05, 0.012, 5, 12, Math.PI).toNonIndexed(); t.rotateY(Math.PI / 2); t.rotateX(Math.PI); t.translate(sx * (L / 2 + 0.012), Hh * 0.7, 0); rope.push(t); }
     rope.forEach(g => body.push(tint(g, ROPE)));
