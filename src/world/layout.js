@@ -60,6 +60,7 @@ export const SHELF = (() => {
 })();
 export const CHESTS = [
   { id: 'cabin', x: HOUSE.x - 0.45, z: HOUSE.z - CB.ZW - 0.11 - 0.26 - 0.25, rot: Math.PI, length: 0.86, depth: 0.5, height: 0.52 },   // under the back window (house x -0.9..0), facing away from the wall; 0.26 m out so the open lid (0.20 m behind its hinge) clears the logs
+  { id: 'code', x: HOUSE.x + CB.XW + 0.11 + 0.26 + 0.25, z: HOUSE.z - 0.35, rot: Math.PI / 2, length: 0.8, depth: 0.5, height: 0.5, lock: 6 },   // against the east wall, facing east: six rows of dials (app/fuelQuest.js), the fuel can inside
 ];
 /** Distance to the nearest chest's footprint (< 0 under it): the grass and flowers keep out of it. */
 export function chestDist(x, z) {

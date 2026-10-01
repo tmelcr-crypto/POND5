@@ -80,10 +80,12 @@ export function createChestUI({ camera, st, inventory, items, chests }) {
   function openUI(s) { if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock(); open = s; hand = null; st.chestOpen = true; st.vel.set(0, 0, 0); ui.classList.remove('hide'); icon.classList.add('hide'); countEl.classList.add('hide'); render(); }
   function close() { if (!open) return; putBack(); countEl.classList.add('hide'); ui.classList.add('hide'); open = null; st.chestOpen = false; }
   let near = null;
-  icon.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (near) openUI(near); });
+  let locked = () => false, onLocked = () => {};   // a chest with a combination lock (app/fuelQuest.js): its own screen until it is solved
+  const tryOpen = s => { if (s.c.data.lock && locked(s.c.id)) onLocked(s.c); else openUI(s); };
+  icon.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (near) tryOpen(near); });
   addEventListener('meadow-tap', e => {
     if (open) { close(); return; }                                                     // a tap on the scene, a click or E: close
-    if (e.detail !== 'touch' && near && !(items && items.aimed)) openUI(near);         // desktop: click / E opens (touch: the icon)
+    if (e.detail !== 'touch' && near && !(items && items.aimed)) tryOpen(near);         // desktop: click / E opens (touch: the icon)
   });
   let down = null;   // desktop, unlocked: a click on the scene (not a drag) closes; a drag looks around
   addEventListener('pointerdown', e => { if (open && e.pointerType === 'mouse' && e.target.tagName === 'CANVAS') down = [e.clientX, e.clientY]; });
@@ -101,7 +103,7 @@ export function createChestUI({ camera, st, inventory, items, chests }) {
       const inView = d.copy(top).sub(camera.position).normalize().dot(f) > Math.cos(CC.cone);
       const here = canUse && dist < CC.reach && inView && inCabin(camera.position) === inCabin(top);   // not through the cabin's wall
       if (here && !near) near = s;
-      const want = open === s || (here && !open) ? 1 : 0;
+      const want = open === s || (here && !open && !(s.c.data.lock && locked(s.c.id))) ? 1 : 0;
       if (want !== s.want) { s.want = want; if (items) items.sfx(want ? 'creak' : 'clunk'); }
       s.lid += (s.want - s.lid) * Math.min(1, dt * 4); s.c.lid.rotation.x = -CC.lidOpen * s.lid;
       if (open === s && dist > CC.reach + 0.6) close();
@@ -112,5 +114,7 @@ export function createChestUI({ camera, st, inventory, items, chests }) {
   }
   /** While the storage is open it has the camera: look around only (app/controls.js takeover). */
   function hold() { if (!open) return false; camera.position.copy(st.pos); camera.rotation.set(st.pitch, st.yaw, 0); return true; }
-  return { update, hold, get open() { return !!open; }, get state() { return state.map(s => ({ id: s.c.id, store: s.store })); } };
+  /** Put n of a kind into a chest's storage (the first free tile). */
+  function put(id, kind, n = 1) { const s = state.find(q => q.c.id === id); if (!s) return; const i = s.store.findIndex(x => !x); if (i >= 0) { s.store[i] = { kind, n }; save(s); } }
+  return { update, hold, put, set locked(f) { locked = f; }, set onLocked(f) { onLocked = f; }, get open() { return !!open; }, get state() { return state.map(s => ({ id: s.c.id, store: s.store })); } };
 }

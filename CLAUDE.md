@@ -67,7 +67,7 @@ quality near the camera. See `ROADMAP.md`.
 textures, shared uniforms, material patches). `src/world/` holds the site itself (layout
 and terrain height, sky, lights, terrain mesh, day/night). `src/assets/` holds one factory
 per scene element, each exporting `create<Name>(ctx)` that adds its meshes to the scene and
-returns whatever the render loop needs. `src/app/controls.js` has flight, touch controls,
+returns whatever the render loop needs. `src/story/` holds the story mode's words (`content.js`: letters, flashbacks, 200 days) and letter places (`sites.js`); `app/story.js` runs it. `src/app/controls.js` has flight, touch controls,
 the settings panel and collisions. `src/engine/detailManager.js` + `src/world/plotDetail.js` put the plot's assets on distance bands (the island's
 15 m / 19 m rules; lights are never toggled). `src/engine/finalizeScene.js` runs once after every asset
 is built: it makes outdoor materials skip point lights (so cabin lamps don't leak through

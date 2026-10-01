@@ -305,6 +305,22 @@ export const CONFIG = {
   chest: { reach: 2.2, cone: 0.6, lidOpen: 1.69, longPress: 450 },   // lidOpen 97 degrees: the lid then reaches 0.20 m behind its hinge (keep the chest that far from a wall)   // m, rad (in view), rad (lid open), ms (a press that picks how many)
 
   // The sailboat (app/boating.js)
+  // The floatplane (app/flying.js, assets/water/seaplane.js)
+  plane: {
+    reach: 3.2,                    // m from its floats / fuselage within which you can climb in (from a jetty or wading)
+    berthOut: 1.05, berthBack: 2.0, // m further out than the boat's berth (the floats), and on along the jetty (the wing beyond the head's end, clear of its lamp post)
+    taxiSpeed: 5, reverse: 1.2, taxiAccel: 1.5, runAccel: 3.2, waterDrag: 2.6, taxiTurn: 0.7,   // m/s, m/s^2, rad/s on the water
+    liftSpeed: 13,                 // m/s: it leaves the water at this speed (full throttle held)
+    cruise: 19, approach: 15, glideSpeed: 14,   // m/s in level flight, descending, gliding with the tank dry
+    climb: 4, sink: 4, climbMax: 6, vAccel: 3, glide: 1.6,   // m/s up and down with the stick; the most the terrain floor asks; m/s^2; sink with no fuel
+    bank: 0.55,                    // rad, the stick fully over (a turn of ~0.3 rad/s at cruise)
+    clear: 20, cone: 1.0, shallow: 0.35,   // m above land (and water shallower than shallow m); 1 m less for each m away from it
+    ceiling: 70,                   // m above the sea
+    bound: 175,                    // m from home: beyond it the plane turns back by itself
+    endurance: 300,                // s of flying on a full tank (taxiing costs nothing)
+    minTakeoff: 0.08, low: 0.2,    // the least fuel to take off with; the low-fuel warning
+    dockReach: 9, dockSpeed: 3,    // the dock button shows within this of a berth, slower than this
+  },
   boat: {
     maxSpeed: 4.5, reverse: 0.9,   // m/s ahead in a full wind on the best point of sail, astern
     minSpeed: 2.0,                 // m/s with no wind at all (the wind adds up to maxSpeed)

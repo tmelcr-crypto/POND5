@@ -53,6 +53,11 @@ export const KINDS = {
   birdNest: { name: 'Bird\'s nest', use: 'keep', keepsake: true, hint: 'Put it on the shelf in the cabin', r: 0.08, color: 0x6e5236, icon: '<path d="M3.5 13c1 4 4.5 6 8.5 6s7.5-2 8.5-6z"/><path d="M4 15.5l16-1.5M5.5 17.5l13-2"/><ellipse cx="9.5" cy="11.3" rx="1.8" ry="2.2"/><ellipse cx="14" cy="11" rx="1.8" ry="2.2"/>' },
   antler: { name: 'Deer antler', use: 'keep', keepsake: true, hint: 'Put it on the shelf in the cabin', r: 0.1, color: 0xdccfb2, icon: '<path d="M5 20c3-3 5.5-7.5 7-14"/><path d="M8 15.5c-1.5-1-2.5-3-2.5-5M10.3 11c1.8-.3 3.5-1.5 4.5-3.5M11.5 7.2c1-.7 1.7-2 1.8-3.4"/><circle cx="4.5" cy="20.5" r="1"/>' },
   horseshoe: { name: 'Old horseshoe', use: 'keep', keepsake: true, hint: 'Put it on the shelf in the cabin', r: 0.07, color: 0x6a4a36, icon: '<path d="M7 20V12a5 5 0 0 1 10 0v8"/><path d="M4.5 20h4M15.5 20h4"/><path d="M8.5 9.5h.01M12 7h.01M15.5 9.5h.01"/>' },
+  fuelCan: { name: 'Fuel can', use: 'hold', hint: 'Pour it into the seaplane at the home jetty', r: 0.12, color: 0xb02a22, icon: '<path d="M6 7h9l3 3v10H6z"/><path d="M8 7V4.5h5V7"/><path d="M9 13.5c0 2 3 2 3 0s-1.5-3-1.5-3S9 11.5 9 13.5z"/>' },   // app/flying.js, app/fuelQuest.js
+  radioValve: { name: 'Radio valve', use: 'hold', hint: 'For the old radio in the lighthouse', r: 0.04, color: 0xb8c4c8, icon: '<path d="M9 20h6M10 20v-2h4v2"/><path d="M9 18V9a3 3 0 0 1 6 0v9z"/><path d="M11 9v5M13 9v5"/>' },   // app/story.js
+  copperCoil: { name: 'Copper coil', use: 'hold', hint: 'For the old radio in the lighthouse', r: 0.04, color: 0xc0703a, icon: '<path d="M5 8c0-2 14-2 14 0s-14 2-14 4 14 2 14 4-14 2-14 4"/><path d="M5 8v-3M19 20v-3"/>' },
+  aerialWire: { name: 'Aerial wire', use: 'hold', hint: 'For the old radio in the lighthouse', r: 0.04, color: 0x8a8f94, icon: '<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="3"/><path d="M18 12h3"/>' },
+  battery: { name: 'Battery', use: 'hold', hint: 'For the old radio in the lighthouse', r: 0.05, color: 0x2f4a6a, icon: '<path d="M4 8h14v10H4z"/><path d="M18 11h2v4h-2"/><path d="M7 13h4M9 11v4"/>' },
   petal: { name: 'Rose petal', use: 'release', r: 0.018, color: 0xc0283c, icon: '<path d="M12 20.5c-5.2-3-6.5-9.4-3.2-15 2.1 2.9 6.2 3.2 8.4 2 1.2 6.2-.8 10.6-5.2 13z"/><path d="M12 20.5c-.2-4.4 1-8.4 4-11.6"/>' },
 };
 /** The icon of a kind as an SVG string, `size` px. */

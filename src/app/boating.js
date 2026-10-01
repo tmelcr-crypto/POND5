@@ -25,7 +25,8 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
   const BC = CONFIG.boat, PC = CONFIG.player, DOCKS = [JETTY, LIGHTHOUSE.jetty, ...ISLAND_DOCKS];   // the home jetty, the lighthouse's and the four islands'
   let J = JETTY, BT = dockBerths(JETTY)[0];   // the jetty and berth the boat is at or nearest to (docking, mooring lines, stepping ashore)
   const BERTHS = DOCKS.flatMap(d => dockBerths(d).map(q => ({ ...q, dock: d })));
-  const nearestBerth = () => BERTHS.reduce((a, q) => Math.hypot(b.x - q.x, b.z - q.z) < Math.hypot(b.x - a.x, b.z - a.z) ? q : a);
+  let blocked = () => false;   // a berth the seaplane is tied up at (app/flying.js)
+  const nearestBerth = () => BERTHS.filter(q => !blocked(q)).reduce((a, q) => Math.hypot(b.x - q.x, b.z - q.z) < Math.hypot(b.x - a.x, b.z - a.z) ? q : a);
   const lines = q => boat.mooringLines(true, { bollards: q.bollards, deckY: q.dock.deckY });
   const btn = document.getElementById('btnBoat');
   const svg = p => `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
@@ -207,7 +208,7 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
     T += dt; boomA += (boomTarget() - boomA) * Math.min(1, dt * (boomOverride !== null ? 2.5 : 1.2));   // the boom swings across, not snaps
     if (!mode) {
       st.aboard = false;
-      if ((check -= dt) <= 0) { check = 0.15; const near = st.walk && st.playing && hullDist(st.pos.x, st.pos.z) < BC.reach && (jettyDeckY(st.pos.x, st.pos.z) > -1e9 || b.aground || H(st.pos.x, st.pos.z) > seaY() - CONFIG.island.wadeDepth); setButton(near ? 'board' : ''); }
+      if ((check -= dt) <= 0) { check = 0.15; const near = st.walk && st.playing && !st.inPlane && hullDist(st.pos.x, st.pos.z) < BC.reach && (jettyDeckY(st.pos.x, st.pos.z) > -1e9 || b.aground || H(st.pos.x, st.pos.z) > seaY() - CONFIG.island.wadeDepth); setButton(near ? 'board' : ''); }
       pose();
       return false;
     }
@@ -236,5 +237,5 @@ export function createBoating({ camera, st, boat, resetInput = () => {} }) {
   }
   /** Back at the home jetty's berth, tied up (you fell asleep away from home and woke in the cabin: app/sleeping.js). */
   function home() { if (mode) return; BT = BERTHS[0]; J = BT.dock; Object.assign(b, { x: BT.x, z: BT.z, h: BT.heading, speed: 0, docked: true, aground: false }); rope.visible = false; lines(BT); pose(); }
-  return { update, home, state: b, get mode() { return mode; }, get anchored() { return mode === 'anchored'; }, set onSplash(f) { splash = f; } };
+  return { update, home, state: b, get mode() { return mode; }, get anchored() { return mode === 'anchored'; }, set onSplash(f) { splash = f; }, set blocked(f) { blocked = f; } };
 }
